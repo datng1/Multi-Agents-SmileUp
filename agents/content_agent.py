@@ -1,4 +1,5 @@
 from graph.state import AgentState, DraftContent
+from tools.gemini_client import GeminiUnavailable, generate_draft_with_gemini
 from utils.logger import get_logger
 
 
@@ -9,10 +10,17 @@ def run_content_agent(state: AgentState) -> AgentState:
     logger.info("Content Agent creating draft")
     if state.get("approval_status") == "needs_revision":
         state["revision_count"] = state.get("revision_count", 0) + 1
-    state["draft_content"] = _offline_draft(state)
+
+    try:
+        state["draft_content"] = generate_draft_with_gemini(state)
+        state["messages"].append({"role": "content", "content": "Draft content created with Gemini"})
+    except (GeminiUnavailable, Exception) as exc:
+        logger.warning("Gemini draft generation failed, using offline draft: %s", exc)
+        state["draft_content"] = _offline_draft(state)
+        state["messages"].append({"role": "content", "content": f"Draft content created locally ({exc})"})
+
     state["approval_status"] = "pending"
     state["current_step"] = "content_creator"
-    state["messages"].append({"role": "content", "content": "Draft content created"})
     return state
 
 

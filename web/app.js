@@ -57,7 +57,7 @@ function resetAgents() {
 async function loadStatus() {
   const response = await fetch("/api/status");
   const status = await response.json();
-  modeValue.textContent = status.mock_mode ? "Mock mode" : "Live mode";
+  modeValue.textContent = `${status.ai_provider || "Local"} · ${status.ai_model || "template"}`;
   dryRunValue.textContent = status.dry_run ? "Dry-run on" : "Real publish";
   connectionState.textContent = "Ready";
   connectionState.classList.add("ready");

@@ -35,6 +35,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 {
                     "mock_mode": config.MOCK_MODE,
                     "dry_run": config.DRY_RUN,
+                    "ai_provider": config.AI_PROVIDER,
+                    "ai_model": config.GEMINI_MODEL if config.AI_PROVIDER == "Gemini" else "local-template",
                     "warnings": config.CONFIG_WARNINGS,
                 }
             )
