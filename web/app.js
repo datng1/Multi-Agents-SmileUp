@@ -11,10 +11,16 @@ const durationValue = document.querySelector("#durationValue");
 const approvalBadge = document.querySelector("#approvalBadge");
 const dailyReport = document.querySelector("#dailyReport");
 const dailyStrategy = document.querySelector("#dailyStrategy");
-const postTitle = document.querySelector("#postTitle");
-const postBody = document.querySelector("#postBody");
-const postCta = document.querySelector("#postCta");
-const postTags = document.querySelector("#postTags");
+const finalTitleInput = document.querySelector("#finalTitleInput");
+const finalBodyInput = document.querySelector("#finalBodyInput");
+const finalCtaInput = document.querySelector("#finalCtaInput");
+const finalTagsInput = document.querySelector("#finalTagsInput");
+const finalCreativeSelect = document.querySelector("#finalCreativeSelect");
+const finalCharCount = document.querySelector("#finalCharCount");
+const resetFinalButton = document.querySelector("#resetFinalButton");
+const copyFinalButton = document.querySelector("#copyFinalButton");
+const fbPreviewText = document.querySelector("#fbPreviewText");
+const fbPreviewImage = document.querySelector("#fbPreviewImage");
 const publishStatus = document.querySelector("#publishStatus");
 const publishMode = document.querySelector("#publishMode");
 const postId = document.querySelector("#postId");
@@ -58,6 +64,8 @@ const agentCards = [...document.querySelectorAll(".agent-card")];
 
 let activeSourceMode = "auto";
 let uploadedCreativeImage = null;
+let originalFinalDraft = null;
+let currentCreativeAssets = [];
 
 const agentOrder = [
   "crawler",
@@ -210,6 +218,7 @@ function renderResult(result, logs, durationMs) {
   const approval = result.approval_status || "pending";
   const source = result.data_source || (result.ad_library_ads?.length ? "ad_library" : "manual");
   const adCount = Array.isArray(result.ad_library_ads) ? result.ad_library_ads.length : 0;
+  const creativeAssets = result.creative_assets || [];
 
   approvalValue.textContent = approval;
   approvalBadge.textContent = approval;
@@ -222,10 +231,6 @@ function renderResult(result, logs, durationMs) {
   durationValue.textContent = typeof durationMs === "number" ? `${durationMs.toLocaleString("vi-VN")} ms` : "-";
   dailyReport.textContent = result.daily_report || "-";
   dailyStrategy.textContent = result.daily_strategy || "-";
-  postTitle.textContent = draft.title || "-";
-  postBody.textContent = draft.body || "";
-  postCta.textContent = draft.call_to_action || "";
-  postTags.textContent = (draft.hashtags || []).join(" ");
   publishStatus.textContent = publish.publisher_status || "-";
   publishMode.textContent = publish.publish_mode || "-";
   postId.textContent = publish.published_post_id || "-";
@@ -245,7 +250,8 @@ function renderResult(result, logs, durationMs) {
   renderInsights(insights);
   renderReferencedAds(result.ad_library_ads || []);
   renderContentPlan(result.content_plan || []);
-  renderCreatives(result.creative_assets || []);
+  renderCreatives(creativeAssets);
+  setFinalDraft(draft, creativeAssets);
   updateManualCount(result.manual_posts_count || countManualPosts());
 }
 
@@ -382,6 +388,94 @@ function renderCreatives(assets) {
     .join("");
 }
 
+function setFinalDraft(draft, assets) {
+  originalFinalDraft = {
+    title: draft.title || "",
+    body: draft.body || "",
+    call_to_action: draft.call_to_action || "",
+    hashtags: Array.isArray(draft.hashtags) ? draft.hashtags : [],
+  };
+  currentCreativeAssets = Array.isArray(assets) ? assets : [];
+  finalTitleInput.value = originalFinalDraft.title;
+  finalBodyInput.value = originalFinalDraft.body;
+  finalCtaInput.value = originalFinalDraft.call_to_action;
+  finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
+  renderFinalCreativeOptions();
+  updateFacebookPreview();
+}
+
+function renderFinalCreativeOptions() {
+  finalCreativeSelect.innerHTML = "";
+  if (!currentCreativeAssets.length) {
+    const option = document.createElement("option");
+    option.value = "-1";
+    option.textContent = "Chưa có ảnh creative";
+    finalCreativeSelect.appendChild(option);
+    return;
+  }
+
+  currentCreativeAssets.forEach((asset, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = `${String(index + 1).padStart(2, "0")} · ${asset.service_line || asset.title || "SmileUp creative"}`;
+    finalCreativeSelect.appendChild(option);
+  });
+  finalCreativeSelect.value = "0";
+}
+
+function updateFacebookPreview() {
+  const message = formatFinalFacebookMessage();
+  fbPreviewText.textContent = message || "Chạy workflow để xem bản preview cuối.";
+  finalCharCount.textContent = `${message.length.toLocaleString("vi-VN")} ký tự`;
+  safePayload.textContent = message || "Payload preview sẽ hiện ở đây.";
+
+  const selectedIndex = Number(finalCreativeSelect.value);
+  const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
+  if (selectedAsset?.image_path) {
+    fbPreviewImage.className = "fb-preview-image";
+    fbPreviewImage.innerHTML = `<img src="${escapeHtml(selectedAsset.image_path)}" alt="${escapeHtml(selectedAsset.title || "SmileUp creative")}" />`;
+  } else {
+    fbPreviewImage.className = "fb-preview-image empty";
+    fbPreviewImage.textContent = "Ảnh creative sẽ hiện ở đây.";
+  }
+}
+
+function formatFinalFacebookMessage() {
+  const tags = normalizeHashtags(finalTagsInput.value).join(" ");
+  return [finalTitleInput.value, finalBodyInput.value, finalCtaInput.value, tags]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function normalizeHashtags(value) {
+  return String(value || "")
+    .split(/[\s,]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
+}
+
+async function copyFinalCaption() {
+  const message = formatFinalFacebookMessage();
+  if (!message) {
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(message);
+    copyFinalButton.textContent = "Đã copy";
+    setTimeout(() => {
+      copyFinalButton.textContent = "Copy caption cuối";
+    }, 1200);
+  } catch {
+    safePayload.textContent = message;
+    copyFinalButton.textContent = "Đã đưa vào payload";
+    setTimeout(() => {
+      copyFinalButton.textContent = "Copy caption cuối";
+    }, 1200);
+  }
+}
+
 function countManualPosts() {
   const text = manualInput.value.trim();
   if (!text) {
@@ -467,8 +561,26 @@ creativeImageInput.addEventListener("change", () => {
   reader.readAsDataURL(file);
 });
 creativeImageMode.addEventListener("change", syncCreativeImageMode);
+finalTitleInput.addEventListener("input", updateFacebookPreview);
+finalBodyInput.addEventListener("input", updateFacebookPreview);
+finalCtaInput.addEventListener("input", updateFacebookPreview);
+finalTagsInput.addEventListener("input", updateFacebookPreview);
+finalCreativeSelect.addEventListener("change", updateFacebookPreview);
+resetFinalButton.addEventListener("click", () => {
+  if (!originalFinalDraft) {
+    return;
+  }
+  finalTitleInput.value = originalFinalDraft.title;
+  finalBodyInput.value = originalFinalDraft.body;
+  finalCtaInput.value = originalFinalDraft.call_to_action;
+  finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
+  finalCreativeSelect.value = currentCreativeAssets.length ? "0" : "-1";
+  updateFacebookPreview();
+});
+copyFinalButton.addEventListener("click", copyFinalCaption);
 setSourceMode("auto");
 syncCreativeImageMode();
+updateFacebookPreview();
 loadStatus().catch(() => {
   modeValue.textContent = "Unknown";
   dryRunValue.textContent = "-";

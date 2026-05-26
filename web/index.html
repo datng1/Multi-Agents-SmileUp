@@ -229,13 +229,57 @@
         </section>
 
         <section class="panel panel-wide post-panel">
-          <div class="panel-header"><div><span class="label">Approved asset</span><h2>Bài đăng Facebook</h2></div></div>
-          <article class="post-preview">
-            <h3 id="postTitle">-</h3>
-            <p id="postBody"></p>
-            <p id="postCta" class="cta"></p>
-            <p id="postTags" class="tags"></p>
-          </article>
+          <div class="panel-header">
+            <div><span class="label">Final review</span><h2>Bản cuối trước khi lên Facebook</h2></div>
+            <span id="finalCharCount" class="meta-chip">0 ký tự</span>
+          </div>
+          <div class="final-review-grid">
+            <div class="final-editor">
+              <label>
+                <span class="label">Hook / dòng mở đầu</span>
+                <input id="finalTitleInput" class="final-input" type="text" placeholder="Hook hiển thị đầu bài..." />
+              </label>
+              <label>
+                <span class="label">Nội dung bài đăng</span>
+                <textarea id="finalBodyInput" class="final-textarea" rows="11" spellcheck="false" placeholder="Nội dung cuối cùng sẽ hiện ở đây sau khi chạy workflow."></textarea>
+              </label>
+              <div class="final-two-col">
+                <label>
+                  <span class="label">CTA</span>
+                  <input id="finalCtaInput" class="final-input" type="text" placeholder="Inbox SmileUp..." />
+                </label>
+                <label>
+                  <span class="label">Hashtags</span>
+                  <input id="finalTagsInput" class="final-input" type="text" placeholder="#SmileUp #RangSu #Implant" />
+                </label>
+              </div>
+              <label>
+                <span class="label">Ảnh đi kèm</span>
+                <select id="finalCreativeSelect" class="mode-select">
+                  <option value="-1">Chưa có ảnh creative</option>
+                </select>
+              </label>
+              <div class="final-actions">
+                <button id="resetFinalButton" class="secondary-button" type="button">Khôi phục bản AI</button>
+                <button id="copyFinalButton" class="primary-button compact" type="button">Copy caption cuối</button>
+              </div>
+            </div>
+
+            <article class="facebook-preview" aria-label="Facebook post preview">
+              <div class="fb-preview-top">
+                <img src="/assets/smileup-logo.jfif" alt="SmileUp Dental Clinic" />
+                <div>
+                  <strong>SmileUp Dental Clinic</strong>
+                  <span>Được tài trợ · Công khai</span>
+                </div>
+                <button type="button" aria-label="Facebook options">•••</button>
+              </div>
+              <div id="fbPreviewText" class="fb-preview-text">Chạy workflow để xem bản preview cuối.</div>
+              <div id="fbPreviewImage" class="fb-preview-image empty">Ảnh creative sẽ hiện ở đây.</div>
+              <div class="fb-preview-stats"><span>Thích 0</span><span>0 bình luận · 0 lượt chia sẻ</span></div>
+              <div class="fb-preview-actions"><span>Thích</span><span>Bình luận</span><span>Chia sẻ</span></div>
+            </article>
+          </div>
         </section>
 
         <section class="panel panel-wide">
