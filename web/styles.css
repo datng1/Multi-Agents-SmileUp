@@ -490,6 +490,10 @@ h2 {
   grid-column: 1 / -1;
 }
 
+.hidden-panel {
+  display: none;
+}
+
 .source-panel,
 .post-panel {
   border-color: rgba(15, 118, 110, 0.26);
