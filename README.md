@@ -77,6 +77,16 @@ Noi dung bai post ve nieng rang trong suot...
 
 Khi o nay co noi dung, Crawler Agent se dung du lieu nhap tay thay cho Facebook API/mock.
 
+## Trend va hinh anh
+
+Workflow hien co them:
+
+- Phan tich trend Facebook tu bai doi thu ban dan vao.
+- Uu tien noi dung cho rang su tham my, phuc hinh rang su va cay ghep implant.
+- Tao visual creative brief an toan cho anh goc cua SmileUp, anh co license, hoac anh AI tao moi.
+
+Luu y: he thong khong tai su dung/rebrand anh doi thu thanh anh cua SmileUp. Neu can anh cho chien dich, hay dung anh phong kham SmileUp, anh da co quyen, hoac tao anh moi theo creative brief.
+
 ## Cau Hinh That
 
 Copy `.env.example` thanh `.env`, dien cac bien:

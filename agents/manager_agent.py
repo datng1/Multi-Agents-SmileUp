@@ -52,16 +52,17 @@ def _compliance_flags(draft: dict) -> list[str]:
 
 def _daily_strategy(state: AgentState) -> str:
     return (
-        "Thông điệp chủ đạo: Tư vấn nha khoa cá nhân hóa, minh bạch và an toàn.\n"
-        "Dịch vụ trọng tâm: Khám tổng quát, tẩy trắng răng, niềng răng trong suốt.\n"
+        "Thông điệp chủ đạo: Răng sứ và implant cá nhân hóa, minh bạch và an toàn.\n"
+        "Dịch vụ trọng tâm: Răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép implant.\n"
         f"Insight thị trường: {state.get('market_trend_summary', '')}\n"
+        f"{state.get('facebook_trend_analysis', '')}\n"
         "3-5 hành động hôm nay:\n"
-        "- Đăng bài tư vấn đặt lịch trước.\n"
-        "- Ghim CTA inbox/hotline trên Facebook Page.\n"
-        "- Chuẩn bị phản hồi mẫu cho câu hỏi về giá và thời gian điều trị.\n"
-        "- Theo dõi comment trong 2 giờ đầu sau đăng.\n"
-        "Kênh triển khai: Facebook Page, inbox, hotline.\n"
-        "Rủi ro cần tránh: Cam kết kết quả tuyệt đối hoặc so sánh công kích đối thủ."
+        "- Đăng bài tư vấn răng sứ/implant với hook gợi nhu cầu thật: mất răng, ăn nhai, nụ cười thiếu tự tin.\n"
+        "- Ghim CTA inbox/hotline và kịch bản hỏi nhanh: tình trạng răng, mong muốn, thời gian rảnh để thăm khám.\n"
+        "- Chuẩn bị phản hồi mẫu cho câu hỏi về giá, thời gian điều trị, bảo hành và điều kiện trả góp.\n"
+        "- Theo dõi comment trong 2 giờ đầu sau đăng và chuyển lead nóng sang inbox.\n"
+        "Kênh triển khai: Facebook Page, reels/story ngắn, inbox, hotline.\n"
+        "Rủi ro cần tránh: Cam kết kết quả tuyệt đối, before/after thiếu consent, dùng ảnh/nhận diện của đối thủ."
     )
 
 
@@ -69,9 +70,11 @@ def _daily_report(state: AgentState) -> str:
     insights = state.get("competitor_insights", [])
     status = state.get("approval_status", "pending")
     return (
-        f"Tổng quan insight đối thủ: đã phân tích {len(insights)} nguồn, nổi bật là tư vấn miễn phí, tẩy trắng răng và chăm sóc định kỳ.\n"
+        f"Tổng quan insight đối thủ: đã phân tích {len(insights)} nguồn, ưu tiên đọc tín hiệu liên quan răng sứ, implant, ưu đãi, tư vấn và CTA.\n"
         f"Nội dung hiện tại: {status}.\n"
         f"Lý do quyết định: {state.get('manager_feedback', '')}\n"
+        f"Trend Facebook: {state.get('facebook_trend_analysis', '').replace(chr(10), ' ')}\n"
+        f"Visual brief: {state.get('visual_creative_brief', '').replace(chr(10), ' ')}\n"
         "Checklist compliance: không claim tuyệt đối, CTA là đặt lịch tư vấn, có lưu ý kết quả tùy tình trạng răng.\n"
-        "Khuyến nghị cho ngày mai: so sánh hiệu quả tương tác của bài tư vấn với bài ưu đãi để tối ưu lịch đăng."
+        "Khuyến nghị cho ngày mai: so sánh hiệu quả bài răng sứ với bài implant, ưu tiên hook có vấn đề cụ thể và visual gốc của SmileUp."
     )

@@ -17,6 +17,8 @@ const postId = document.querySelector("#postId");
 const safePayload = document.querySelector("#safePayload");
 const insightList = document.querySelector("#insightList");
 const insightCount = document.querySelector("#insightCount");
+const trendAnalysis = document.querySelector("#trendAnalysis");
+const visualBrief = document.querySelector("#visualBrief");
 const warningList = document.querySelector("#warningList");
 const logOutput = document.querySelector("#logOutput");
 const manualInput = document.querySelector("#manualInput");
@@ -121,6 +123,8 @@ function renderResult(result, logs) {
   publishMode.textContent = publish.publish_mode || "-";
   postId.textContent = publish.published_post_id || "-";
   safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
+  trendAnalysis.textContent = result.facebook_trend_analysis || "Chưa có phân tích trend.";
+  visualBrief.textContent = result.visual_creative_brief || draft.image_prompt || "Chưa có brief ảnh.";
   logOutput.textContent = logs || formatMessages(result.messages || []);
   renderInsights(insights);
   updateManualCount(result.manual_posts_count || countManualPosts());

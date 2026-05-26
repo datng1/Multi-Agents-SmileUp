@@ -31,17 +31,17 @@ def _offline_draft(state: AgentState) -> DraftContent:
         revision_note = " Bài viết đã được điều chỉnh theo góp ý: nhấn mạnh tư vấn trước điều trị, tránh cam kết tuyệt đối và làm rõ điều kiện ưu đãi."
 
     return {
-        "title": "Nụ cười tự tin bắt đầu từ buổi tư vấn đúng cách",
+        "title": "Nụ cười chắc khỏe bắt đầu từ tư vấn răng sứ và implant đúng cách",
         "body": (
-            "Bạn đang phân vân giữa tẩy trắng răng, niềng răng trong suốt hoặc chỉ đơn giản là muốn kiểm tra sức khỏe răng miệng định kỳ? "
-            "Đội ngũ bác sĩ tại phòng khám sẽ thăm khám, lắng nghe nhu cầu và gợi ý lộ trình phù hợp với tình trạng răng của từng khách hàng. "
-            "Trong tuần này, khách hàng đặt lịch trước sẽ được tư vấn ban đầu và kiểm tra tổng quát miễn phí theo khung giờ còn trống. "
-            "Kết quả thẩm mỹ có thể khác nhau tùy cơ địa, nền răng và chỉ định chuyên môn, vì vậy mọi kế hoạch đều cần được bác sĩ đánh giá trực tiếp. "
-            f"Thông điệp hôm nay tập trung vào {topics}: chăm sóc chủ động, minh bạch và an toàn.{revision_note}"
+            "Bạn đang cân nhắc làm răng sứ để cải thiện nụ cười, hoặc cần cấy ghép implant để khôi phục khả năng ăn nhai sau mất răng? "
+            "Tại SmileUp, mỗi kế hoạch đều bắt đầu bằng thăm khám và tư vấn cá nhân hóa để bác sĩ đánh giá nền răng, khớp cắn, xương hàm và mong muốn thẩm mỹ của từng khách hàng. "
+            "Điểm quan trọng không chỉ là chọn dịch vụ, mà là chọn đúng chỉ định: răng sứ cần bảo tồn tối đa mô răng thật, implant cần đánh giá kỹ tình trạng xương và sức khỏe tổng quát. "
+            "Kết quả có thể khác nhau tùy tình trạng răng miệng và chỉ định chuyên môn, vì vậy SmileUp luôn khuyến khích khách hàng đặt lịch tư vấn trực tiếp trước khi quyết định. "
+            f"Thông điệp hôm nay tập trung vào {topics}: chuyên môn rõ ràng, minh bạch và an toàn.{revision_note}"
         ),
-        "hashtags": ["#nhakhoa", "#rangdep", "#tuvannhakhoa", "#chamsocrangmieng"],
-        "call_to_action": "Inbox hoặc gọi hotline để đặt lịch tư vấn và nhận khung giờ phù hợp hôm nay.",
-        "image_prompt": "Ảnh phòng khám nha khoa hiện đại, bác sĩ tư vấn thân thiện cho khách hàng Việt Nam.",
+        "hashtags": ["#nhakhoa", "#rangsuthammy", "#implant", "#SmileUp"],
+        "call_to_action": "Inbox hoặc gọi hotline để đặt lịch tư vấn răng sứ/implant và nhận khung giờ phù hợp hôm nay.",
+        "image_prompt": "Ảnh gốc/AI mới cho SmileUp: bác sĩ tư vấn răng sứ và implant trong phòng khám hiện đại, logo SmileUp ở góc trên trái, ánh sáng trắng xanh sạch sẽ.",
     }
 
 
@@ -51,5 +51,5 @@ def _dominant_topics(state: AgentState) -> str:
         for topic in insight.get("key_topics", []):
             counts[topic] = counts.get(topic, 0) + 1
     if not counts:
-        return "khám định kỳ và tư vấn cá nhân hóa"
+        return "răng sứ thẩm mỹ và implant cá nhân hóa"
     return ", ".join(topic.replace("_", " ") for topic, _ in sorted(counts.items(), key=lambda item: item[1], reverse=True)[:2])

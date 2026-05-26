@@ -38,6 +38,8 @@ class DraftContent(TypedDict):
 class AgentState(TypedDict):
     competitor_insights: list[CompetitorInsight]
     market_trend_summary: str
+    facebook_trend_analysis: str
+    visual_creative_brief: str
     draft_content: Optional[DraftContent]
     revision_count: int
     approval_status: ApprovalStatus
@@ -56,6 +58,8 @@ def create_initial_state() -> AgentState:
     return {
         "competitor_insights": [],
         "market_trend_summary": "",
+        "facebook_trend_analysis": "",
+        "visual_creative_brief": "",
         "draft_content": None,
         "revision_count": 0,
         "approval_status": "pending",
