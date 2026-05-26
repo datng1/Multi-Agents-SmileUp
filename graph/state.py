@@ -48,6 +48,8 @@ class AgentState(TypedDict):
     current_step: CurrentStep
     error: Optional[str]
     publish_result: Optional[dict[str, Any]]
+    data_source: str
+    manual_posts_count: int
 
 
 def create_initial_state() -> AgentState:
@@ -64,4 +66,6 @@ def create_initial_state() -> AgentState:
         "current_step": "start",
         "error": None,
         "publish_result": None,
+        "data_source": "auto",
+        "manual_posts_count": 0,
     }

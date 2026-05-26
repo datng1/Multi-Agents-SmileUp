@@ -9,11 +9,17 @@ logger = get_logger(__name__)
 
 def run_crawler_agent(state: AgentState) -> AgentState:
     logger.info("Crawler Agent collecting competitor insights")
-    insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
+    if state.get("data_source") == "manual" and state.get("competitor_insights"):
+        insights = state["competitor_insights"]
+        logger.info("Crawler Agent using manual competitor input")
+        state["messages"].append({"role": "crawler", "content": f"Used {len(insights)} manual competitor posts"})
+    else:
+        insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
+        state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} insights"})
+
     state["competitor_insights"] = insights
     state["market_trend_summary"] = _market_summary(insights)
     state["current_step"] = "crawler"
-    state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} insights"})
     return state
 
 

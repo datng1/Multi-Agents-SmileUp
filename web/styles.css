@@ -282,6 +282,58 @@ h2 {
   padding: 18px;
 }
 
+.manual-panel {
+  border-color: rgba(15, 118, 110, 0.28);
+}
+
+.manual-input {
+  width: 100%;
+  min-height: 172px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: rgba(248, 250, 251, 0.88);
+  font: 14px/1.55 "Segoe UI", Arial, sans-serif;
+  outline: none;
+}
+
+.manual-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.manual-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.manual-actions p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.secondary-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .panel-wide {
   grid-column: 1 / -1;
 }
@@ -481,7 +533,8 @@ dd {
   }
 
   .topbar,
-  .top-actions {
+  .top-actions,
+  .manual-actions {
     align-items: stretch;
     flex-direction: column;
   }

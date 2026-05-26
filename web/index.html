@@ -82,6 +82,34 @@
       </section>
 
       <section class="dashboard-grid">
+        <section class="panel panel-wide manual-panel">
+          <div class="panel-header">
+            <div>
+              <span class="label">Manual competitor input</span>
+              <h2>Dán bài đối thủ</h2>
+            </div>
+            <span id="manualCount" class="meta-chip">0 bài nhập tay</span>
+          </div>
+          <textarea
+            id="manualInput"
+            class="manual-input"
+            rows="8"
+            spellcheck="false"
+            placeholder="Dán bài đối thủ tại đây. Mỗi bài cách nhau bằng một dòng trống.
+
+Ví dụ:
+Nha khoa đối thủ A
+Nội dung bài post về tẩy trắng răng, ưu đãi, CTA...
+
+Nha khoa đối thủ B
+Nội dung bài post về niềng răng trong suốt..."
+          ></textarea>
+          <div class="manual-actions">
+            <p>Nếu ô này có nội dung, Crawler Agent sẽ dùng dữ liệu bạn dán thay cho Facebook API/mock.</p>
+            <button id="clearManualButton" class="secondary-button" type="button">Xóa nội dung</button>
+          </div>
+        </section>
+
         <section class="panel panel-wide">
           <div class="panel-header">
             <div>

@@ -19,6 +19,9 @@ const insightList = document.querySelector("#insightList");
 const insightCount = document.querySelector("#insightCount");
 const warningList = document.querySelector("#warningList");
 const logOutput = document.querySelector("#logOutput");
+const manualInput = document.querySelector("#manualInput");
+const manualCount = document.querySelector("#manualCount");
+const clearManualButton = document.querySelector("#clearManualButton");
 const agentCards = [...document.querySelectorAll(".agent-card")];
 
 const agentOrder = ["crawler", "content_creator", "manager_review", "publisher"];
@@ -69,7 +72,11 @@ async function runWorkflow() {
   setAgentState("crawler");
 
   try {
-    const response = await fetch("/api/run", { method: "POST" });
+    const response = await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ manual_competitor_posts: manualInput.value.trim() }),
+    });
     const payload = await response.json();
     if (!payload.ok) {
       throw new Error(payload.error || "Workflow failed");
@@ -116,6 +123,7 @@ function renderResult(result, logs) {
   safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
   logOutput.textContent = logs || formatMessages(result.messages || []);
   renderInsights(insights);
+  updateManualCount(result.manual_posts_count || countManualPosts());
 }
 
 function renderInsights(insights) {
@@ -160,6 +168,18 @@ function renderWarnings(warnings) {
   warningList.innerHTML = warnings.map((warning) => `<span>${escapeHtml(warning)}</span>`).join("");
 }
 
+function countManualPosts() {
+  const text = manualInput.value.trim();
+  if (!text) {
+    return 0;
+  }
+  return text.split(/\n\s*\n/).filter((block) => block.trim()).length;
+}
+
+function updateManualCount(count = countManualPosts()) {
+  manualCount.textContent = `${count} bài nhập tay`;
+}
+
 function formatMessages(messages) {
   if (!messages.length) {
     return "Workflow completed without captured logs.";
@@ -177,6 +197,12 @@ function escapeHtml(value) {
 }
 
 runButton.addEventListener("click", runWorkflow);
+manualInput.addEventListener("input", () => updateManualCount());
+clearManualButton.addEventListener("click", () => {
+  manualInput.value = "";
+  updateManualCount(0);
+  manualInput.focus();
+});
 loadStatus().catch(() => {
   modeValue.textContent = "Unknown";
   dryRunValue.textContent = "-";

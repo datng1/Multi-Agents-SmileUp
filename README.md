@@ -63,6 +63,20 @@ Giao dien co nut "Chay workflow" de goi API `/api/run`, sau do hien thi:
 - Bai dang da duyet
 - Publish result an toan
 
+### Dung khong can Facebook token
+
+Tren giao dien co o **Dan bai doi thu**. Ban co the copy 3-5 bai public cua doi thu va dan vao o nay, moi bai cach nhau bang mot dong trong:
+
+```txt
+Nha khoa doi thu A
+Noi dung bai post ve tay trang rang, uu dai, CTA...
+
+Nha khoa doi thu B
+Noi dung bai post ve nieng rang trong suot...
+```
+
+Khi o nay co noi dung, Crawler Agent se dung du lieu nhap tay thay cho Facebook API/mock.
+
 ## Cau Hinh That
 
 Copy `.env.example` thanh `.env`, dien cac bien:

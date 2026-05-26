@@ -9,6 +9,7 @@ from urllib.parse import unquote
 
 from graph.state import create_initial_state
 from graph.workflow import build_workflow
+from tools.manual_input import parse_manual_competitor_posts
 from utils import config
 
 
@@ -49,9 +50,19 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
 
         log_buffer = io.StringIO()
         try:
+            request_payload = self._read_json()
+            manual_text = str(request_payload.get("manual_competitor_posts", "")).strip()
+            initial_state = create_initial_state()
+            if manual_text:
+                manual_insights = parse_manual_competitor_posts(manual_text)
+                if manual_insights:
+                    initial_state["competitor_insights"] = manual_insights
+                    initial_state["data_source"] = "manual"
+                    initial_state["manual_posts_count"] = len(manual_insights)
+
             started_at = time.perf_counter()
             with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
-                result = build_workflow().invoke(create_initial_state())
+                result = build_workflow().invoke(initial_state)
             duration_ms = round((time.perf_counter() - started_at) * 1000)
             self._send_json(
                 {
@@ -74,6 +85,11 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             ".css": "text/css; charset=utf-8",
             ".js": "application/javascript; charset=utf-8",
             ".html": "text/html; charset=utf-8",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".jfif": "image/jpeg",
+            ".webp": "image/webp",
         }
         self._serve_file(resolved, content_types.get(resolved.suffix, "application/octet-stream"))
 
@@ -92,6 +108,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _read_json(self) -> dict:
+        content_length = int(self.headers.get("Content-Length", "0") or "0")
+        if content_length <= 0:
+            return {}
+        raw_body = self.rfile.read(content_length).decode("utf-8")
+        return json.loads(raw_body or "{}")
 
     def log_message(self, format: str, *args) -> None:
         return
