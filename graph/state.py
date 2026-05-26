@@ -77,6 +77,10 @@ class AgentState(TypedDict):
     draft_content: Optional[DraftContent]
     content_plan: list[ContentVariant]
     creative_assets: list[dict[str, Any]]
+    creative_image_mode: str
+    creative_upload_path: str
+    creative_upload_url: str
+    creative_reference_note: str
     revision_count: int
     approval_status: ApprovalStatus
     manager_feedback: str
@@ -109,6 +113,10 @@ def create_initial_state() -> AgentState:
         "draft_content": None,
         "content_plan": [],
         "creative_assets": [],
+        "creative_image_mode": "auto",
+        "creative_upload_path": "",
+        "creative_upload_url": "",
+        "creative_reference_note": "",
         "revision_count": 0,
         "approval_status": "pending",
         "manager_feedback": "",

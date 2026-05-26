@@ -27,7 +27,13 @@ def run_content_agent(state: AgentState) -> AgentState:
 
     state["content_plan"] = variants
     state["draft_content"] = _draft_from_variant(variants[0]) if variants else _offline_draft(state)
-    state["creative_assets"] = generate_creative_assets(variants)
+    creative_context = {
+        "creative_image_mode": state.get("creative_image_mode", "auto"),
+        "creative_upload_path": state.get("creative_upload_path", ""),
+        "creative_upload_url": state.get("creative_upload_url", ""),
+        "creative_reference_note": state.get("creative_reference_note", ""),
+    }
+    state["creative_assets"] = generate_creative_assets(variants, creative_context)
     if state["creative_assets"]:
         state["messages"].append({"role": "content", "content": f"Generated {len(state['creative_assets'])} branded SmileUp creative images"})
 

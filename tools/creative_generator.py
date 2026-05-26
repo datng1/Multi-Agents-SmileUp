@@ -25,33 +25,39 @@ BACKGROUND_PATH = ASSET_DIR / "clinic-overview.png"
 LOGO_PATH = ASSET_DIR / "smileup-logo.jfif"
 
 
-def generate_creative_assets(variants: list[ContentVariant]) -> list[dict[str, str]]:
+def generate_creative_assets(variants: list[ContentVariant], context: dict | None = None) -> list[dict[str, str]]:
     if not variants or Image is None:
         return []
 
+    context = context or {}
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     assets: list[dict[str, str]] = []
     stamp = datetime.now().strftime("%Y%m%d")
     for index, variant in enumerate(variants, start=1):
         filename = f"{stamp}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
         output_path = OUTPUT_DIR / filename
-        _render_creative(variant, output_path, index)
+        _render_creative(variant, output_path, index, context)
         url_path = f"/generated/creatives/{filename}"
         variant["image_path"] = url_path
+        image_mode = str(context.get("creative_image_mode") or "auto")
+        source_policy = _source_policy(image_mode)
         assets.append(
             {
                 "service_line": variant.get("service_line", ""),
                 "title": variant.get("title", ""),
                 "image_path": url_path,
                 "image_prompt": variant.get("image_prompt", ""),
+                "image_mode": image_mode,
+                "source_image_url": str(context.get("creative_upload_url") or ""),
+                "source_policy": source_policy,
             }
         )
     return assets
 
 
-def _render_creative(variant: ContentVariant, output_path: Path, index: int) -> None:
+def _render_creative(variant: ContentVariant, output_path: Path, index: int, context: dict) -> None:
     width, height = 1080, 1350
-    canvas = _background(width, height)
+    canvas = _background(width, height, context)
     draw = ImageDraw.Draw(canvas)
 
     title_font = _font(54, bold=True)
@@ -61,8 +67,14 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int) -> 
 
     overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     overlay_draw = ImageDraw.Draw(overlay)
-    overlay_draw.rectangle((0, 0, width, height), fill=(245, 251, 250, 206))
+    image_mode = str(context.get("creative_image_mode") or "auto")
+    top_alpha = 184 if image_mode == "owned" else 206
+    overlay_draw.rectangle((0, 0, width, height), fill=(245, 251, 250, top_alpha))
     overlay_draw.rectangle((0, 910, width, height), fill=(12, 98, 91, 228))
+    if image_mode == "layout_reference":
+        overlay_draw.rounded_rectangle((640, 220, 1020, 850), radius=44, fill=(255, 255, 255, 82), outline=(15, 118, 110, 72), width=4)
+        overlay_draw.ellipse((700, 280, 960, 540), fill=(232, 245, 242, 120), outline=(15, 118, 110, 60), width=3)
+        overlay_draw.rounded_rectangle((690, 600, 970, 790), radius=34, fill=(230, 239, 238, 115))
     canvas = Image.alpha_composite(canvas.convert("RGBA"), overlay)
     draw = ImageDraw.Draw(canvas)
 
@@ -97,23 +109,54 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int) -> 
     draw.rounded_rectangle((72, 1226, 1008, 1290), radius=32, fill=(255, 255, 255, 245))
     draw.text((106, 1243), _shorten(cta, 68), fill=(15, 94, 88), font=small_font)
     draw.text((920, 80), f"{index:02d}", fill=(15, 118, 110), font=title_font)
+    if image_mode == "layout_reference":
+        draw.text((706, 818), "NEW ORIGINAL VISUAL", fill=(15, 94, 88), font=micro_font)
+    elif image_mode == "owned":
+        draw.text((706, 818), "SMILEUP PHOTO SOURCE", fill=(15, 94, 88), font=micro_font)
 
     canvas.convert("RGB").save(output_path, quality=95)
 
 
-def _background(width: int, height: int):
+def _background(width: int, height: int, context: dict):
+    image_mode = str(context.get("creative_image_mode") or "auto")
+    upload_path = Path(str(context.get("creative_upload_path") or ""))
+    if image_mode == "owned" and upload_path.exists():
+        image = _crop_to_canvas(upload_path, width, height)
+        if image is not None:
+            image = image.filter(ImageFilter.GaussianBlur(1.2))
+            image = ImageEnhance.Color(image).enhance(0.9)
+            image = ImageEnhance.Brightness(image).enhance(1.04)
+            return image
+
     if BACKGROUND_PATH.exists():
-        image = Image.open(BACKGROUND_PATH).convert("RGB")
-        scale = max(width / image.width, height / image.height)
-        image = image.resize((int(image.width * scale), int(image.height * scale)))
-        left = (image.width - width) // 2
-        top = (image.height - height) // 2
-        image = image.crop((left, top, left + width, top + height))
+        image = _crop_to_canvas(BACKGROUND_PATH, width, height)
+        if image is None:
+            return Image.new("RGB", (width, height), (244, 249, 249))
         image = image.filter(ImageFilter.GaussianBlur(2.4))
         image = ImageEnhance.Color(image).enhance(0.82)
         image = ImageEnhance.Brightness(image).enhance(1.08)
         return image
     return Image.new("RGB", (width, height), (244, 249, 249))
+
+
+def _crop_to_canvas(path: Path, width: int, height: int):
+    try:
+        image = Image.open(path).convert("RGB")
+    except Exception:
+        return None
+    scale = max(width / image.width, height / image.height)
+    image = image.resize((int(image.width * scale), int(image.height * scale)))
+    left = (image.width - width) // 2
+    top = (image.height - height) // 2
+    return image.crop((left, top, left + width, top + height))
+
+
+def _source_policy(image_mode: str) -> str:
+    if image_mode == "owned":
+        return "Uploaded SmileUp-owned/licensed photo used as the visual source."
+    if image_mode == "layout_reference":
+        return "Layout reference only: original ad pixels, faces, logo, and assets are not reused."
+    return "Auto-generated from SmileUp brand assets."
 
 
 def _draw_logo(canvas) -> None:

@@ -49,9 +49,15 @@ const autoTabButton = document.querySelector("#autoTabButton");
 const manualTabButton = document.querySelector("#manualTabButton");
 const autoSourcePanel = document.querySelector("#autoSourcePanel");
 const manualSourcePanel = document.querySelector("#manualSourcePanel");
+const creativeImageInput = document.querySelector("#creativeImageInput");
+const creativeImageMode = document.querySelector("#creativeImageMode");
+const creativeImagePreview = document.querySelector("#creativeImagePreview");
+const creativeImageStatus = document.querySelector("#creativeImageStatus");
+const creativeImageHint = document.querySelector("#creativeImageHint");
 const agentCards = [...document.querySelectorAll(".agent-card")];
 
 let activeSourceMode = "auto";
+let uploadedCreativeImage = null;
 
 const agentOrder = [
   "crawler",
@@ -89,6 +95,24 @@ function setSourceMode(mode) {
 
 function syncSourceMode() {
   dataSourceValue.textContent = activeSourceMode === "manual" ? "Manual override" : "Auto Ad Library";
+}
+
+function syncCreativeImageMode() {
+  const mode = creativeImageMode.value;
+  const hasUpload = Boolean(uploadedCreativeImage);
+  const labels = {
+    auto: "Auto SmileUp",
+    owned: hasUpload ? "Using uploaded image" : "Upload needed",
+    layout_reference: hasUpload ? "Layout reference" : "Upload needed",
+  };
+  const hints = {
+    auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
+    owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
+    layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
+  };
+  creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
+  creativeImageHint.textContent = hints[mode] || hints.auto;
+  creativeImageStatus.classList.toggle("warning", mode !== "auto" && !hasUpload);
 }
 
 function setAgentState(activeStep) {
@@ -150,6 +174,9 @@ async function runWorkflow() {
         manual_visual_notes: activeSourceMode === "manual" ? visualInput.value.trim() : "",
         manual_video_notes: activeSourceMode === "manual" ? videoInput.value.trim() : "",
         ad_library_keywords: keywordValue.value.trim(),
+        creative_image_mode: creativeImageMode.value,
+        creative_image_name: uploadedCreativeImage?.name || "",
+        creative_image_data_url: uploadedCreativeImage?.dataUrl || "",
       }),
     });
     const payload = await response.json();
@@ -347,6 +374,7 @@ function renderCreatives(assets) {
             <span class="label">${escapeHtml(asset.service_line || "creative")}</span>
             <h3>${escapeHtml(asset.title || "-")}</h3>
             <p>${escapeHtml(asset.image_prompt || "")}</p>
+            ${asset.source_policy ? `<p class="source-policy">${escapeHtml(asset.source_policy)}</p>` : ""}
           </div>
         </article>
       `;
@@ -400,7 +428,47 @@ clearManualButton.addEventListener("click", () => {
   updateManualCount(0);
   manualInput.focus();
 });
+creativeImageInput.addEventListener("change", () => {
+  const file = creativeImageInput.files?.[0];
+  if (!file) {
+    uploadedCreativeImage = null;
+    creativeImagePreview.className = "creative-image-preview empty";
+    creativeImagePreview.textContent = "Chưa có ảnh upload";
+    syncCreativeImageMode();
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    uploadedCreativeImage = null;
+    creativeImagePreview.className = "creative-image-preview empty";
+    creativeImagePreview.textContent = "File không phải ảnh";
+    syncCreativeImageMode();
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    uploadedCreativeImage = null;
+    creativeImagePreview.className = "creative-image-preview empty";
+    creativeImagePreview.textContent = "Ảnh vượt quá 8 MB";
+    syncCreativeImageMode();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    uploadedCreativeImage = {
+      name: file.name,
+      dataUrl: String(reader.result || ""),
+    };
+    creativeImagePreview.className = "creative-image-preview";
+    creativeImagePreview.innerHTML = `<img src="${escapeHtml(uploadedCreativeImage.dataUrl)}" alt="${escapeHtml(file.name)}" /><span>${escapeHtml(file.name)}</span>`;
+    if (creativeImageMode.value === "auto") {
+      creativeImageMode.value = "owned";
+    }
+    syncCreativeImageMode();
+  };
+  reader.readAsDataURL(file);
+});
+creativeImageMode.addEventListener("change", syncCreativeImageMode);
 setSourceMode("auto");
+syncCreativeImageMode();
 loadStatus().catch(() => {
   modeValue.textContent = "Unknown";
   dryRunValue.textContent = "-";

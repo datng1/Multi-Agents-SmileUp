@@ -1,8 +1,12 @@
 import contextlib
+import base64
+import hashlib
 import io
 import json
+import re
 import sys
 import time
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
@@ -15,8 +19,10 @@ from utils import config
 
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
+UPLOAD_ROOT = WEB_ROOT / "generated" / "uploads"
 HOST = "127.0.0.1"
 PORT = 8765
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
 def _enable_utf8_console() -> None:
@@ -59,10 +65,24 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
             video_notes = str(request_payload.get("manual_video_notes", "")).strip()
             ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
+            creative_image_mode = str(request_payload.get("creative_image_mode", "auto")).strip() or "auto"
+            creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
+            creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
             initial_state = create_initial_state()
             initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
             initial_state["competitor_visual_notes"] = visual_notes
             initial_state["competitor_video_notes"] = video_notes
+            if creative_image_mode not in {"auto", "owned", "layout_reference"}:
+                creative_image_mode = "auto"
+            initial_state["creative_image_mode"] = creative_image_mode
+            if creative_image_data_url and creative_image_mode in {"owned", "layout_reference"}:
+                upload_path, upload_url = _save_uploaded_creative(creative_image_data_url, creative_image_name)
+                initial_state["creative_upload_path"] = upload_path
+                initial_state["creative_upload_url"] = upload_url
+                if creative_image_mode == "owned":
+                    initial_state["creative_reference_note"] = "Using uploaded SmileUp-owned/licensed image as creative source."
+                else:
+                    initial_state["creative_reference_note"] = "Using uploaded image as layout reference only; original pixels are not reused."
             if manual_text:
                 manual_insights = parse_manual_competitor_posts(manual_text)
                 if manual_insights:
@@ -130,6 +150,29 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args) -> None:
         return
+
+
+def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str]:
+    match = re.match(r"^data:image/(png|jpe?g|webp);base64,(.+)$", data_url, re.IGNORECASE | re.DOTALL)
+    if not match:
+        raise ValueError("Unsupported image upload. Please upload PNG, JPG, JPEG, or WEBP.")
+
+    extension = match.group(1).lower()
+    extension = "jpg" if extension in {"jpg", "jpeg"} else extension
+    try:
+        raw = base64.b64decode(match.group(2), validate=True)
+    except Exception as exc:
+        raise ValueError("Image upload is not valid base64.") from exc
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise ValueError("Image upload is too large. Maximum size is 8 MB.")
+
+    safe_name = re.sub(r"[^a-zA-Z0-9]+", "-", Path(original_name).stem).strip("-").lower()[:36]
+    digest = hashlib.sha1(raw).hexdigest()[:10]
+    filename = f"{datetime.now():%Y%m%d_%H%M%S}_{safe_name or 'creative'}_{digest}.{extension}"
+    UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+    output_path = UPLOAD_ROOT / filename
+    output_path.write_bytes(raw)
+    return str(output_path), f"/generated/uploads/{filename}"
 
 
 def main() -> None:

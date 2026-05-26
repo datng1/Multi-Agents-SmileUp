@@ -91,6 +91,38 @@
               </div>
             </div>
           </section>
+
+          <section class="creative-source-panel" aria-label="Creative image source">
+            <div class="panel-header compact">
+              <div>
+                <span class="label">Creative image source</span>
+                <h2>Chọn cách tạo ảnh cho bài đăng</h2>
+              </div>
+              <span id="creativeImageStatus" class="meta-chip">Auto SmileUp</span>
+            </div>
+            <div class="creative-source-grid">
+              <label class="creative-upload-tile" for="creativeImageInput">
+                <input id="creativeImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+                <span class="upload-icon">+</span>
+                <span>
+                  <strong>Tải ảnh lên</strong>
+                  <small>PNG, JPG, WEBP tối đa 8 MB</small>
+                </span>
+              </label>
+              <div class="creative-mode-box">
+                <label>
+                  <span class="label">Image mode</span>
+                  <select id="creativeImageMode" class="mode-select">
+                    <option value="auto">Tự tạo ảnh SmileUp</option>
+                    <option value="owned">Dùng ảnh SmileUp / ảnh có quyền</option>
+                    <option value="layout_reference">Chỉ lấy form/layout từ ảnh tham chiếu</option>
+                  </select>
+                </label>
+                <p id="creativeImageHint">Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.</p>
+              </div>
+              <div id="creativeImagePreview" class="creative-image-preview empty">Chưa có ảnh upload</div>
+            </div>
+          </section>
         </div>
 
         <aside class="control-side">
