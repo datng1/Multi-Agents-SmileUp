@@ -1,7 +1,9 @@
 const runButton = document.querySelector("#runButton");
 const modeValue = document.querySelector("#modeValue");
 const dryRunValue = document.querySelector("#dryRunValue");
-const statusValue = document.querySelector("#statusValue");
+const approvalValue = document.querySelector("#approvalValue");
+const lastRunValue = document.querySelector("#lastRunValue");
+const connectionState = document.querySelector("#connectionState");
 const approvalBadge = document.querySelector("#approvalBadge");
 const dailyReport = document.querySelector("#dailyReport");
 const dailyStrategy = document.querySelector("#dailyStrategy");
@@ -13,15 +15,24 @@ const publishStatus = document.querySelector("#publishStatus");
 const publishMode = document.querySelector("#publishMode");
 const postId = document.querySelector("#postId");
 const safePayload = document.querySelector("#safePayload");
+const insightList = document.querySelector("#insightList");
+const insightCount = document.querySelector("#insightCount");
+const warningList = document.querySelector("#warningList");
+const logOutput = document.querySelector("#logOutput");
 const agentCards = [...document.querySelectorAll(".agent-card")];
 
+const agentOrder = ["crawler", "content_creator", "manager_review", "publisher"];
+
 function setAgentState(activeStep) {
-  const order = ["crawler", "content_creator", "manager_review", "publisher"];
-  const activeIndex = order.indexOf(activeStep);
+  const activeIndex = agentOrder.indexOf(activeStep);
   agentCards.forEach((card) => {
-    const index = order.indexOf(card.dataset.agent);
-    card.classList.toggle("active", index === activeIndex);
-    card.classList.toggle("done", activeIndex >= 0 && index < activeIndex);
+    const index = agentOrder.indexOf(card.dataset.agent);
+    const state = card.querySelector(".agent-state");
+    const isActive = index === activeIndex;
+    const isDone = activeIndex >= 0 && index < activeIndex;
+    card.classList.toggle("active", isActive);
+    card.classList.toggle("done", isDone);
+    state.textContent = isActive ? "Running" : isDone ? "Done" : "Idle";
   });
 }
 
@@ -29,19 +40,32 @@ function completeAgents() {
   agentCards.forEach((card) => {
     card.classList.remove("active");
     card.classList.add("done");
+    card.querySelector(".agent-state").textContent = "Done";
+  });
+}
+
+function resetAgents() {
+  agentCards.forEach((card) => {
+    card.classList.remove("active", "done");
+    card.querySelector(".agent-state").textContent = "Idle";
   });
 }
 
 async function loadStatus() {
   const response = await fetch("/api/status");
   const status = await response.json();
-  modeValue.textContent = status.mock_mode ? "Mock" : "Live";
-  dryRunValue.textContent = status.dry_run ? "On" : "Off";
+  modeValue.textContent = status.mock_mode ? "Mock mode" : "Live mode";
+  dryRunValue.textContent = status.dry_run ? "Dry-run on" : "Real publish";
+  connectionState.textContent = "Ready";
+  connectionState.classList.add("ready");
+  renderWarnings(status.warnings || []);
 }
 
 async function runWorkflow() {
   runButton.disabled = true;
-  statusValue.textContent = "Đang chạy";
+  runButton.querySelector(".button-icon").textContent = "…";
+  approvalValue.textContent = "Running";
+  resetAgents();
   setAgentState("crawler");
 
   try {
@@ -52,23 +76,34 @@ async function runWorkflow() {
     }
 
     const result = payload.result;
-    renderResult(result);
+    renderResult(result, payload.logs || "");
     completeAgents();
-    statusValue.textContent = "Hoàn thành";
+    lastRunValue.textContent = new Date().toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
   } catch (error) {
-    statusValue.textContent = "Lỗi";
+    approvalValue.textContent = "Error";
+    connectionState.textContent = "Needs attention";
+    connectionState.classList.remove("ready");
     safePayload.textContent = error.message;
+    logOutput.textContent = error.stack || error.message;
   } finally {
     runButton.disabled = false;
+    runButton.querySelector(".button-icon").textContent = "▶";
   }
 }
 
-function renderResult(result) {
+function renderResult(result, logs) {
   const draft = result.draft_content || {};
   const publish = result.publish_result || {};
+  const insights = result.competitor_insights || [];
+  const approval = result.approval_status || "pending";
 
-  approvalBadge.textContent = result.approval_status || "pending";
-  approvalBadge.classList.toggle("approved", result.approval_status === "approved");
+  approvalValue.textContent = approval;
+  approvalBadge.textContent = approval;
+  approvalBadge.className = `badge ${approval}`;
   dailyReport.textContent = result.daily_report || "-";
   dailyStrategy.textContent = result.daily_strategy || "-";
   postTitle.textContent = draft.title || "-";
@@ -79,10 +114,71 @@ function renderResult(result) {
   publishMode.textContent = publish.publish_mode || "-";
   postId.textContent = publish.published_post_id || "-";
   safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
+  logOutput.textContent = logs || formatMessages(result.messages || []);
+  renderInsights(insights);
+}
+
+function renderInsights(insights) {
+  insightCount.textContent = `${insights.length} nguồn`;
+  if (!insights.length) {
+    insightList.className = "insight-list empty-state";
+    insightList.textContent = "Chưa có insight.";
+    return;
+  }
+
+  insightList.className = "insight-list";
+  insightList.innerHTML = insights
+    .map((item) => {
+      const topics = (item.key_topics || [])
+        .map((topic) => `<span>${escapeHtml(topic.replaceAll("_", " "))}</span>`)
+        .join("");
+      return `
+        <article class="insight-row">
+          <div>
+            <strong>${escapeHtml(item.page_name || "Unknown page")}</strong>
+            <div class="topic-list">${topics}</div>
+          </div>
+          <p class="insight-summary">${escapeHtml(item.summary || item.post_content || "")}</p>
+          <div class="engagement">
+            <span>Engagement</span>
+            <strong>${Number(item.engagement || 0).toLocaleString("vi-VN")}</strong>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderWarnings(warnings) {
+  if (!warnings.length) {
+    warningList.className = "warning-list empty-state";
+    warningList.textContent = "Không có warning.";
+    return;
+  }
+
+  warningList.className = "warning-list";
+  warningList.innerHTML = warnings.map((warning) => `<span>${escapeHtml(warning)}</span>`).join("");
+}
+
+function formatMessages(messages) {
+  if (!messages.length) {
+    return "Workflow completed without captured logs.";
+  }
+  return messages.map((message) => `[${message.role || "system"}] ${message.content || ""}`).join("\n");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 runButton.addEventListener("click", runWorkflow);
 loadStatus().catch(() => {
   modeValue.textContent = "Unknown";
   dryRunValue.textContent = "-";
+  connectionState.textContent = "Offline";
 });

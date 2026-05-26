@@ -3,97 +3,155 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dental Marketing Agents</title>
+    <title>SmileUp Agent Console</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Multi-Agent Marketing</p>
-          <h1>Dental Marketing Control Room</h1>
+        <div class="brand-block">
+          <span class="brand-mark">S</span>
+          <div>
+            <p class="eyebrow">SmileUp Marketing Ops</p>
+            <h1>Agent Console</h1>
+          </div>
         </div>
-        <button id="runButton" class="primary-button" type="button">
-          <span class="button-icon">▶</span>
-          Chạy workflow
-        </button>
+        <div class="top-actions">
+          <span id="connectionState" class="connection-pill">Checking</span>
+          <button id="runButton" class="primary-button" type="button" aria-label="Chạy workflow marketing">
+            <span class="button-icon" aria-hidden="true">▶</span>
+            Chạy workflow
+          </button>
+        </div>
       </header>
 
       <section class="status-strip" aria-live="polite">
         <div>
-          <span class="label">Mode</span>
+          <span class="label">Execution mode</span>
           <strong id="modeValue">Đang kiểm tra</strong>
         </div>
         <div>
-          <span class="label">Dry-run</span>
+          <span class="label">Publish guard</span>
           <strong id="dryRunValue">-</strong>
         </div>
         <div>
-          <span class="label">Trạng thái</span>
-          <strong id="statusValue">Sẵn sàng</strong>
+          <span class="label">Approval</span>
+          <strong id="approvalValue">Pending</strong>
+        </div>
+        <div>
+          <span class="label">Last run</span>
+          <strong id="lastRunValue">-</strong>
         </div>
       </section>
 
-      <section class="agent-rail" aria-label="Agent workflow">
+      <section class="workflow-panel" aria-label="Agent workflow">
         <article class="agent-card" data-agent="crawler">
-          <span class="agent-number">01</span>
+          <div class="agent-topline">
+            <span class="agent-number">01</span>
+            <span class="agent-state">Idle</span>
+          </div>
           <h2>Crawler</h2>
-          <p>Thu thập insight đối thủ</p>
+          <p>Đọc tín hiệu thị trường và engagement đối thủ.</p>
         </article>
         <article class="agent-card" data-agent="content_creator">
-          <span class="agent-number">02</span>
+          <div class="agent-topline">
+            <span class="agent-number">02</span>
+            <span class="agent-state">Idle</span>
+          </div>
           <h2>Content</h2>
-          <p>Tạo bài đăng Facebook</p>
+          <p>Tạo bản nháp Facebook post theo insight.</p>
         </article>
         <article class="agent-card" data-agent="manager_review">
-          <span class="agent-number">03</span>
+          <div class="agent-topline">
+            <span class="agent-number">03</span>
+            <span class="agent-state">Idle</span>
+          </div>
           <h2>Manager</h2>
-          <p>Duyệt compliance và chiến lược</p>
+          <p>Duyệt nội dung, compliance và chiến lược ngày.</p>
         </article>
         <article class="agent-card" data-agent="publisher">
-          <span class="agent-number">04</span>
+          <div class="agent-topline">
+            <span class="agent-number">04</span>
+            <span class="agent-state">Idle</span>
+          </div>
           <h2>Publisher</h2>
-          <p>Dry-run payload an toàn</p>
+          <p>Kiểm tra gate an toàn và xuất dry-run payload.</p>
         </article>
       </section>
 
-      <section class="workspace">
-        <div class="report-panel">
+      <section class="dashboard-grid">
+        <section class="panel panel-wide">
           <div class="panel-header">
-            <h2>Báo cáo ngày</h2>
+            <div>
+              <span class="label">Market intelligence</span>
+              <h2>Insight đối thủ</h2>
+            </div>
+            <span id="insightCount" class="meta-chip">0 nguồn</span>
+          </div>
+          <div id="insightList" class="insight-list empty-state">Chưa có insight.</div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <span class="label">Review result</span>
+              <h2>Báo cáo ngày</h2>
+            </div>
             <span id="approvalBadge" class="badge">pending</span>
           </div>
           <pre id="dailyReport">Bấm “Chạy workflow” để tạo báo cáo.</pre>
-        </div>
+        </section>
 
-        <div class="report-panel">
+        <section class="panel">
           <div class="panel-header">
-            <h2>Chiến lược</h2>
+            <div>
+              <span class="label">Action plan</span>
+              <h2>Chiến lược</h2>
+            </div>
           </div>
           <pre id="dailyStrategy">Chưa có dữ liệu.</pre>
-        </div>
+        </section>
 
-        <div class="post-preview">
+        <section class="panel post-panel">
           <div class="panel-header">
-            <h2>Bài đăng đã duyệt</h2>
+            <div>
+              <span class="label">Approved asset</span>
+              <h2>Bài đăng Facebook</h2>
+            </div>
           </div>
-          <h3 id="postTitle">-</h3>
-          <p id="postBody"></p>
-          <p id="postCta" class="cta"></p>
-          <p id="postTags" class="tags"></p>
-        </div>
+          <article class="post-preview">
+            <h3 id="postTitle">-</h3>
+            <p id="postBody"></p>
+            <p id="postCta" class="cta"></p>
+            <p id="postTags" class="tags"></p>
+          </article>
+        </section>
 
-        <div class="publish-panel">
+        <section class="panel">
           <div class="panel-header">
-            <h2>Publish Result</h2>
+            <div>
+              <span class="label">Publisher</span>
+              <h2>Publish result</h2>
+            </div>
           </div>
-          <dl>
+          <dl class="publish-facts">
             <div><dt>Status</dt><dd id="publishStatus">-</dd></div>
             <div><dt>Mode</dt><dd id="publishMode">-</dd></div>
             <div><dt>Post ID</dt><dd id="postId">-</dd></div>
           </dl>
-          <pre id="safePayload">Payload preview sẽ hiện ở đây.</pre>
-        </div>
+          <pre id="safePayload" class="payload-preview">Payload preview sẽ hiện ở đây.</pre>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <span class="label">System</span>
+              <h2>Warnings và logs</h2>
+            </div>
+          </div>
+          <div id="warningList" class="warning-list empty-state">Không có warning.</div>
+          <pre id="logOutput" class="log-output">Chưa có log chạy workflow.</pre>
+        </section>
       </section>
     </main>
     <script src="/app.js"></script>

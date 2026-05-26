@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
@@ -48,9 +49,18 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
 
         log_buffer = io.StringIO()
         try:
+            started_at = time.perf_counter()
             with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
                 result = build_workflow().invoke(create_initial_state())
-            self._send_json({"ok": True, "result": result, "logs": log_buffer.getvalue().strip()})
+            duration_ms = round((time.perf_counter() - started_at) * 1000)
+            self._send_json(
+                {
+                    "ok": True,
+                    "result": result,
+                    "duration_ms": duration_ms,
+                    "logs": log_buffer.getvalue().strip(),
+                }
+            )
         except Exception as exc:
             self._send_json({"ok": False, "error": str(exc), "logs": log_buffer.getvalue().strip()}, status=500)
 
