@@ -32,6 +32,11 @@ class Settings:
     dry_run: bool = _bool("DRY_RUN", True)
     mock_mode: bool = _bool("MOCK_MODE", False)
     facebook_request_delay_seconds: float = float(os.getenv("FACEBOOK_REQUEST_DELAY_SECONDS", "0.2"))
+    ad_library_enabled: bool = _bool("AD_LIBRARY_ENABLED", True)
+    ad_library_keywords: str = os.getenv("AD_LIBRARY_KEYWORDS", "nha khoa răng sứ răng đẹp cấy implant")
+    ad_library_country: str = os.getenv("AD_LIBRARY_COUNTRY", "VN")
+    ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "12"))
+    ad_library_cache_ttl_hours: float = float(os.getenv("AD_LIBRARY_CACHE_TTL_HOURS", "24"))
 
     @property
     def warnings(self) -> list[str]:
@@ -72,3 +77,8 @@ COMPETITOR_PAGE_IDS = settings.competitor_page_ids
 DRY_RUN = settings.dry_run
 MOCK_MODE = settings.effective_mock_mode
 CONFIG_WARNINGS = settings.warnings
+AD_LIBRARY_ENABLED = settings.ad_library_enabled
+AD_LIBRARY_KEYWORDS = settings.ad_library_keywords
+AD_LIBRARY_COUNTRY = settings.ad_library_country
+AD_LIBRARY_MAX_ADS = settings.ad_library_max_ads
+AD_LIBRARY_CACHE_TTL_HOURS = settings.ad_library_cache_ttl_hours

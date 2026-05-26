@@ -18,6 +18,7 @@ const safePayload = document.querySelector("#safePayload");
 const insightList = document.querySelector("#insightList");
 const insightCount = document.querySelector("#insightCount");
 const trendAnalysis = document.querySelector("#trendAnalysis");
+const adLibraryReport = document.querySelector("#adLibraryReport");
 const visualBrief = document.querySelector("#visualBrief");
 const marketingAnalysis = document.querySelector("#marketingAnalysis");
 const trendAngle = document.querySelector("#trendAngle");
@@ -149,6 +150,7 @@ function renderResult(result, logs) {
   postId.textContent = publish.published_post_id || "-";
   safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
   trendAnalysis.textContent = result.facebook_trend_analysis || "Chưa có phân tích trend.";
+  adLibraryReport.textContent = result.ad_library_report || "Chưa có dữ liệu Ad Library.";
   visualBrief.textContent = result.visual_creative_brief || draft.image_prompt || "Chưa có brief ảnh.";
   textAgentReport.textContent = result.text_insight_report || "Chưa có phân tích bài viết.";
   visualAgentReport.textContent = result.visual_insight_report || "Chưa có phân tích ảnh.";

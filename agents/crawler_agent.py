@@ -1,4 +1,10 @@
 from graph.state import AgentState
+from tools.ad_library_scraper import (
+    ads_to_competitor_insights,
+    build_ad_library_report,
+    build_ad_visual_notes,
+    collect_ad_library_ads,
+)
 from tools.facebook_crawler import crawl_facebook_posts
 from utils import config
 from utils.logger import get_logger
@@ -13,6 +19,25 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         insights = state.get("competitor_insights", [])
         logger.info("Crawler Agent using manual competitor input")
         state["messages"].append({"role": "crawler", "content": f"Used {len(insights)} manual competitor posts plus media notes"})
+    elif config.AD_LIBRARY_ENABLED:
+        try:
+            ads = collect_ad_library_ads(
+                keywords=config.AD_LIBRARY_KEYWORDS,
+                country=config.AD_LIBRARY_COUNTRY,
+                max_ads=config.AD_LIBRARY_MAX_ADS,
+                cache_ttl_hours=config.AD_LIBRARY_CACHE_TTL_HOURS,
+            )
+            insights = ads_to_competitor_insights(ads)
+            state["ad_library_ads"] = ads
+            state["ad_library_report"] = build_ad_library_report(ads, config.AD_LIBRARY_KEYWORDS)
+            state["competitor_visual_notes"] = build_ad_visual_notes(ads)
+            state["data_source"] = "ad_library"
+            state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} Ad Library insights"})
+        except Exception as exc:
+            logger.warning("Ad Library scan failed, falling back to Facebook/mock crawler: %s", exc)
+            insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
+            state["ad_library_report"] = f"Ad Library Agent lỗi: {exc}"
+            state["messages"].append({"role": "crawler", "content": f"Ad Library failed, collected {len(insights)} fallback insights"})
     else:
         insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
         state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} insights"})

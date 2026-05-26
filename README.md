@@ -93,11 +93,36 @@ Workflow hien chia ro cac vai:
 
 Workflow hien co them:
 
+- Tu dong quet Meta Ad Library voi keyword mac dinh `nha khoa rang su rang dep cay implant` de lay ad copy, page name va media preview cong khai.
 - Phan tich trend Facebook tu bai doi thu ban dan vao.
 - Uu tien noi dung cho rang su tham my, phuc hinh rang su va cay ghep implant.
 - Tao visual creative brief an toan cho anh goc cua SmileUp, anh co license, hoac anh AI tao moi.
 
 Luu y: he thong khong tai su dung/rebrand anh doi thu thanh anh cua SmileUp. Neu can anh cho chien dich, hay dung anh phong kham SmileUp, anh da co quyen, hoac tao anh moi theo creative brief.
+
+## Quet tu dong moi ngay
+
+Chay 1 lan va luu bao cao vao `reports/`:
+
+```bash
+python scripts/run_daily_scan.py
+```
+
+Tren Windows, cai lich quet moi ngay luc 08:30:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install_daily_scan_task.ps1 -Time 08:30
+```
+
+Bien cau hinh:
+
+```env
+AD_LIBRARY_ENABLED=true
+AD_LIBRARY_KEYWORDS=nha khoa răng sứ răng đẹp cấy implant
+AD_LIBRARY_COUNTRY=VN
+AD_LIBRARY_MAX_ADS=12
+AD_LIBRARY_CACHE_TTL_HOURS=24
+```
 
 ## Cau Hinh That
 

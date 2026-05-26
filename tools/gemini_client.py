@@ -35,6 +35,7 @@ def _build_prompt(state: AgentState) -> str:
     visual_report = state.get("visual_insight_report") or "Visual Insight Agent chưa có mô tả ảnh."
     video_report = state.get("video_insight_report") or "Video Insight Agent chưa có transcript/ghi chú video."
     strategic_direction = state.get("strategic_direction") or "Ưu tiên răng sứ thẩm mỹ và implant với CTA đặt lịch tư vấn."
+    ad_library_report = state.get("ad_library_report") or "Chưa có dữ liệu Meta Ad Library."
     strategy = state.get("daily_strategy") or "Tư vấn nha khoa cá nhân hóa, minh bạch, an toàn."
     feedback = state.get("manager_feedback") or "Không có feedback trước đó."
     return f"""
@@ -57,6 +58,9 @@ Vai trò từng agent:
 
 Dữ liệu insight đối thủ:
 {insights}
+
+Ad Library Agent report:
+{ad_library_report}
 
 Text Insight Agent report:
 {text_report}

@@ -46,6 +46,8 @@ class DraftContent(TypedDict):
 
 class AgentState(TypedDict):
     competitor_insights: list[CompetitorInsight]
+    ad_library_ads: list[dict[str, Any]]
+    ad_library_report: str
     market_trend_summary: str
     facebook_trend_analysis: str
     visual_creative_brief: str
@@ -73,6 +75,8 @@ class AgentState(TypedDict):
 def create_initial_state() -> AgentState:
     return {
         "competitor_insights": [],
+        "ad_library_ads": [],
+        "ad_library_report": "",
         "market_trend_summary": "",
         "facebook_trend_analysis": "",
         "visual_creative_brief": "",

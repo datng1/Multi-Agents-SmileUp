@@ -37,6 +37,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "dry_run": config.DRY_RUN,
                     "ai_provider": config.AI_PROVIDER,
                     "ai_model": config.GEMINI_MODEL if config.AI_PROVIDER == "Gemini" else "local-template",
+                    "ad_library_enabled": config.AD_LIBRARY_ENABLED,
+                    "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
                     "warnings": config.CONFIG_WARNINGS,
                 }
             )
