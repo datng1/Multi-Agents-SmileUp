@@ -4,6 +4,10 @@ const dryRunValue = document.querySelector("#dryRunValue");
 const approvalValue = document.querySelector("#approvalValue");
 const lastRunValue = document.querySelector("#lastRunValue");
 const connectionState = document.querySelector("#connectionState");
+const dataSourceValue = document.querySelector("#dataSourceValue");
+const keywordValue = document.querySelector("#keywordValue");
+const adsValue = document.querySelector("#adsValue");
+const durationValue = document.querySelector("#durationValue");
 const approvalBadge = document.querySelector("#approvalBadge");
 const dailyReport = document.querySelector("#dailyReport");
 const dailyStrategy = document.querySelector("#dailyStrategy");
@@ -50,6 +54,13 @@ const agentOrder = [
   "publisher",
 ];
 
+const sourceLabels = {
+  ad_library: "Auto Ad Library",
+  manual: "Manual override",
+  facebook: "Facebook Graph API",
+  mock: "Demo data",
+};
+
 function setAgentState(activeStep) {
   const activeIndex = agentOrder.indexOf(activeStep);
   agentCards.forEach((card) => {
@@ -83,6 +94,8 @@ async function loadStatus() {
   const status = await response.json();
   modeValue.textContent = `${status.ai_provider || "Local"} · ${status.ai_model || "template"}`;
   dryRunValue.textContent = status.dry_run ? "Dry-run on" : "Real publish";
+  keywordValue.textContent = status.ad_library_keywords || "-";
+  dataSourceValue.textContent = status.ad_library_enabled ? "Auto Ad Library" : "Manual/Facebook";
   connectionState.textContent = "Ready";
   connectionState.classList.add("ready");
   renderWarnings(status.warnings || []);
@@ -90,8 +103,11 @@ async function loadStatus() {
 
 async function runWorkflow() {
   runButton.disabled = true;
-  runButton.querySelector(".button-icon").textContent = "…";
+  runButton.querySelector(".button-icon").textContent = "...";
   approvalValue.textContent = "Running";
+  dataSourceValue.textContent = countManualPosts() ? "Manual override" : "Auto Ad Library";
+  adsValue.textContent = "-";
+  durationValue.textContent = "-";
   resetAgents();
   setAgentState("crawler");
 
@@ -110,8 +126,7 @@ async function runWorkflow() {
       throw new Error(payload.error || "Workflow failed");
     }
 
-    const result = payload.result;
-    renderResult(result, payload.logs || "");
+    renderResult(payload.result, payload.logs || "", payload.duration_ms);
     completeAgents();
     lastRunValue.textContent = new Date().toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -130,15 +145,20 @@ async function runWorkflow() {
   }
 }
 
-function renderResult(result, logs) {
+function renderResult(result, logs, durationMs) {
   const draft = result.draft_content || {};
   const publish = result.publish_result || {};
   const insights = result.competitor_insights || [];
   const approval = result.approval_status || "pending";
+  const source = result.data_source || (result.ad_library_ads?.length ? "ad_library" : "manual");
+  const adCount = Array.isArray(result.ad_library_ads) ? result.ad_library_ads.length : 0;
 
   approvalValue.textContent = approval;
   approvalBadge.textContent = approval;
   approvalBadge.className = `badge ${approval}`;
+  dataSourceValue.textContent = sourceLabels[source] || source;
+  adsValue.textContent = adCount ? `${adCount} ads` : source === "manual" ? "Manual" : "-";
+  durationValue.textContent = typeof durationMs === "number" ? `${durationMs.toLocaleString("vi-VN")} ms` : "-";
   dailyReport.textContent = result.daily_report || "-";
   dailyStrategy.textContent = result.daily_strategy || "-";
   postTitle.textContent = draft.title || "-";
@@ -177,7 +197,7 @@ function renderInsights(insights) {
   insightList.innerHTML = insights
     .map((item) => {
       const topics = (item.key_topics || [])
-        .map((topic) => `<span>${escapeHtml(topic.replaceAll("_", " "))}</span>`)
+        .map((topic) => `<span>${escapeHtml(String(topic).replaceAll("_", " "))}</span>`)
         .join("");
       return `
         <article class="insight-row">

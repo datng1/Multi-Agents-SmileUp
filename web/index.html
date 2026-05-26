@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SmileUp Agent Console</title>
+    <title>SmileUp Marketing Intelligence</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -14,22 +15,52 @@
             <img src="/assets/smileup-logo.jfif" alt="SmileUp Dental Clinic" />
           </span>
           <div>
-            <p class="eyebrow">SmileUp Marketing Ops</p>
-            <h1>Agent Console</h1>
+            <p class="eyebrow">SmileUp Dental Clinic</p>
+            <h1>Marketing Intelligence Console</h1>
+            <p class="top-note">Auto quét quảng cáo nha khoa, phân tích bằng 10 agents và tạo chiến lược cho răng sứ, implant.</p>
           </div>
         </div>
         <div class="top-actions">
           <span id="connectionState" class="connection-pill">Checking</span>
           <button id="runButton" class="primary-button" type="button" aria-label="Chạy workflow marketing">
             <span class="button-icon" aria-hidden="true">▶</span>
-            Chạy workflow
+            Chạy phân tích
           </button>
         </div>
       </header>
 
+      <section class="command-panel" aria-label="Command center">
+        <div class="command-copy">
+          <span class="label">Daily scan</span>
+          <h2>Quét thị trường tự động từ Meta Ad Library</h2>
+          <p>
+            Khi không nhập dữ liệu tay, hệ thống tự dùng bộ keyword nha khoa để tìm quảng cáo công khai, đọc copy,
+            ảnh preview và chuyển qua pipeline multi-agent.
+          </p>
+        </div>
+        <div class="command-metrics">
+          <div>
+            <span class="label">Nguồn hiện tại</span>
+            <strong id="dataSourceValue">Auto Ad Library</strong>
+          </div>
+          <div>
+            <span class="label">Keyword scan</span>
+            <strong id="keywordValue">nha khoa răng sứ răng đẹp cấy implant</strong>
+          </div>
+          <div>
+            <span class="label">Số ads đọc được</span>
+            <strong id="adsValue">-</strong>
+          </div>
+          <div>
+            <span class="label">Thời gian xử lý</span>
+            <strong id="durationValue">-</strong>
+          </div>
+        </div>
+      </section>
+
       <section class="status-strip" aria-live="polite">
         <div>
-          <span class="label">Execution mode</span>
+          <span class="label">AI model</span>
           <strong id="modeValue">Đang kiểm tra</strong>
         </div>
         <div>
@@ -48,93 +79,81 @@
 
       <section class="workflow-panel" aria-label="Agent workflow">
         <article class="agent-card" data-agent="crawler">
-          <div class="agent-topline">
-            <span class="agent-number">01</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">01</span><span class="agent-state">Idle</span></div>
           <h2>Crawler</h2>
-          <p>Thu thập hoặc nhận dữ liệu đối thủ từ input.</p>
+          <p>Quét Ad Library hoặc nhận input tay.</p>
         </article>
         <article class="agent-card" data-agent="text_insight">
-          <div class="agent-topline">
-            <span class="agent-number">02</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">02</span><span class="agent-state">Idle</span></div>
           <h2>Text</h2>
-          <p>Đọc caption, hook, pain point, offer và CTA.</p>
+          <p>Đọc hook, pain point, offer và CTA.</p>
         </article>
         <article class="agent-card" data-agent="trend_analysis">
-          <div class="agent-topline">
-            <span class="agent-number">03</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">03</span><span class="agent-state">Idle</span></div>
           <h2>Trend</h2>
-          <p>Chọn góc trend Facebook dễ kéo tương tác.</p>
+          <p>Tìm góc dễ kéo tương tác Facebook.</p>
         </article>
         <article class="agent-card" data-agent="visual_insight">
-          <div class="agent-topline">
-            <span class="agent-number">04</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">04</span><span class="agent-state">Idle</span></div>
           <h2>Visual</h2>
-          <p>Phân tích ảnh và brief creative an toàn.</p>
+          <p>Đọc ảnh, layout và creative angle.</p>
         </article>
         <article class="agent-card" data-agent="video_insight">
-          <div class="agent-topline">
-            <span class="agent-number">05</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">05</span><span class="agent-state">Idle</span></div>
           <h2>Video</h2>
-          <p>Đọc transcript, hook mở đầu và CTA reel.</p>
+          <p>Đọc transcript, hook mở đầu và nhịp reel.</p>
         </article>
         <article class="agent-card" data-agent="strategy">
-          <div class="agent-topline">
-            <span class="agent-number">06</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">06</span><span class="agent-state">Idle</span></div>
           <h2>Strategy</h2>
-          <p>Chọn hướng cho răng sứ và implant SmileUp.</p>
+          <p>Chốt hướng cho răng sứ và implant.</p>
         </article>
         <article class="agent-card" data-agent="content_creator">
-          <div class="agent-topline">
-            <span class="agent-number">07</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">07</span><span class="agent-state">Idle</span></div>
           <h2>Content</h2>
-          <p>Tạo bản nháp Facebook post theo insight.</p>
+          <p>Viết bài Facebook theo giọng marketing.</p>
         </article>
         <article class="agent-card" data-agent="compliance">
-          <div class="agent-topline">
-            <span class="agent-number">08</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">08</span><span class="agent-state">Idle</span></div>
           <h2>Compliance</h2>
-          <p>Kiểm tra claim nha khoa và lưu ý an toàn.</p>
+          <p>Chặn claim nha khoa quá đà.</p>
         </article>
         <article class="agent-card" data-agent="manager_review">
-          <div class="agent-topline">
-            <span class="agent-number">09</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">09</span><span class="agent-state">Idle</span></div>
           <h2>Manager</h2>
-          <p>Duyệt nội dung, compliance và chiến lược ngày.</p>
+          <p>Duyệt chiến lược và tài sản ngày.</p>
         </article>
         <article class="agent-card" data-agent="publisher">
-          <div class="agent-topline">
-            <span class="agent-number">10</span>
-            <span class="agent-state">Idle</span>
-          </div>
+          <div class="agent-topline"><span class="agent-number">10</span><span class="agent-state">Idle</span></div>
           <h2>Publisher</h2>
-          <p>Kiểm tra gate an toàn và xuất dry-run payload.</p>
+          <p>Xuất payload an toàn ở chế độ dry-run.</p>
         </article>
       </section>
 
       <section class="dashboard-grid">
+        <section class="panel panel-wide source-panel">
+          <div class="panel-header">
+            <div>
+              <span class="label">Auto source</span>
+              <h2>Ad Library scan</h2>
+            </div>
+            <span id="adScanBadge" class="meta-chip">Auto mỗi ngày</span>
+          </div>
+          <div class="source-grid">
+            <pre id="adLibraryReport">Chưa có dữ liệu Ad Library.</pre>
+            <div class="source-notes">
+              <div><span class="label">Cách dùng</span><strong>Để trống input tay rồi bấm Chạy phân tích.</strong></div>
+              <div><span class="label">Lịch tự động</span><strong>Task Scheduler chạy `scripts/run_daily_scan.py` mỗi ngày.</strong></div>
+              <div><span class="label">Phạm vi an toàn</span><strong>Chỉ dùng dữ liệu quảng cáo công khai, không cookie/F12.</strong></div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel panel-wide manual-panel">
           <div class="panel-header">
             <div>
-              <span class="label">Manual competitor input</span>
-              <h2>Dán bài đối thủ</h2>
+              <span class="label">Manual override</span>
+              <h2>Dán bài, ảnh, video nếu muốn ép nguồn riêng</h2>
             </div>
             <span id="manualCount" class="meta-chip">0 bài nhập tay</span>
           </div>
@@ -142,42 +161,23 @@
             <textarea
               id="manualInput"
               class="manual-input"
-              rows="8"
+              rows="7"
               spellcheck="false"
-              placeholder="Dán bài đối thủ tại đây. Mỗi bài cách nhau bằng một dòng trống.
-
-Ví dụ:
-Nha khoa đối thủ A
-Nội dung bài post về tẩy trắng răng, ưu đãi, CTA...
-
-Nha khoa đối thủ B
-Nội dung bài post về niềng răng trong suốt..."
+              placeholder="Dán bài đối thủ tại đây. Mỗi bài cách nhau bằng một dòng trống."
             ></textarea>
             <div class="media-input-grid">
               <label>
                 <span class="label">Image notes</span>
-                <textarea
-                  id="visualInput"
-                  class="manual-input compact"
-                  rows="5"
-                  spellcheck="false"
-                  placeholder="Mô tả ảnh đối thủ: bố cục, màu sắc, text overlay, bác sĩ/khách hàng, CTA, điểm nổi bật..."
-                ></textarea>
+                <textarea id="visualInput" class="manual-input compact" rows="4" spellcheck="false" placeholder="Mô tả ảnh: bố cục, màu sắc, text overlay, bác sĩ/khách hàng, CTA..."></textarea>
               </label>
               <label>
                 <span class="label">Video notes</span>
-                <textarea
-                  id="videoInput"
-                  class="manual-input compact"
-                  rows="5"
-                  spellcheck="false"
-                  placeholder="Dán transcript hoặc ghi chú video: hook 3 giây đầu, cảnh chính, lời bác sĩ, CTA, comment nổi bật..."
-                ></textarea>
+                <textarea id="videoInput" class="manual-input compact" rows="4" spellcheck="false" placeholder="Transcript hoặc ghi chú video: hook 3 giây đầu, cảnh chính, CTA..."></textarea>
               </label>
             </div>
           </div>
           <div class="manual-actions">
-            <p>Nếu có dữ liệu nhập tay, các agent sẽ dùng gói bài viết, ảnh và video này thay cho Facebook API/mock.</p>
+            <p>Có input tay thì workflow ưu tiên nguồn này; để trống thì tự quét Ad Library.</p>
             <button id="clearManualButton" class="secondary-button" type="button">Xóa nội dung</button>
           </div>
         </section>
@@ -194,111 +194,16 @@ Nội dung bài post về niềng răng trong suốt..."
         </section>
 
         <section class="panel">
-          <div class="panel-header">
-            <div>
-              <span class="label">Facebook trend</span>
-              <h2>Phân tích trend</h2>
-            </div>
-          </div>
-          <pre id="trendAnalysis">Chưa có phân tích trend.</pre>
+          <div class="panel-header"><div><span class="label">Decision</span><h2>Báo cáo ngày</h2></div><span id="approvalBadge" class="badge">pending</span></div>
+          <pre id="dailyReport">Bấm “Chạy phân tích” để tạo báo cáo.</pre>
         </section>
 
         <section class="panel">
-          <div class="panel-header">
-            <div>
-              <span class="label">Auto source</span>
-              <h2>Ad Library scan</h2>
-            </div>
-          </div>
-          <pre id="adLibraryReport">Chưa có dữ liệu Ad Library.</pre>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <span class="label">Visual safety</span>
-              <h2>Creative brief ảnh</h2>
-            </div>
-          </div>
-          <pre id="visualBrief">Chưa có brief ảnh.</pre>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <div>
-              <span class="label">Specialist agents</span>
-              <h2>Phân tích bài viết, ảnh, video</h2>
-            </div>
-          </div>
-          <div class="agent-output-grid">
-            <div>
-              <span class="label">Text Agent</span>
-              <pre id="textAgentReport">Chưa có phân tích bài viết.</pre>
-            </div>
-            <div>
-              <span class="label">Visual Agent</span>
-              <pre id="visualAgentReport">Chưa có phân tích ảnh.</pre>
-            </div>
-            <div>
-              <span class="label">Video Agent</span>
-              <pre id="videoAgentReport">Chưa có phân tích video.</pre>
-            </div>
-            <div>
-              <span class="label">Strategy Agent</span>
-              <pre id="strategyAgentReport">Chưa có hướng chiến lược.</pre>
-            </div>
-            <div>
-              <span class="label">Compliance Agent</span>
-              <pre id="complianceAgentReport">Chưa có kiểm tra compliance.</pre>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <div>
-              <span class="label">Marketing expert output</span>
-              <h2>Phân tích & cấu trúc bài</h2>
-            </div>
-          </div>
-          <div class="analysis-grid">
-            <div>
-              <span class="label">Marketing analysis</span>
-              <pre id="marketingAnalysis">Chưa có phân tích marketing.</pre>
-            </div>
-            <div>
-              <span class="label">Trend angle</span>
-              <pre id="trendAngle">Chưa có góc trend.</pre>
-            </div>
-            <div>
-              <span class="label">Post structure</span>
-              <pre id="postStructure">Chưa có cấu trúc bài.</pre>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <span class="label">Review result</span>
-              <h2>Báo cáo ngày</h2>
-            </div>
-            <span id="approvalBadge" class="badge">pending</span>
-          </div>
-          <pre id="dailyReport">Bấm “Chạy workflow” để tạo báo cáo.</pre>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <span class="label">Action plan</span>
-              <h2>Chiến lược</h2>
-            </div>
-          </div>
+          <div class="panel-header"><div><span class="label">Action plan</span><h2>Chiến lược</h2></div></div>
           <pre id="dailyStrategy">Chưa có dữ liệu.</pre>
         </section>
 
-        <section class="panel post-panel">
+        <section class="panel panel-wide post-panel">
           <div class="panel-header">
             <div>
               <span class="label">Approved asset</span>
@@ -311,6 +216,38 @@ Nội dung bài post về niềng răng trong suốt..."
             <p id="postCta" class="cta"></p>
             <p id="postTags" class="tags"></p>
           </article>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <span class="label">Agent reports</span>
+              <h2>Phân tích bài viết, trend, ảnh, video, compliance</h2>
+            </div>
+          </div>
+          <div class="agent-output-grid">
+            <div><span class="label">Text Agent</span><pre id="textAgentReport">Chưa có phân tích bài viết.</pre></div>
+            <div><span class="label">Trend Agent</span><pre id="trendAnalysis">Chưa có phân tích trend.</pre></div>
+            <div><span class="label">Visual Agent</span><pre id="visualAgentReport">Chưa có phân tích ảnh.</pre></div>
+            <div><span class="label">Video Agent</span><pre id="videoAgentReport">Chưa có phân tích video.</pre></div>
+            <div><span class="label">Strategy Agent</span><pre id="strategyAgentReport">Chưa có hướng chiến lược.</pre></div>
+            <div><span class="label">Compliance Agent</span><pre id="complianceAgentReport">Chưa có kiểm tra compliance.</pre></div>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <span class="label">Marketing expert output</span>
+              <h2>Phân tích & cấu trúc bài</h2>
+            </div>
+          </div>
+          <div class="analysis-grid">
+            <div><span class="label">Marketing analysis</span><pre id="marketingAnalysis">Chưa có phân tích marketing.</pre></div>
+            <div><span class="label">Trend angle</span><pre id="trendAngle">Chưa có góc trend.</pre></div>
+            <div><span class="label">Post structure</span><pre id="postStructure">Chưa có cấu trúc bài.</pre></div>
+            <div><span class="label">Visual creative brief</span><pre id="visualBrief">Chưa có brief ảnh.</pre></div>
+          </div>
         </section>
 
         <section class="panel">
@@ -328,7 +265,7 @@ Nội dung bài post về niềng răng trong suốt..."
           <pre id="safePayload" class="payload-preview">Payload preview sẽ hiện ở đây.</pre>
         </section>
 
-        <section class="panel panel-wide">
+        <section class="panel">
           <div class="panel-header">
             <div>
               <span class="label">System</span>
