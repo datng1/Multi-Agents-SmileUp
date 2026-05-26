@@ -25,7 +25,7 @@ Mock mode enabled: OPENAI_API_KEY missing; ANTHROPIC_API_KEY missing; FACEBOOK_A
 Sau do workflow chay du luong:
 
 ```txt
-crawler -> content_creator -> manager_review -> publisher
+crawler -> text_insight -> trend_analysis -> visual_insight -> video_insight -> strategy -> content_creator -> compliance -> manager_review -> publisher
 ```
 
 ## Smoke Test
@@ -57,7 +57,7 @@ http://127.0.0.1:8765
 Giao dien co nut "Chay workflow" de goi API `/api/run`, sau do hien thi:
 
 - Trang thai mock/dry-run
-- Cac buoc Crawler, Content, Manager, Publisher
+- Cac buoc Crawler, Text, Trend, Visual, Video, Strategy, Content, Compliance, Manager, Publisher
 - Bao cao ngay
 - Chien luoc
 - Bai dang da duyet
@@ -87,6 +87,7 @@ Workflow hien chia ro cac vai:
 - Trend Agent: tong hop trend Facebook de de len tuong tac.
 - Strategy Agent: chon huong dung nhat cho SmileUp voi rang su tham my va implant.
 - Copywriting Agent: viet bai Facebook bang giong marketing nha khoa co the dang ngay.
+- Compliance Agent: kiem tra claim nha khoa, tranh cam ket tuyet doi va yeu cau co luu y tham kham.
 
 ## Trend va hinh anh
 

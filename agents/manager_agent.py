@@ -1,4 +1,5 @@
 from graph.state import AgentState
+from tools.compliance import compliance_flags
 from utils.logger import get_logger
 
 
@@ -23,7 +24,7 @@ def run_manager_agent(state: AgentState) -> AgentState:
         state["approval_status"] = "rejected"
         state["manager_feedback"] = "Chưa có bản nháp để duyệt."
     else:
-        flags = _compliance_flags(draft)
+        flags = compliance_flags(draft)
         word_count = len(draft["body"].split())
         if flags:
             state["approval_status"] = "needs_revision" if state.get("revision_count", 0) < 3 else "rejected"
@@ -57,6 +58,7 @@ def _daily_strategy(state: AgentState) -> str:
         f"Insight thị trường: {state.get('market_trend_summary', '')}\n"
         f"{state.get('facebook_trend_analysis', '')}\n"
         f"{state.get('strategic_direction', '')}\n"
+        f"{state.get('compliance_report', '')}\n"
         "3-5 hành động hôm nay:\n"
         "- Đăng bài tư vấn răng sứ/implant với hook gợi nhu cầu thật: mất răng, ăn nhai, nụ cười thiếu tự tin.\n"
         "- Ghim CTA inbox/hotline và kịch bản hỏi nhanh: tình trạng răng, mong muốn, thời gian rảnh để thăm khám.\n"
@@ -77,6 +79,7 @@ def _daily_report(state: AgentState) -> str:
         f"Trend Facebook: {state.get('facebook_trend_analysis', '').replace(chr(10), ' ')}\n"
         f"Visual brief: {state.get('visual_creative_brief', '').replace(chr(10), ' ')}\n"
         f"Agent strategy: {state.get('strategic_direction', '').replace(chr(10), ' ')}\n"
+        f"Compliance: {state.get('compliance_report', '').replace(chr(10), ' ')}\n"
         "Checklist compliance: không claim tuyệt đối, CTA là đặt lịch tư vấn, có lưu ý kết quả tùy tình trạng răng.\n"
         "Khuyến nghị cho ngày mai: so sánh hiệu quả bài răng sứ với bài implant, ưu tiên hook có vấn đề cụ thể và visual gốc của SmileUp."
     )

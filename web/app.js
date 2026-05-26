@@ -26,6 +26,7 @@ const textAgentReport = document.querySelector("#textAgentReport");
 const visualAgentReport = document.querySelector("#visualAgentReport");
 const videoAgentReport = document.querySelector("#videoAgentReport");
 const strategyAgentReport = document.querySelector("#strategyAgentReport");
+const complianceAgentReport = document.querySelector("#complianceAgentReport");
 const warningList = document.querySelector("#warningList");
 const logOutput = document.querySelector("#logOutput");
 const manualInput = document.querySelector("#manualInput");
@@ -35,7 +36,18 @@ const manualCount = document.querySelector("#manualCount");
 const clearManualButton = document.querySelector("#clearManualButton");
 const agentCards = [...document.querySelectorAll(".agent-card")];
 
-const agentOrder = ["crawler", "content_creator", "manager_review", "publisher"];
+const agentOrder = [
+  "crawler",
+  "text_insight",
+  "trend_analysis",
+  "visual_insight",
+  "video_insight",
+  "strategy",
+  "content_creator",
+  "compliance",
+  "manager_review",
+  "publisher",
+];
 
 function setAgentState(activeStep) {
   const activeIndex = agentOrder.indexOf(activeStep);
@@ -142,6 +154,7 @@ function renderResult(result, logs) {
   visualAgentReport.textContent = result.visual_insight_report || "Chưa có phân tích ảnh.";
   videoAgentReport.textContent = result.video_insight_report || "Chưa có phân tích video.";
   strategyAgentReport.textContent = result.strategic_direction || "Chưa có hướng chiến lược.";
+  complianceAgentReport.textContent = result.compliance_report || "Chưa có kiểm tra compliance.";
   marketingAnalysis.textContent = draft.marketing_analysis || "Chưa có phân tích marketing.";
   trendAngle.textContent = draft.trend_angle || "Chưa có góc trend.";
   postStructure.textContent = draft.post_structure || "Chưa có cấu trúc bài.";

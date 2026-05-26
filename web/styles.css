@@ -206,7 +206,7 @@ h2 {
 }
 
 .workflow-panel {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 14px;
 }
 
@@ -219,7 +219,7 @@ h2 {
 }
 
 .agent-card {
-  min-height: 128px;
+  min-height: 118px;
   padding: 16px;
   transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
 }
@@ -408,7 +408,7 @@ pre {
 
 .agent-output-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 

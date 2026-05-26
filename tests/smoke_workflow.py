@@ -14,7 +14,13 @@ def main() -> None:
     _enable_utf8_console()
     result = build_workflow().invoke(create_initial_state())
     assert result["competitor_insights"], "crawler should produce insights"
+    assert result["text_insight_report"], "text insight agent should produce a report"
+    assert result["facebook_trend_analysis"], "trend agent should produce a report"
+    assert result["visual_insight_report"], "visual insight agent should produce a report"
+    assert result["video_insight_report"], "video insight agent should produce a report"
+    assert result["strategic_direction"], "strategy agent should produce a direction"
     assert result["draft_content"], "content agent should produce draft"
+    assert result["compliance_report"], "compliance agent should produce a report"
     assert result["approval_status"] == "approved", result["manager_feedback"]
     assert result["publish_result"], "publisher should produce a result"
     print("SMOKE OK")

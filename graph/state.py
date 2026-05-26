@@ -11,7 +11,13 @@ ApprovalStatus = Literal["pending", "approved", "rejected", "needs_revision"]
 CurrentStep = Literal[
     "start",
     "crawler",
+    "text_insight",
+    "trend_analysis",
+    "visual_insight",
+    "video_insight",
+    "strategy",
     "content_creator",
+    "compliance",
     "manager_review",
     "publisher",
     "end",
@@ -49,6 +55,7 @@ class AgentState(TypedDict):
     visual_insight_report: str
     video_insight_report: str
     strategic_direction: str
+    compliance_report: str
     draft_content: Optional[DraftContent]
     revision_count: int
     approval_status: ApprovalStatus
@@ -75,6 +82,7 @@ def create_initial_state() -> AgentState:
         "visual_insight_report": "",
         "video_insight_report": "",
         "strategic_direction": "",
+        "compliance_report": "",
         "draft_content": None,
         "revision_count": 0,
         "approval_status": "pending",

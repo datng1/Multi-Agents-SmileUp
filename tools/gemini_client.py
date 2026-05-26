@@ -118,13 +118,32 @@ def _parse_draft(text: str) -> DraftContent:
         cleaned = match.group(0)
 
     payload = json.loads(cleaned)
+    title = str(payload.get("title", "")).strip()
+    body = _dedupe_title_from_body(title, str(payload.get("body", "")).strip())
     return {
         "marketing_analysis": str(payload.get("marketing_analysis", "")).strip(),
         "trend_angle": str(payload.get("trend_angle", "")).strip(),
         "post_structure": str(payload.get("post_structure", "")).strip(),
-        "title": str(payload.get("title", "")).strip(),
-        "body": str(payload.get("body", "")).strip(),
+        "title": title,
+        "body": body,
         "hashtags": [str(tag).strip() for tag in payload.get("hashtags", []) if str(tag).strip()],
         "call_to_action": str(payload.get("call_to_action", "")).strip(),
         "image_prompt": str(payload.get("image_prompt", "")).strip() or None,
     }
+
+
+def _dedupe_title_from_body(title: str, body: str) -> str:
+    if not title or not body:
+        return body
+
+    normalized_title = _normalize_for_compare(title)
+    normalized_body = _normalize_for_compare(body)
+    if not normalized_body.startswith(normalized_title):
+        return body
+
+    remainder = body[len(title):].lstrip(" \n\r\t-:|")
+    return remainder or body
+
+
+def _normalize_for_compare(value: str) -> str:
+    return " ".join(value.casefold().split())
