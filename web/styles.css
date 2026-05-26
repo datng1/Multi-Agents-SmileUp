@@ -286,6 +286,23 @@ h2 {
   border-color: rgba(15, 118, 110, 0.28);
 }
 
+.input-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.media-input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.media-input-grid label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
 .manual-input {
   width: 100%;
   min-height: 172px;
@@ -297,6 +314,10 @@ h2 {
   background: rgba(248, 250, 251, 0.88);
   font: 14px/1.55 "Segoe UI", Arial, sans-serif;
   outline: none;
+}
+
+.manual-input.compact {
+  min-height: 126px;
 }
 
 .manual-input:focus {
@@ -385,7 +406,14 @@ pre {
   gap: 12px;
 }
 
-.analysis-grid > div {
+.agent-output-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analysis-grid > div,
+.agent-output-grid > div {
   min-width: 0;
   padding: 12px;
   border: 1px solid var(--line);
@@ -534,6 +562,11 @@ dd {
     grid-template-columns: 1fr 1fr;
   }
 
+  .agent-output-grid,
+  .media-input-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .panel-wide,
   .post-panel {
     grid-column: 1 / -1;
@@ -564,7 +597,9 @@ dd {
   .status-strip,
   .workflow-panel,
   .dashboard-grid,
+  .media-input-grid,
   .analysis-grid,
+  .agent-output-grid,
   .insight-row {
     grid-template-columns: 1fr;
   }

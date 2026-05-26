@@ -22,9 +22,15 @@ const visualBrief = document.querySelector("#visualBrief");
 const marketingAnalysis = document.querySelector("#marketingAnalysis");
 const trendAngle = document.querySelector("#trendAngle");
 const postStructure = document.querySelector("#postStructure");
+const textAgentReport = document.querySelector("#textAgentReport");
+const visualAgentReport = document.querySelector("#visualAgentReport");
+const videoAgentReport = document.querySelector("#videoAgentReport");
+const strategyAgentReport = document.querySelector("#strategyAgentReport");
 const warningList = document.querySelector("#warningList");
 const logOutput = document.querySelector("#logOutput");
 const manualInput = document.querySelector("#manualInput");
+const visualInput = document.querySelector("#visualInput");
+const videoInput = document.querySelector("#videoInput");
 const manualCount = document.querySelector("#manualCount");
 const clearManualButton = document.querySelector("#clearManualButton");
 const agentCards = [...document.querySelectorAll(".agent-card")];
@@ -80,7 +86,11 @@ async function runWorkflow() {
     const response = await fetch("/api/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ manual_competitor_posts: manualInput.value.trim() }),
+      body: JSON.stringify({
+        manual_competitor_posts: manualInput.value.trim(),
+        manual_visual_notes: visualInput.value.trim(),
+        manual_video_notes: videoInput.value.trim(),
+      }),
     });
     const payload = await response.json();
     if (!payload.ok) {
@@ -128,6 +138,10 @@ function renderResult(result, logs) {
   safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
   trendAnalysis.textContent = result.facebook_trend_analysis || "Chưa có phân tích trend.";
   visualBrief.textContent = result.visual_creative_brief || draft.image_prompt || "Chưa có brief ảnh.";
+  textAgentReport.textContent = result.text_insight_report || "Chưa có phân tích bài viết.";
+  visualAgentReport.textContent = result.visual_insight_report || "Chưa có phân tích ảnh.";
+  videoAgentReport.textContent = result.video_insight_report || "Chưa có phân tích video.";
+  strategyAgentReport.textContent = result.strategic_direction || "Chưa có hướng chiến lược.";
   marketingAnalysis.textContent = draft.marketing_analysis || "Chưa có phân tích marketing.";
   trendAngle.textContent = draft.trend_angle || "Chưa có góc trend.";
   postStructure.textContent = draft.post_structure || "Chưa có cấu trúc bài.";
@@ -210,6 +224,8 @@ runButton.addEventListener("click", runWorkflow);
 manualInput.addEventListener("input", () => updateManualCount());
 clearManualButton.addEventListener("click", () => {
   manualInput.value = "";
+  visualInput.value = "";
+  videoInput.value = "";
   updateManualCount(0);
   manualInput.focus();
 });

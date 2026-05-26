@@ -31,12 +31,24 @@ def _build_prompt(state: AgentState) -> str:
     insights = json.dumps(state.get("competitor_insights", []), ensure_ascii=False, indent=2)
     trend_analysis = state.get("facebook_trend_analysis") or "Chưa có phân tích trend."
     visual_brief = state.get("visual_creative_brief") or "Tạo ảnh gốc có nhận diện SmileUp, không dùng ảnh đối thủ."
+    text_report = state.get("text_insight_report") or "Text Insight Agent chưa có đủ caption để phân tích."
+    visual_report = state.get("visual_insight_report") or "Visual Insight Agent chưa có mô tả ảnh."
+    video_report = state.get("video_insight_report") or "Video Insight Agent chưa có transcript/ghi chú video."
+    strategic_direction = state.get("strategic_direction") or "Ưu tiên răng sứ thẩm mỹ và implant với CTA đặt lịch tư vấn."
     strategy = state.get("daily_strategy") or "Tư vấn nha khoa cá nhân hóa, minh bạch, an toàn."
     feedback = state.get("manager_feedback") or "Không có feedback trước đó."
     return f"""
-Bạn là senior strategist kiêm copywriter marketing nha khoa tại Việt Nam cho phòng khám SmileUp.
+Bạn là hội đồng multi-agent marketing nha khoa cho phòng khám SmileUp tại Việt Nam.
 
 Hãy phân tích thật kỹ trong nội bộ trước khi viết, nhưng KHÔNG xuất chain-of-thought. Chỉ xuất JSON cuối cùng.
+
+Vai trò từng agent:
+- Text Insight Agent: đọc toàn bộ caption/bài viết đối thủ, tách hook, pain point, offer, CTA, chủ đề lặp lại.
+- Visual Insight Agent: đọc ghi chú ảnh/frame/video still, rút ra bố cục, màu, text overlay, tín hiệu niềm tin; tuyệt đối không sao chép hoặc rebrand ảnh đối thủ.
+- Video Insight Agent: đọc transcript/shot notes video, tách hook 3 giây đầu, nhịp kể, proof, CTA, khả năng lên xu hướng.
+- Trend Agent: phân tích trend Facebook, định dạng caption, câu hỏi kéo comment, chủ đề dễ share/save.
+- Strategy Agent: chọn hướng đúng nhất cho SmileUp dựa trên răng sứ và cấy implant.
+- Copywriting Agent: viết bài Facebook đăng được ngay bằng giọng marketing nha khoa chuyên nghiệp.
 
 Định vị SmileUp cần ưu tiên:
 - Dịch vụ trọng tâm: răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép implant.
@@ -46,11 +58,23 @@ Hãy phân tích thật kỹ trong nội bộ trước khi viết, nhưng KHÔNG
 Dữ liệu insight đối thủ:
 {insights}
 
+Text Insight Agent report:
+{text_report}
+
+Visual Insight Agent report:
+{visual_report}
+
+Video Insight Agent report:
+{video_report}
+
 Phân tích trend Facebook từ dữ liệu đầu vào:
 {trend_analysis}
 
 Creative brief hình ảnh an toàn:
 {visual_brief}
+
+Strategic Direction Agent report:
+{strategic_direction}
 
 Chiến lược hiện tại:
 {strategy}

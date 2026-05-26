@@ -28,6 +28,9 @@ class CompetitorInsight(TypedDict):
 
 
 class DraftContent(TypedDict):
+    marketing_analysis: str
+    trend_angle: str
+    post_structure: str
     title: str
     body: str
     hashtags: list[str]
@@ -40,6 +43,12 @@ class AgentState(TypedDict):
     market_trend_summary: str
     facebook_trend_analysis: str
     visual_creative_brief: str
+    competitor_visual_notes: str
+    competitor_video_notes: str
+    text_insight_report: str
+    visual_insight_report: str
+    video_insight_report: str
+    strategic_direction: str
     draft_content: Optional[DraftContent]
     revision_count: int
     approval_status: ApprovalStatus
@@ -60,6 +69,12 @@ def create_initial_state() -> AgentState:
         "market_trend_summary": "",
         "facebook_trend_analysis": "",
         "visual_creative_brief": "",
+        "competitor_visual_notes": "",
+        "competitor_video_notes": "",
+        "text_insight_report": "",
+        "visual_insight_report": "",
+        "video_insight_report": "",
+        "strategic_direction": "",
         "draft_content": None,
         "revision_count": 0,
         "approval_status": "pending",

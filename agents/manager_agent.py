@@ -56,6 +56,7 @@ def _daily_strategy(state: AgentState) -> str:
         "Dịch vụ trọng tâm: Răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép implant.\n"
         f"Insight thị trường: {state.get('market_trend_summary', '')}\n"
         f"{state.get('facebook_trend_analysis', '')}\n"
+        f"{state.get('strategic_direction', '')}\n"
         "3-5 hành động hôm nay:\n"
         "- Đăng bài tư vấn răng sứ/implant với hook gợi nhu cầu thật: mất răng, ăn nhai, nụ cười thiếu tự tin.\n"
         "- Ghim CTA inbox/hotline và kịch bản hỏi nhanh: tình trạng răng, mong muốn, thời gian rảnh để thăm khám.\n"
@@ -75,6 +76,7 @@ def _daily_report(state: AgentState) -> str:
         f"Lý do quyết định: {state.get('manager_feedback', '')}\n"
         f"Trend Facebook: {state.get('facebook_trend_analysis', '').replace(chr(10), ' ')}\n"
         f"Visual brief: {state.get('visual_creative_brief', '').replace(chr(10), ' ')}\n"
+        f"Agent strategy: {state.get('strategic_direction', '').replace(chr(10), ' ')}\n"
         "Checklist compliance: không claim tuyệt đối, CTA là đặt lịch tư vấn, có lưu ý kết quả tùy tình trạng răng.\n"
         "Khuyến nghị cho ngày mai: so sánh hiệu quả bài răng sứ với bài implant, ưu tiên hook có vấn đề cụ thể và visual gốc của SmileUp."
     )

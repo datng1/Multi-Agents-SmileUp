@@ -54,13 +54,19 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         try:
             request_payload = self._read_json()
             manual_text = str(request_payload.get("manual_competitor_posts", "")).strip()
+            visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
+            video_notes = str(request_payload.get("manual_video_notes", "")).strip()
             initial_state = create_initial_state()
+            initial_state["competitor_visual_notes"] = visual_notes
+            initial_state["competitor_video_notes"] = video_notes
             if manual_text:
                 manual_insights = parse_manual_competitor_posts(manual_text)
                 if manual_insights:
                     initial_state["competitor_insights"] = manual_insights
                     initial_state["data_source"] = "manual"
                     initial_state["manual_posts_count"] = len(manual_insights)
+            if visual_notes or video_notes:
+                initial_state["data_source"] = "manual"
 
             started_at = time.perf_counter()
             with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):

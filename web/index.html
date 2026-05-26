@@ -90,12 +90,13 @@
             </div>
             <span id="manualCount" class="meta-chip">0 bài nhập tay</span>
           </div>
-          <textarea
-            id="manualInput"
-            class="manual-input"
-            rows="8"
-            spellcheck="false"
-            placeholder="Dán bài đối thủ tại đây. Mỗi bài cách nhau bằng một dòng trống.
+          <div class="input-stack">
+            <textarea
+              id="manualInput"
+              class="manual-input"
+              rows="8"
+              spellcheck="false"
+              placeholder="Dán bài đối thủ tại đây. Mỗi bài cách nhau bằng một dòng trống.
 
 Ví dụ:
 Nha khoa đối thủ A
@@ -103,9 +104,32 @@ Nội dung bài post về tẩy trắng răng, ưu đãi, CTA...
 
 Nha khoa đối thủ B
 Nội dung bài post về niềng răng trong suốt..."
-          ></textarea>
+            ></textarea>
+            <div class="media-input-grid">
+              <label>
+                <span class="label">Image notes</span>
+                <textarea
+                  id="visualInput"
+                  class="manual-input compact"
+                  rows="5"
+                  spellcheck="false"
+                  placeholder="Mô tả ảnh đối thủ: bố cục, màu sắc, text overlay, bác sĩ/khách hàng, CTA, điểm nổi bật..."
+                ></textarea>
+              </label>
+              <label>
+                <span class="label">Video notes</span>
+                <textarea
+                  id="videoInput"
+                  class="manual-input compact"
+                  rows="5"
+                  spellcheck="false"
+                  placeholder="Dán transcript hoặc ghi chú video: hook 3 giây đầu, cảnh chính, lời bác sĩ, CTA, comment nổi bật..."
+                ></textarea>
+              </label>
+            </div>
+          </div>
           <div class="manual-actions">
-            <p>Nếu ô này có nội dung, Crawler Agent sẽ dùng dữ liệu bạn dán thay cho Facebook API/mock.</p>
+            <p>Nếu có dữ liệu nhập tay, các agent sẽ dùng gói bài viết, ảnh và video này thay cho Facebook API/mock.</p>
             <button id="clearManualButton" class="secondary-button" type="button">Xóa nội dung</button>
           </div>
         </section>
@@ -139,6 +163,33 @@ Nội dung bài post về niềng răng trong suốt..."
             </div>
           </div>
           <pre id="visualBrief">Chưa có brief ảnh.</pre>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <span class="label">Specialist agents</span>
+              <h2>Phân tích bài viết, ảnh, video</h2>
+            </div>
+          </div>
+          <div class="agent-output-grid">
+            <div>
+              <span class="label">Text Agent</span>
+              <pre id="textAgentReport">Chưa có phân tích bài viết.</pre>
+            </div>
+            <div>
+              <span class="label">Visual Agent</span>
+              <pre id="visualAgentReport">Chưa có phân tích ảnh.</pre>
+            </div>
+            <div>
+              <span class="label">Video Agent</span>
+              <pre id="videoAgentReport">Chưa có phân tích video.</pre>
+            </div>
+            <div>
+              <span class="label">Strategy Agent</span>
+              <pre id="strategyAgentReport">Chưa có hướng chiến lược.</pre>
+            </div>
+          </div>
         </section>
 
         <section class="panel panel-wide">

@@ -65,7 +65,7 @@ Giao dien co nut "Chay workflow" de goi API `/api/run`, sau do hien thi:
 
 ### Dung khong can Facebook token
 
-Tren giao dien co o **Dan bai doi thu**. Ban co the copy 3-5 bai public cua doi thu va dan vao o nay, moi bai cach nhau bang mot dong trong:
+Tren giao dien co o **Dan bai doi thu** kem 2 o rieng cho **Image notes** va **Video notes**. Ban co the copy 3-5 bai public cua doi thu, mo ta hinh anh, va dan transcript/ghi chu video vao de cac agent doc nhu mot goi du lieu canh tranh.
 
 ```txt
 Nha khoa doi thu A
@@ -75,7 +75,18 @@ Nha khoa doi thu B
 Noi dung bai post ve nieng rang trong suot...
 ```
 
-Khi o nay co noi dung, Crawler Agent se dung du lieu nhap tay thay cho Facebook API/mock.
+Khi cac o nay co noi dung, workflow se dung du lieu nhap tay thay cho Facebook API/mock.
+
+## Specialist Agents
+
+Workflow hien chia ro cac vai:
+
+- Text Insight Agent: doc caption/bai viet, tach hook, pain point, offer va CTA.
+- Visual Insight Agent: doc mo ta anh/frame, rut ra bo cuc, text overlay va tin hieu niem tin.
+- Video Insight Agent: doc transcript/shot notes, tach hook 3 giay dau, nhip ke va CTA.
+- Trend Agent: tong hop trend Facebook de de len tuong tac.
+- Strategy Agent: chon huong dung nhat cho SmileUp voi rang su tham my va implant.
+- Copywriting Agent: viet bai Facebook bang giong marketing nha khoa co the dang ngay.
 
 ## Trend va hinh anh
 
