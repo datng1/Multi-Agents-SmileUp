@@ -98,7 +98,7 @@ async function loadStatus() {
   const status = await response.json();
   modeValue.textContent = `${status.ai_provider || "Local"} · ${status.ai_model || "template"}`;
   dryRunValue.textContent = status.dry_run ? "Dry-run on" : "Real publish";
-  keywordValue.textContent = status.ad_library_keywords || "-";
+  keywordValue.value = status.ad_library_keywords || "nha khoa răng sứ răng đẹp cấy implant";
   dataSourceValue.textContent = status.ad_library_enabled ? "Auto Ad Library" : "Manual/Facebook";
   connectionState.textContent = "Ready";
   connectionState.classList.add("ready");
@@ -123,6 +123,7 @@ async function runWorkflow() {
         manual_competitor_posts: manualInput.value.trim(),
         manual_visual_notes: visualInput.value.trim(),
         manual_video_notes: videoInput.value.trim(),
+        ad_library_keywords: keywordValue.value.trim(),
       }),
     });
     const payload = await response.json();
@@ -161,6 +162,9 @@ function renderResult(result, logs, durationMs) {
   approvalBadge.textContent = approval;
   approvalBadge.className = `badge ${approval}`;
   dataSourceValue.textContent = sourceLabels[source] || source;
+  if (result.ad_library_keywords) {
+    keywordValue.value = result.ad_library_keywords;
+  }
   adsValue.textContent = adCount ? `${adCount} ads` : source === "manual" ? "Manual" : "-";
   durationValue.textContent = typeof durationMs === "number" ? `${durationMs.toLocaleString("vi-VN")} ms` : "-";
   dailyReport.textContent = result.daily_report || "-";

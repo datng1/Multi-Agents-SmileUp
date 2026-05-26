@@ -94,6 +94,8 @@ Workflow hien chia ro cac vai:
 Workflow hien co them:
 
 - Tu dong quet Meta Ad Library voi keyword mac dinh `nha khoa rang su rang dep cay implant` de lay ad copy, page name va media preview cong khai.
+- Tren giao dien co the sua keyword quet; neu de trong se dung keyword mac dinh trong `.env`.
+- Ads duoc xep hang theo diem ket hop: do giong keyword va ngay bat dau chay moi nhat.
 - Phan tich trend Facebook tu bai doi thu ban dan vao.
 - Uu tien noi dung cho rang su tham my, phuc hinh rang su va cay ghep implant.
 - Tao visual creative brief an toan cho anh goc cua SmileUp, anh co license, hoac anh AI tao moi.

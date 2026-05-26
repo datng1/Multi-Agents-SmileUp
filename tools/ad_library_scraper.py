@@ -2,6 +2,7 @@ import json
 import re
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -10,6 +11,7 @@ from tools.summarizer import extract_topics, summarize_text
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_PATH = ROOT / "data" / "ad_library_cache.json"
+CACHE_VERSION = 2
 
 
 @dataclass
@@ -20,6 +22,10 @@ class AdLibraryAd:
     ad_text: str
     media_urls: list[str]
     score: int
+    similarity: float
+    recency_score: float
+    sort_score: float
+    started_timestamp: float
 
 
 def collect_ad_library_ads(
@@ -74,6 +80,7 @@ def build_ad_library_report(ads: list[dict], keywords: str) -> str:
         "Ad Library Agent:\n"
         f"- Keyword quét: {keywords}.\n"
         f"- Số quảng cáo lấy vào workflow: {len(ads)}.\n"
+        "- Thuật toán chọn: ưu tiên ads có độ giống keyword cao và ngày chạy mới nhất.\n"
         f"- Page nổi bật: {', '.join(pages[:8])}.\n"
         f"- Mẫu hook/copy: {sample or 'Chưa có copy đủ rõ.'}\n"
         "- Nguồn này phản ánh quảng cáo trong Meta Ad Library, không phải toàn bộ bài organic của Page."
@@ -121,16 +128,17 @@ def _scrape_ad_library(keywords: str, country: str, max_ads: int) -> list[dict]:
         time.sleep(12)
         body = driver.find_element(By.TAG_NAME, "body").text
         media_urls = _extract_media_urls(driver)
-        ads = _parse_ad_cards(body, media_urls)
+        ads = _parse_ad_cards(body, media_urls, keywords)
         return [asdict(ad) for ad in ads[:max_ads]]
     finally:
         driver.quit()
 
 
-def _parse_ad_cards(body: str, media_urls: list[str]) -> list[AdLibraryAd]:
+def _parse_ad_cards(body: str, media_urls: list[str], keywords: str) -> list[AdLibraryAd]:
     parts = re.split(r"(?=(?:Library ID|ID thư viện)[: ]+\d+)", body)
     ads: list[AdLibraryAd] = []
     media_index = 0
+    seen: set[str] = set()
     for part in parts:
         if not re.match(r"(?:Library ID|ID thư viện)[: ]+\d+", part):
             continue
@@ -142,8 +150,17 @@ def _parse_ad_cards(body: str, media_urls: list[str]) -> list[AdLibraryAd]:
         page_name = _page_name_from_lines(lines)
         started = _started_from_lines(lines)
         ad_text = _ad_text_from_lines(lines)
-        score = _dental_score("\n".join(lines))
-        if score <= 0 or not ad_text:
+        dedupe_key = f"{page_name}:{ad_text[:220]}"
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        full_text = "\n".join(lines)
+        score = _dental_score(full_text)
+        similarity = _keyword_similarity(keywords, f"{page_name}\n{ad_text}")
+        started_timestamp = _started_timestamp(started)
+        recency_score = _recency_score(started_timestamp)
+        sort_score = round(similarity * 0.72 + recency_score * 0.28, 4)
+        if score <= 0 or not ad_text or similarity <= 0:
             continue
         card_media = media_urls[media_index : media_index + 2]
         media_index += 2
@@ -155,9 +172,13 @@ def _parse_ad_cards(body: str, media_urls: list[str]) -> list[AdLibraryAd]:
                 ad_text=ad_text,
                 media_urls=card_media,
                 score=score,
+                similarity=similarity,
+                recency_score=recency_score,
+                sort_score=sort_score,
+                started_timestamp=started_timestamp,
             )
         )
-    return sorted(ads, key=lambda ad: ad.score, reverse=True)
+    return sorted(ads, key=lambda ad: (ad.sort_score, ad.started_timestamp, ad.score), reverse=True)
 
 
 def _page_name_from_lines(lines: list[str]) -> str:
@@ -205,6 +226,70 @@ def _dental_score(text: str) -> int:
     )
 
 
+def _keyword_similarity(keywords: str, text: str) -> float:
+    query_terms = _keyword_terms(keywords)
+    if not query_terms:
+        return 0.0
+    normalized_text = _normalize_vietnamese(text)
+    matched = sum(1 for term in query_terms if term in normalized_text)
+    phrase_bonus = 0.2 if _normalize_vietnamese(keywords) in normalized_text else 0.0
+    density_bonus = min(0.25, sum(normalized_text.count(term) for term in query_terms) / max(len(query_terms) * 10, 1))
+    return round(min(1.0, matched / len(query_terms) + phrase_bonus + density_bonus), 4)
+
+
+def _keyword_terms(keywords: str) -> list[str]:
+    normalized = _normalize_vietnamese(keywords)
+    raw_terms = re.split(r"[\s,.;|/]+", normalized)
+    stopwords = {"va", "voi", "cho", "cua", "the", "la", "de", "tu", "nhung"}
+    terms = [term for term in raw_terms if len(term) >= 2 and term not in stopwords]
+    phrases = [phrase.strip() for phrase in re.split(r"[,;|/]+", normalized) if len(phrase.strip()) >= 5]
+    ordered = []
+    for term in phrases + terms:
+        if term and term not in ordered:
+            ordered.append(term)
+    return ordered
+
+
+def _normalize_vietnamese(value: str) -> str:
+    replacements = str.maketrans(
+        {
+            "à": "a", "á": "a", "ạ": "a", "ả": "a", "ã": "a", "â": "a", "ầ": "a", "ấ": "a", "ậ": "a", "ẩ": "a", "ẫ": "a", "ă": "a", "ằ": "a", "ắ": "a", "ặ": "a", "ẳ": "a", "ẵ": "a",
+            "è": "e", "é": "e", "ẹ": "e", "ẻ": "e", "ẽ": "e", "ê": "e", "ề": "e", "ế": "e", "ệ": "e", "ể": "e", "ễ": "e",
+            "ì": "i", "í": "i", "ị": "i", "ỉ": "i", "ĩ": "i",
+            "ò": "o", "ó": "o", "ọ": "o", "ỏ": "o", "õ": "o", "ô": "o", "ồ": "o", "ố": "o", "ộ": "o", "ổ": "o", "ỗ": "o", "ơ": "o", "ờ": "o", "ớ": "o", "ợ": "o", "ở": "o", "ỡ": "o",
+            "ù": "u", "ú": "u", "ụ": "u", "ủ": "u", "ũ": "u", "ư": "u", "ừ": "u", "ứ": "u", "ự": "u", "ử": "u", "ữ": "u",
+            "ỳ": "y", "ý": "y", "ỵ": "y", "ỷ": "y", "ỹ": "y", "đ": "d",
+        }
+    )
+    normalized = value.casefold().translate(replacements)
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s,.;|/]+", " ", normalized)).strip()
+
+
+def _started_timestamp(started: str) -> float:
+    text = started.strip()
+    if not text:
+        return 0.0
+    date_text = text
+    for pattern in (r"Started running on\s+(.+)", r"Bắt đầu chạy vào\s+(.+)", r"Báº¯t Ä‘áº§u cháº¡y vào\s+(.+)"):
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            date_text = match.group(1).strip()
+            break
+    for fmt in ("%d %b %Y", "%d %B %Y", "%b %d, %Y", "%B %d, %Y", "%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(date_text, fmt).timestamp()
+        except ValueError:
+            continue
+    return 0.0
+
+
+def _recency_score(started_timestamp: float) -> float:
+    if started_timestamp <= 0:
+        return 0.0
+    age_days = max(0.0, (time.time() - started_timestamp) / 86400)
+    return round(1 / (1 + age_days / 45), 4)
+
+
 def _extract_media_urls(driver) -> list[str]:
     urls = []
     for image in driver.find_elements("tag name", "img")[:240]:
@@ -223,6 +308,8 @@ def _read_cache(keywords: str, country: str, ttl_hours: float) -> list[dict] | N
         return None
     if payload.get("keywords") != keywords or payload.get("country") != country:
         return None
+    if payload.get("version") != CACHE_VERSION:
+        return None
     created_at = float(payload.get("created_at", 0) or 0)
     if time.time() - created_at > ttl_hours * 3600:
         return None
@@ -232,5 +319,5 @@ def _read_cache(keywords: str, country: str, ttl_hours: float) -> list[dict] | N
 
 def _write_cache(keywords: str, country: str, ads: list[dict]) -> None:
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"created_at": time.time(), "keywords": keywords, "country": country, "ads": ads}
+    payload = {"version": CACHE_VERSION, "created_at": time.time(), "keywords": keywords, "country": country, "ads": ads}
     CACHE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

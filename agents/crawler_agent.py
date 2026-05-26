@@ -21,15 +21,17 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         state["messages"].append({"role": "crawler", "content": f"Used {len(insights)} manual competitor posts plus media notes"})
     elif config.AD_LIBRARY_ENABLED:
         try:
+            keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
             ads = collect_ad_library_ads(
-                keywords=config.AD_LIBRARY_KEYWORDS,
+                keywords=keywords,
                 country=config.AD_LIBRARY_COUNTRY,
                 max_ads=config.AD_LIBRARY_MAX_ADS,
                 cache_ttl_hours=config.AD_LIBRARY_CACHE_TTL_HOURS,
             )
             insights = ads_to_competitor_insights(ads)
             state["ad_library_ads"] = ads
-            state["ad_library_report"] = build_ad_library_report(ads, config.AD_LIBRARY_KEYWORDS)
+            state["ad_library_keywords"] = keywords
+            state["ad_library_report"] = build_ad_library_report(ads, keywords)
             state["competitor_visual_notes"] = build_ad_visual_notes(ads)
             state["data_source"] = "ad_library"
             state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} Ad Library insights"})

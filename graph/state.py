@@ -63,6 +63,7 @@ class AgentState(TypedDict):
     competitor_insights: list[CompetitorInsight]
     ad_library_ads: list[dict[str, Any]]
     ad_library_report: str
+    ad_library_keywords: str
     market_trend_summary: str
     facebook_trend_analysis: str
     visual_creative_brief: str
@@ -94,6 +95,7 @@ def create_initial_state() -> AgentState:
         "competitor_insights": [],
         "ad_library_ads": [],
         "ad_library_report": "",
+        "ad_library_keywords": "",
         "market_trend_summary": "",
         "facebook_trend_analysis": "",
         "visual_creative_brief": "",

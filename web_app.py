@@ -58,7 +58,9 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             manual_text = str(request_payload.get("manual_competitor_posts", "")).strip()
             visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
             video_notes = str(request_payload.get("manual_video_notes", "")).strip()
+            ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
             initial_state = create_initial_state()
+            initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
             initial_state["competitor_visual_notes"] = visual_notes
             initial_state["competitor_video_notes"] = video_notes
             if manual_text:
