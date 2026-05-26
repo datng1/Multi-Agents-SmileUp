@@ -23,6 +23,8 @@ const insightList = document.querySelector("#insightList");
 const insightCount = document.querySelector("#insightCount");
 const trendAnalysis = document.querySelector("#trendAnalysis");
 const adLibraryReport = document.querySelector("#adLibraryReport");
+const referencedAdsList = document.querySelector("#referencedAdsList");
+const referencedAdsCount = document.querySelector("#referencedAdsCount");
 const visualBrief = document.querySelector("#visualBrief");
 const marketingAnalysis = document.querySelector("#marketingAnalysis");
 const trendAngle = document.querySelector("#trendAngle");
@@ -214,6 +216,7 @@ function renderResult(result, logs, durationMs) {
   postStructure.textContent = draft.post_structure || "Chưa có cấu trúc bài.";
   logOutput.textContent = logs || formatMessages(result.messages || []);
   renderInsights(insights);
+  renderReferencedAds(result.ad_library_ads || []);
   renderContentPlan(result.content_plan || []);
   renderCreatives(result.creative_assets || []);
   updateManualCount(result.manual_posts_count || countManualPosts());
@@ -244,6 +247,39 @@ function renderInsights(insights) {
             <span>Engagement</span>
             <strong>${Number(item.engagement || 0).toLocaleString("vi-VN")}</strong>
           </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderReferencedAds(ads) {
+  referencedAdsCount.textContent = `${ads.length} ads`;
+  if (!ads.length) {
+    referencedAdsList.className = "referenced-ads-list empty-state";
+    referencedAdsList.textContent = "Chưa có ads tham chiếu.";
+    return;
+  }
+
+  referencedAdsList.className = "referenced-ads-list";
+  referencedAdsList.innerHTML = ads
+    .map((ad) => {
+      const libraryId = ad.library_id || "";
+      const adUrl = ad.ad_url || (libraryId ? `https://www.facebook.com/ads/library/?id=${encodeURIComponent(libraryId)}` : "https://www.facebook.com/ads/library/");
+      const firstLine = String(ad.ad_text || "").split(/\r?\n/).find((line) => line.trim()) || "";
+      const similarity = Number(ad.similarity || 0);
+      const scoreLabel = similarity ? `${Math.round(similarity * 100)}% match` : "Matched";
+      return `
+        <article class="referenced-ad-card">
+          <div>
+            <div class="ad-card-topline">
+              <span>${escapeHtml(ad.page_name || "Meta Ad Library")}</span>
+              <strong>${escapeHtml(scoreLabel)}</strong>
+            </div>
+            <h3>${escapeHtml(firstLine || "Ad Library creative")}</h3>
+            <p>${escapeHtml(ad.started_running || "No start date")}</p>
+          </div>
+          <a class="ad-link-button" href="${escapeHtml(adUrl)}" target="_blank" rel="noopener noreferrer">Mở ad</a>
         </article>
       `;
     })

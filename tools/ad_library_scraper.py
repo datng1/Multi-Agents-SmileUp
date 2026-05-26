@@ -11,12 +11,13 @@ from tools.summarizer import extract_topics, summarize_text
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_PATH = ROOT / "data" / "ad_library_cache.json"
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 
 
 @dataclass
 class AdLibraryAd:
     library_id: str
+    ad_url: str
     page_name: str
     started_running: str
     ad_text: str
@@ -167,6 +168,7 @@ def _parse_ad_cards(body: str, media_urls: list[str], keywords: str) -> list[AdL
         ads.append(
             AdLibraryAd(
                 library_id=library_id,
+                ad_url=_ad_library_url(library_id),
                 page_name=page_name,
                 started_running=started,
                 ad_text=ad_text,
@@ -188,6 +190,12 @@ def _page_name_from_lines(lines: list[str]) -> str:
             if index > 0:
                 return lines[index - 1]
     return "Meta Ad Library"
+
+
+def _ad_library_url(library_id: str) -> str:
+    if not library_id:
+        return "https://www.facebook.com/ads/library/"
+    return f"https://www.facebook.com/ads/library/?id={library_id}"
 
 
 def _started_from_lines(lines: list[str]) -> str:

@@ -342,6 +342,7 @@ h2 {
 
 .input-stack,
 .insight-list,
+.referenced-ads-list,
 .content-plan-list,
 .publish-facts {
   display: grid;
@@ -558,6 +559,7 @@ pre {
 .agent-output-grid > div,
 .variant-card,
 .creative-card,
+.referenced-ad-card,
 .insight-row {
   min-width: 0;
   border: 1px solid var(--line);
@@ -568,8 +570,74 @@ pre {
 .analysis-grid > div,
 .agent-output-grid > div,
 .variant-card,
-.creative-card {
+.creative-card,
+.referenced-ad-card {
   padding: 14px;
+}
+
+.referenced-ads-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.referenced-ad-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.ad-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ad-card-topline span {
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.ad-card-topline strong {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--navy);
+  background: #eef3f4;
+  font-size: 12px;
+}
+
+.referenced-ad-card h3 {
+  margin-bottom: 7px;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.referenced-ad-card p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ad-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 13px;
+  font-weight: 820;
+  text-decoration: none;
+}
+
+.ad-link-button:hover {
+  background: var(--accent-strong);
 }
 
 .insight-row {
@@ -788,6 +856,7 @@ dd {
 
   .agent-output-grid,
   .content-plan-list,
+  .referenced-ads-list,
   .media-input-grid,
   .auto-note-grid {
     grid-template-columns: 1fr 1fr;
@@ -817,6 +886,7 @@ dd {
   .analysis-grid,
   .agent-output-grid,
   .content-plan-list,
+  .referenced-ads-list,
   .creative-grid,
   .insight-row {
     grid-template-columns: 1fr;
