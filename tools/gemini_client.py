@@ -77,9 +77,6 @@ def _gemini_model_candidates() -> list[str]:
     for model in [config.GEMINI_MODEL, *config.GEMINI_FALLBACK_MODELS]:
         if model and model not in candidates:
             candidates.append(model)
-    if "gemini-2.5-pro" in candidates:
-        candidates.remove("gemini-2.5-pro")
-        candidates.insert(0, "gemini-2.5-pro")
     return candidates
 
 

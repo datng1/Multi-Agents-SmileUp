@@ -137,8 +137,8 @@ Copy `.env.example` thanh `.env`, dien cac bien:
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-3-pro
-GEMINI_FALLBACK_MODELS=gemini-3-pro,gemini-2.5-pro,gemini-2.5-flash
+GEMINI_MODEL=gemini-3.1-pro-preview
+GEMINI_FALLBACK_MODELS=gemini-3.1-pro-preview,gemini-3-pro,gemini-2.5-pro,gemini-2.5-flash
 OPENAI_MODEL=gpt-4o-mini
 ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
 CMO_JURY_ENABLED=true
