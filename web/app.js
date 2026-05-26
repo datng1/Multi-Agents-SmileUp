@@ -43,7 +43,13 @@ const visualInput = document.querySelector("#visualInput");
 const videoInput = document.querySelector("#videoInput");
 const manualCount = document.querySelector("#manualCount");
 const clearManualButton = document.querySelector("#clearManualButton");
+const autoTabButton = document.querySelector("#autoTabButton");
+const manualTabButton = document.querySelector("#manualTabButton");
+const autoSourcePanel = document.querySelector("#autoSourcePanel");
+const manualSourcePanel = document.querySelector("#manualSourcePanel");
 const agentCards = [...document.querySelectorAll(".agent-card")];
+
+let activeSourceMode = "auto";
 
 const agentOrder = [
   "crawler",
@@ -64,6 +70,24 @@ const sourceLabels = {
   facebook: "Facebook Graph API",
   mock: "Demo data",
 };
+
+function setSourceMode(mode) {
+  activeSourceMode = mode;
+  const isManual = mode === "manual";
+  autoTabButton.classList.toggle("active", !isManual);
+  manualTabButton.classList.toggle("active", isManual);
+  autoTabButton.setAttribute("aria-selected", String(!isManual));
+  manualTabButton.setAttribute("aria-selected", String(isManual));
+  autoSourcePanel.classList.toggle("active", !isManual);
+  manualSourcePanel.classList.toggle("active", isManual);
+  autoSourcePanel.hidden = isManual;
+  manualSourcePanel.hidden = !isManual;
+  syncSourceMode();
+}
+
+function syncSourceMode() {
+  dataSourceValue.textContent = activeSourceMode === "manual" ? "Manual override" : "Auto Ad Library";
+}
 
 function setAgentState(activeStep) {
   const activeIndex = agentOrder.indexOf(activeStep);
@@ -99,9 +123,9 @@ async function loadStatus() {
   modeValue.textContent = `${status.ai_provider || "Local"} · ${status.ai_model || "template"}`;
   dryRunValue.textContent = status.dry_run ? "Dry-run on" : "Real publish";
   keywordValue.value = status.ad_library_keywords || "nha khoa răng sứ răng đẹp cấy implant";
-  dataSourceValue.textContent = status.ad_library_enabled ? "Auto Ad Library" : "Manual/Facebook";
   connectionState.textContent = "Ready";
   connectionState.classList.add("ready");
+  syncSourceMode();
   renderWarnings(status.warnings || []);
 }
 
@@ -109,7 +133,7 @@ async function runWorkflow() {
   runButton.disabled = true;
   runButton.querySelector(".button-icon").textContent = "...";
   approvalValue.textContent = "Running";
-  dataSourceValue.textContent = countManualPosts() ? "Manual override" : "Auto Ad Library";
+  syncSourceMode();
   adsValue.textContent = "-";
   durationValue.textContent = "-";
   resetAgents();
@@ -120,9 +144,9 @@ async function runWorkflow() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        manual_competitor_posts: manualInput.value.trim(),
-        manual_visual_notes: visualInput.value.trim(),
-        manual_video_notes: videoInput.value.trim(),
+        manual_competitor_posts: activeSourceMode === "manual" ? manualInput.value.trim() : "",
+        manual_visual_notes: activeSourceMode === "manual" ? visualInput.value.trim() : "",
+        manual_video_notes: activeSourceMode === "manual" ? videoInput.value.trim() : "",
         ad_library_keywords: keywordValue.value.trim(),
       }),
     });
@@ -323,6 +347,15 @@ function escapeHtml(value) {
 }
 
 runButton.addEventListener("click", runWorkflow);
+autoTabButton.addEventListener("click", () => setSourceMode("auto"));
+manualTabButton.addEventListener("click", () => setSourceMode("manual"));
+keywordValue.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    setSourceMode("auto");
+    runWorkflow();
+  }
+});
 manualInput.addEventListener("input", () => updateManualCount());
 clearManualButton.addEventListener("click", () => {
   manualInput.value = "";
@@ -331,6 +364,7 @@ clearManualButton.addEventListener("click", () => {
   updateManualCount(0);
   manualInput.focus();
 });
+setSourceMode("auto");
 loadStatus().catch(() => {
   modeValue.textContent = "Unknown";
   dryRunValue.textContent = "-";
