@@ -173,7 +173,7 @@
         <article class="agent-card" data-agent="strategy"><div class="agent-topline"><span class="agent-number">06</span><span class="agent-state">Idle</span></div><h2>Strategy</h2><p>Chốt hướng cho răng sứ và implant.</p></article>
         <article class="agent-card" data-agent="content_creator"><div class="agent-topline"><span class="agent-number">07</span><span class="agent-state">Idle</span></div><h2>Content</h2><p>Viết bài Facebook theo giọng marketing.</p></article>
         <article class="agent-card" data-agent="compliance"><div class="agent-topline"><span class="agent-number">08</span><span class="agent-state">Idle</span></div><h2>Compliance</h2><p>Chặn claim nha khoa quá đà.</p></article>
-        <article class="agent-card" data-agent="manager_review"><div class="agent-topline"><span class="agent-number">09</span><span class="agent-state">Idle</span></div><h2>Manager</h2><p>Duyệt chiến lược và tài sản ngày.</p></article>
+        <article class="agent-card" data-agent="manager_review"><div class="agent-topline"><span class="agent-number">09</span><span class="agent-state">Idle</span></div><h2>CMO</h2><p>Chọn variant, creative và quyết định publish.</p></article>
         <article class="agent-card" data-agent="publisher"><div class="agent-topline"><span class="agent-number">10</span><span class="agent-state">Idle</span></div><h2>Publisher</h2><p>Xuất payload an toàn ở chế độ dry-run.</p></article>
       </section>
 
@@ -216,6 +216,36 @@
             <span id="insightCount" class="meta-chip">0 nguồn</span>
           </div>
           <div id="insightList" class="insight-list empty-state">Chưa có insight.</div>
+        </section>
+
+        <section class="panel panel-wide cmo-panel">
+          <div class="panel-header">
+            <div>
+              <span class="label">CMO Orchestrator</span>
+              <h2>Quyết định điều phối luồng</h2>
+            </div>
+            <span id="cmoActionBadge" class="meta-chip">Waiting</span>
+          </div>
+          <div class="cmo-grid">
+            <div>
+              <span class="label">Mục tiêu CMO</span>
+              <p id="cmoObjective">Chưa có quyết định.</p>
+            </div>
+            <div>
+              <span class="label">Quyết định</span>
+              <p id="cmoDecision">Chưa chạy workflow.</p>
+            </div>
+            <div>
+              <span class="label">CMO chọn</span>
+              <p id="cmoSelected">Chưa chọn variant/creative.</p>
+            </div>
+            <div>
+              <span class="label">Feedback cho agent</span>
+              <p id="cmoFeedback">Chưa có feedback.</p>
+            </div>
+          </div>
+          <pre id="cmoBrief" class="cmo-brief">CMO brief sẽ hiện ở đây sau khi chạy workflow.</pre>
+          <div id="cmoScorecard" class="cmo-scorecard empty-state">Chưa có scorecard.</div>
         </section>
 
         <section class="panel hidden-panel" aria-hidden="true">

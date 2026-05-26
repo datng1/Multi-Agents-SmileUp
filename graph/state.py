@@ -8,6 +8,7 @@ except Exception:
 
 
 ApprovalStatus = Literal["pending", "approved", "rejected", "needs_revision"]
+CMONextAction = Literal["continue", "revise", "publish", "stop", "rescan"]
 CurrentStep = Literal[
     "start",
     "crawler",
@@ -81,6 +82,14 @@ class AgentState(TypedDict):
     creative_upload_path: str
     creative_upload_url: str
     creative_reference_note: str
+    cmo_objective: str
+    cmo_decision: str
+    cmo_feedback: str
+    cmo_next_action: CMONextAction
+    cmo_selected_variant_index: int
+    cmo_selected_creative_index: int
+    cmo_scorecard: list[dict[str, Any]]
+    cmo_campaign_brief: str
     revision_count: int
     approval_status: ApprovalStatus
     manager_feedback: str
@@ -117,6 +126,14 @@ def create_initial_state() -> AgentState:
         "creative_upload_path": "",
         "creative_upload_url": "",
         "creative_reference_note": "",
+        "cmo_objective": "CMO nha khoa SmileUp: tăng lịch tư vấn răng sứ và implant bằng nội dung khác biệt, an toàn y khoa.",
+        "cmo_decision": "",
+        "cmo_feedback": "",
+        "cmo_next_action": "continue",
+        "cmo_selected_variant_index": -1,
+        "cmo_selected_creative_index": -1,
+        "cmo_scorecard": [],
+        "cmo_campaign_brief": "",
         "revision_count": 0,
         "approval_status": "pending",
         "manager_feedback": "",

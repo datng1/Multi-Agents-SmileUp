@@ -22,9 +22,14 @@ def main() -> None:
     assert result["draft_content"], "content agent should produce draft"
     assert result["compliance_report"], "compliance agent should produce a report"
     assert result["approval_status"] == "approved", result["manager_feedback"]
+    assert result["cmo_decision"] == "APPROVE", result["cmo_feedback"]
+    assert result["cmo_next_action"] == "publish", result["cmo_next_action"]
+    assert result["cmo_selected_variant_index"] >= 0, "CMO should select a campaign variant"
+    assert result["cmo_campaign_brief"], "CMO should produce a campaign brief"
     assert result["publish_result"], "publisher should produce a result"
     print("SMOKE OK")
     print("approval_status=", result["approval_status"])
+    print("cmo_decision=", result["cmo_decision"])
     print("publish_result=", result["publish_result"])
 
 

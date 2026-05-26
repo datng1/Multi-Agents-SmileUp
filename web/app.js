@@ -33,6 +33,13 @@ const trendAnalysis = document.querySelector("#trendAnalysis");
 const adLibraryReport = document.querySelector("#adLibraryReport");
 const referencedAdsList = document.querySelector("#referencedAdsList");
 const referencedAdsCount = document.querySelector("#referencedAdsCount");
+const cmoActionBadge = document.querySelector("#cmoActionBadge");
+const cmoObjective = document.querySelector("#cmoObjective");
+const cmoDecision = document.querySelector("#cmoDecision");
+const cmoSelected = document.querySelector("#cmoSelected");
+const cmoFeedback = document.querySelector("#cmoFeedback");
+const cmoBrief = document.querySelector("#cmoBrief");
+const cmoScorecard = document.querySelector("#cmoScorecard");
 const visualBrief = document.querySelector("#visualBrief");
 const marketingAnalysis = document.querySelector("#marketingAnalysis");
 const trendAngle = document.querySelector("#trendAngle");
@@ -252,9 +259,10 @@ function renderResult(result, logs, durationMs) {
   logOutput.textContent = logs || formatMessages(result.messages || []);
   renderInsights(insights);
   renderReferencedAds(result.ad_library_ads || []);
+  renderCmoDecision(result);
   renderContentPlan(result.content_plan || []);
   renderCreatives(creativeAssets);
-  setFinalDraft(draft, creativeAssets);
+  setFinalDraft(draft, creativeAssets, result.cmo_selected_creative_index);
   updateManualCount(result.manual_posts_count || countManualPosts());
 }
 
@@ -333,6 +341,40 @@ function renderWarnings(warnings) {
   warningList.innerHTML = warnings.map((warning) => `<span>${escapeHtml(warning)}</span>`).join("");
 }
 
+function renderCmoDecision(result) {
+  const selectedVariant = Number(result.cmo_selected_variant_index);
+  const selectedCreative = Number(result.cmo_selected_creative_index);
+  cmoActionBadge.textContent = result.cmo_next_action || "waiting";
+  cmoObjective.textContent = result.cmo_objective || "CMO nha khoa SmileUp: tăng lịch tư vấn răng sứ và implant.";
+  cmoDecision.textContent = `${result.cmo_decision || "PENDING"} · ${result.approval_status || "pending"}`;
+  cmoSelected.textContent = `Variant ${selectedVariant >= 0 ? `#${selectedVariant + 1}` : "chưa chọn"} · Creative ${selectedCreative >= 0 ? `#${selectedCreative + 1}` : "chưa chọn"}`;
+  cmoFeedback.textContent = result.cmo_feedback || result.manager_feedback || "Chưa có feedback.";
+  cmoBrief.textContent = result.cmo_campaign_brief || "CMO brief sẽ hiện ở đây sau khi chạy workflow.";
+
+  const scorecard = Array.isArray(result.cmo_scorecard) ? result.cmo_scorecard : [];
+  if (!scorecard.length) {
+    cmoScorecard.className = "cmo-scorecard empty-state";
+    cmoScorecard.textContent = "Chưa có scorecard.";
+    return;
+  }
+  cmoScorecard.className = "cmo-scorecard";
+  cmoScorecard.innerHTML = scorecard
+    .map((item) => {
+      const isPicked = Number(item.index) === selectedVariant;
+      return `
+        <article class="cmo-score-card ${isPicked ? "picked" : ""}">
+          <div>
+            <strong>${String(Number(item.index) + 1).padStart(2, "0")} · ${escapeHtml(item.service_line || "post")}</strong>
+            <span>${escapeHtml(isPicked ? "CMO pick" : `${Number(item.score || 0)} điểm`)}</span>
+          </div>
+          <h3>${escapeHtml(item.title || "-")}</h3>
+          <p>${escapeHtml(item.decision_note || "")}</p>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderContentPlan(variants) {
   contentPlanCount.textContent = `${variants.length} biến thể`;
   if (!variants.length) {
@@ -406,7 +448,7 @@ function renderPublishedPostLink(publish) {
   publishedPostLinkBox.hidden = false;
 }
 
-function setFinalDraft(draft, assets) {
+function setFinalDraft(draft, assets, preferredCreativeIndex = 0) {
   originalFinalDraft = {
     title: draft.title || "",
     body: draft.body || "",
@@ -418,11 +460,11 @@ function setFinalDraft(draft, assets) {
   finalBodyInput.value = originalFinalDraft.body;
   finalCtaInput.value = originalFinalDraft.call_to_action;
   finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
-  renderFinalCreativeOptions();
+  renderFinalCreativeOptions(preferredCreativeIndex);
   updateFacebookPreview();
 }
 
-function renderFinalCreativeOptions() {
+function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
   finalCreativeSelect.innerHTML = "";
   if (!currentCreativeAssets.length) {
     const option = document.createElement("option");
@@ -438,7 +480,8 @@ function renderFinalCreativeOptions() {
     option.textContent = `${String(index + 1).padStart(2, "0")} · ${asset.service_line || asset.title || "SmileUp creative"}`;
     finalCreativeSelect.appendChild(option);
   });
-  finalCreativeSelect.value = "0";
+  const safeIndex = Number(preferredCreativeIndex);
+  finalCreativeSelect.value = safeIndex >= 0 && safeIndex < currentCreativeAssets.length ? String(safeIndex) : "0";
 }
 
 function updateFacebookPreview() {
