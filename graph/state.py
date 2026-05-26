@@ -44,6 +44,21 @@ class DraftContent(TypedDict):
     image_prompt: Optional[str]
 
 
+class ContentVariant(TypedDict, total=False):
+    service_line: str
+    angle: str
+    differentiation: str
+    marketing_analysis: str
+    trend_angle: str
+    post_structure: str
+    title: str
+    body: str
+    hashtags: list[str]
+    call_to_action: str
+    image_prompt: str
+    image_path: str
+
+
 class AgentState(TypedDict):
     competitor_insights: list[CompetitorInsight]
     ad_library_ads: list[dict[str, Any]]
@@ -59,6 +74,8 @@ class AgentState(TypedDict):
     strategic_direction: str
     compliance_report: str
     draft_content: Optional[DraftContent]
+    content_plan: list[ContentVariant]
+    creative_assets: list[dict[str, Any]]
     revision_count: int
     approval_status: ApprovalStatus
     manager_feedback: str
@@ -88,6 +105,8 @@ def create_initial_state() -> AgentState:
         "strategic_direction": "",
         "compliance_report": "",
         "draft_content": None,
+        "content_plan": [],
+        "creative_assets": [],
         "revision_count": 0,
         "approval_status": "pending",
         "manager_feedback": "",

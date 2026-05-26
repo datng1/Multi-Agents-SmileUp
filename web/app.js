@@ -32,6 +32,10 @@ const visualAgentReport = document.querySelector("#visualAgentReport");
 const videoAgentReport = document.querySelector("#videoAgentReport");
 const strategyAgentReport = document.querySelector("#strategyAgentReport");
 const complianceAgentReport = document.querySelector("#complianceAgentReport");
+const contentPlanList = document.querySelector("#contentPlanList");
+const contentPlanCount = document.querySelector("#contentPlanCount");
+const creativeGrid = document.querySelector("#creativeGrid");
+const creativeCount = document.querySelector("#creativeCount");
 const warningList = document.querySelector("#warningList");
 const logOutput = document.querySelector("#logOutput");
 const manualInput = document.querySelector("#manualInput");
@@ -182,6 +186,8 @@ function renderResult(result, logs, durationMs) {
   postStructure.textContent = draft.post_structure || "Chưa có cấu trúc bài.";
   logOutput.textContent = logs || formatMessages(result.messages || []);
   renderInsights(insights);
+  renderContentPlan(result.content_plan || []);
+  renderCreatives(result.creative_assets || []);
   updateManualCount(result.manual_posts_count || countManualPosts());
 }
 
@@ -225,6 +231,63 @@ function renderWarnings(warnings) {
 
   warningList.className = "warning-list";
   warningList.innerHTML = warnings.map((warning) => `<span>${escapeHtml(warning)}</span>`).join("");
+}
+
+function renderContentPlan(variants) {
+  contentPlanCount.textContent = `${variants.length} biến thể`;
+  if (!variants.length) {
+    contentPlanList.className = "content-plan-list empty-state";
+    contentPlanList.textContent = "Chưa có campaign variants.";
+    return;
+  }
+
+  contentPlanList.className = "content-plan-list";
+  contentPlanList.innerHTML = variants
+    .map((variant, index) => {
+      const tags = (variant.hashtags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
+      return `
+        <article class="variant-card">
+          <div class="variant-topline">
+            <span>${String(index + 1).padStart(2, "0")} · ${escapeHtml(variant.service_line || "post")}</span>
+            <strong>${escapeHtml(variant.angle || "")}</strong>
+          </div>
+          <h3>${escapeHtml(variant.title || "-")}</h3>
+          <p>${escapeHtml(variant.differentiation || "")}</p>
+          <details>
+            <summary>Xem caption</summary>
+            <pre>${escapeHtml(variant.body || "")}</pre>
+          </details>
+          <div class="topic-list">${tags}</div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderCreatives(assets) {
+  creativeCount.textContent = `${assets.length} ảnh`;
+  if (!assets.length) {
+    creativeGrid.className = "creative-grid empty-state";
+    creativeGrid.textContent = "Chưa có ảnh creative.";
+    return;
+  }
+
+  creativeGrid.className = "creative-grid";
+  creativeGrid.innerHTML = assets
+    .map((asset) => {
+      const imagePath = asset.image_path || "";
+      return `
+        <article class="creative-card">
+          ${imagePath ? `<img src="${escapeHtml(imagePath)}" alt="${escapeHtml(asset.title || "SmileUp creative")}" />` : ""}
+          <div>
+            <span class="label">${escapeHtml(asset.service_line || "creative")}</span>
+            <h3>${escapeHtml(asset.title || "-")}</h3>
+            <p>${escapeHtml(asset.image_prompt || "")}</p>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 function countManualPosts() {

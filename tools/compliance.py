@@ -2,11 +2,14 @@ RISKY_CLAIMS = [
     "100%",
     "vĩnh viễn",
     "không đau hoàn toàn",
+    "không đau",
     "đẹp ngay lập tức",
     "số 1",
     "duy nhất",
     "rẻ nhất",
     "chắc chắn khỏi",
+    "cam kết khỏi",
+    "bảo đảm thành công",
 ]
 
 

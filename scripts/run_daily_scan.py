@@ -31,6 +31,8 @@ def main() -> None:
         "daily_strategy": result.get("daily_strategy"),
         "daily_report": result.get("daily_report"),
         "draft_content": result.get("draft_content"),
+        "content_plan": result.get("content_plan", []),
+        "creative_assets": result.get("creative_assets", []),
         "ad_library_ads": result.get("ad_library_ads", []),
         "messages": result.get("messages", []),
     }
@@ -39,6 +41,8 @@ def main() -> None:
     print(f"approval_status={result.get('approval_status')}")
     print(f"data_source={result.get('data_source')}")
     print(f"ads={len(result.get('ad_library_ads', []))}")
+    print(f"content_variants={len(result.get('content_plan', []))}")
+    print(f"creative_assets={len(result.get('creative_assets', []))}")
 
 
 if __name__ == "__main__":

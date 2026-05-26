@@ -1,7 +1,7 @@
 import json
 import re
 
-from graph.state import AgentState, DraftContent
+from graph.state import AgentState, ContentVariant, DraftContent
 from utils import config
 
 
@@ -25,6 +25,24 @@ def generate_draft_with_gemini(state: AgentState) -> DraftContent:
     )
     text = getattr(response, "text", "") or ""
     return _parse_draft(text)
+
+
+def generate_content_plan_with_gemini(state: AgentState) -> list[ContentVariant]:
+    if not config.GEMINI_API_KEY:
+        raise GeminiUnavailable("GEMINI_API_KEY missing")
+
+    try:
+        from google import genai
+    except Exception as exc:
+        raise GeminiUnavailable("google-genai package is not installed") from exc
+
+    client = genai.Client(api_key=config.GEMINI_API_KEY)
+    response = client.models.generate_content(
+        model=config.GEMINI_MODEL,
+        contents=_build_campaign_prompt(state),
+    )
+    text = getattr(response, "text", "") or ""
+    return _parse_content_plan(text)
 
 
 def _build_prompt(state: AgentState) -> str:
@@ -115,6 +133,45 @@ Chỉ trả về JSON thuần, không markdown:
 """.strip()
 
 
+def _build_campaign_prompt(state: AgentState) -> str:
+    base = _build_prompt(state)
+    return f"""
+{base}
+
+NHIEM VU MO RONG CHO CMO:
+Thay vi chi tao 1 bai, hay tao 4 bai dang Facebook khac nhau cho SmileUp, moi bai gan voi mot tru cot chien dich rieng:
+1. Cay ghep implant: tap trung an nhai, mat rang lau nam, can tham kham dung chi dinh.
+2. Rang su tham my: tap trung nu cuoi tu nhien, tu tin, bao ton rang that khi co the.
+3. Minh bach chuyen mon: tap trung bac si tu van, phim chup/kiem tra, khong chay dua gia re.
+4. Reels/short post de bat trend: hook ngan, cau hoi goi comment, dung cho Facebook/Reels caption.
+
+Moi bai phai khac biet hon cac ads dau vao bang cach:
+- Khong dua vao giam gia soc lam loi the chinh.
+- Khong copy cau chu, offer, bo cuc copy cua doi thu.
+- Lam noi bat SmileUp: tu van ca nhan hoa, quy trinh minh bach, phong kham hien dai, an toan y khoa.
+- Co visual direction rieng va image_prompt rieng. image_prompt bat buoc yeu cau anh goc/AI moi, co logo SmileUp, khong rebrand anh doi thu.
+
+Chi tra ve JSON thuan theo schema:
+{{
+  "variants": [
+    {{
+      "service_line": "implant | rang_su | trust | reels",
+      "angle": "goc noi dung",
+      "differentiation": "SmileUp khac biet hon ads doi thu o diem nao",
+      "marketing_analysis": "phan tich ngan cho bai nay",
+      "trend_angle": "trend angle rieng",
+      "post_structure": "Hook -> Pain point -> SmileUp solution -> Trust proof -> CTA",
+      "title": "string",
+      "body": "caption co the dang ngay",
+      "hashtags": ["#tag"],
+      "call_to_action": "string",
+      "image_prompt": "prompt anh goc co logo SmileUp"
+    }}
+  ]
+}}
+""".strip()
+
+
 def _parse_draft(text: str) -> DraftContent:
     cleaned = text.strip()
     match = re.search(r"\{.*\}", cleaned, re.DOTALL)
@@ -134,6 +191,40 @@ def _parse_draft(text: str) -> DraftContent:
         "call_to_action": str(payload.get("call_to_action", "")).strip(),
         "image_prompt": str(payload.get("image_prompt", "")).strip() or None,
     }
+
+
+def _parse_content_plan(text: str) -> list[ContentVariant]:
+    cleaned = text.strip()
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if match:
+        cleaned = match.group(0)
+
+    payload = json.loads(cleaned)
+    raw_variants = payload.get("variants", [])
+    variants: list[ContentVariant] = []
+    for raw in raw_variants:
+        if not isinstance(raw, dict):
+            continue
+        title = str(raw.get("title", "")).strip()
+        body = _dedupe_title_from_body(title, str(raw.get("body", "")).strip())
+        variants.append(
+            {
+                "service_line": str(raw.get("service_line", "")).strip(),
+                "angle": str(raw.get("angle", "")).strip(),
+                "differentiation": str(raw.get("differentiation", "")).strip(),
+                "marketing_analysis": str(raw.get("marketing_analysis", "")).strip(),
+                "trend_angle": str(raw.get("trend_angle", "")).strip(),
+                "post_structure": str(raw.get("post_structure", "")).strip(),
+                "title": title,
+                "body": body,
+                "hashtags": [str(tag).strip() for tag in raw.get("hashtags", []) if str(tag).strip()],
+                "call_to_action": str(raw.get("call_to_action", "")).strip(),
+                "image_prompt": str(raw.get("image_prompt", "")).strip(),
+            }
+        )
+    if not variants:
+        raise ValueError("Gemini returned no content variants")
+    return variants[:4]
 
 
 def _dedupe_title_from_body(title: str, body: str) -> str:

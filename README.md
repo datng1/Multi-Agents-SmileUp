@@ -97,6 +97,9 @@ Workflow hien co them:
 - Phan tich trend Facebook tu bai doi thu ban dan vao.
 - Uu tien noi dung cho rang su tham my, phuc hinh rang su va cay ghep implant.
 - Tao visual creative brief an toan cho anh goc cua SmileUp, anh co license, hoac anh AI tao moi.
+- Tao `content_plan` gom nhieu bien the bai viet: implant, rang su, trust/minh bach, reels/short-form.
+- Moi bien the co `differentiation` de lam ro SmileUp khac gi so voi ads doi thu.
+- Sinh anh PNG branded trong `web/generated/creatives/`, dung anh nen phong kham va logo SmileUp. Thu muc nay bi ignore vi la output hang ngay.
 
 Luu y: he thong khong tai su dung/rebrand anh doi thu thanh anh cua SmileUp. Neu can anh cho chien dich, hay dung anh phong kham SmileUp, anh da co quyen, hoac tao anh moi theo creative brief.
 
