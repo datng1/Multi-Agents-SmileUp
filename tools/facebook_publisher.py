@@ -59,13 +59,15 @@ def publish_facebook_post(
     )
     response.raise_for_status()
     result = response.json()
+    post_id = result.get("id")
     return {
         "publisher_status": "published",
         "publish_mode": "facebook_graph_api",
         "publish_attempted": True,
         "published": True,
         "dry_run": False,
-        "published_post_id": result.get("id"),
+        "published_post_id": post_id,
+        "published_post_url": _facebook_post_url(post_id),
         "scheduled_time": schedule_time,
         "safety_checks": ["approved_gate_passed", "draft_exists"],
     }
@@ -83,3 +85,9 @@ def format_facebook_message(draft: DraftContent) -> str:
         ]
         if part
     )
+
+
+def _facebook_post_url(post_id: str | None) -> str:
+    if not post_id:
+        return ""
+    return f"https://www.facebook.com/{post_id}"

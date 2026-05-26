@@ -19,6 +19,8 @@ const finalCreativeSelect = document.querySelector("#finalCreativeSelect");
 const finalCharCount = document.querySelector("#finalCharCount");
 const resetFinalButton = document.querySelector("#resetFinalButton");
 const copyFinalButton = document.querySelector("#copyFinalButton");
+const publishedPostLinkBox = document.querySelector("#publishedPostLinkBox");
+const publishedPostLink = document.querySelector("#publishedPostLink");
 const fbPreviewText = document.querySelector("#fbPreviewText");
 const fbPreviewImage = document.querySelector("#fbPreviewImage");
 const publishStatus = document.querySelector("#publishStatus");
@@ -235,6 +237,7 @@ function renderResult(result, logs, durationMs) {
   publishMode.textContent = publish.publish_mode || "-";
   postId.textContent = publish.published_post_id || "-";
   safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
+  renderPublishedPostLink(publish);
   trendAnalysis.textContent = result.facebook_trend_analysis || "Chưa có phân tích trend.";
   adLibraryReport.textContent = result.ad_library_report || "Chưa có dữ liệu Ad Library.";
   visualBrief.textContent = result.visual_creative_brief || draft.image_prompt || "Chưa có brief ảnh.";
@@ -386,6 +389,21 @@ function renderCreatives(assets) {
       `;
     })
     .join("");
+}
+
+function renderPublishedPostLink(publish) {
+  const postUrl = publish.published_post_url || publish.permalink_url || "";
+  const postIdValue = publish.published_post_id || "";
+  const fallbackUrl = postIdValue && !publish.dry_run ? `https://www.facebook.com/${encodeURIComponent(postIdValue)}` : "";
+  const finalUrl = postUrl || fallbackUrl;
+  if (!finalUrl || !publish.published) {
+    publishedPostLinkBox.hidden = true;
+    publishedPostLink.removeAttribute("href");
+    return;
+  }
+  publishedPostLink.href = finalUrl;
+  publishedPostLink.textContent = "Mở bài viết vừa đăng trên Facebook";
+  publishedPostLinkBox.hidden = false;
 }
 
 function setFinalDraft(draft, assets) {

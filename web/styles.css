@@ -976,6 +976,29 @@ pre {
   gap: 10px;
 }
 
+.published-link-box {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: 8px;
+  background: #f1fbf9;
+}
+
+.published-link-box[hidden] {
+  display: none;
+}
+
+.published-link-box a {
+  color: var(--accent-strong);
+  font-weight: 820;
+  text-decoration: none;
+}
+
+.published-link-box a:hover {
+  text-decoration: underline;
+}
+
 .primary-button.compact {
   min-height: 36px;
   padding: 0 14px;

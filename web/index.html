@@ -263,6 +263,10 @@
                 <button id="resetFinalButton" class="secondary-button" type="button">Khôi phục bản AI</button>
                 <button id="copyFinalButton" class="primary-button compact" type="button">Copy caption cuối</button>
               </div>
+              <div id="publishedPostLinkBox" class="published-link-box" hidden>
+                <span class="label">Bài đã đăng</span>
+                <a id="publishedPostLink" href="#" target="_blank" rel="noopener noreferrer">Mở bài viết trên Facebook</a>
+              </div>
             </div>
 
             <article class="facebook-preview" aria-label="Facebook post preview">
@@ -320,7 +324,7 @@
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel hidden-panel" aria-hidden="true">
           <div class="panel-header"><div><span class="label">Publisher</span><h2>Publish result</h2></div></div>
           <dl class="publish-facts">
             <div><dt>Status</dt><dd id="publishStatus">-</dd></div>
