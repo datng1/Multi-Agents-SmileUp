@@ -18,11 +18,7 @@ def generate_draft_with_gemini(state: AgentState) -> DraftContent:
     except Exception as exc:
         raise GeminiUnavailable("google-genai package is not installed") from exc
 
-    client = genai.Client(api_key=config.GEMINI_API_KEY)
-    response = client.models.generate_content(
-        model=config.GEMINI_MODEL,
-        contents=_build_prompt(state),
-    )
+    response = _generate_with_gemini_models(genai, _build_prompt(state))
     text = getattr(response, "text", "") or ""
     return _parse_draft(text)
 
@@ -36,13 +32,55 @@ def generate_content_plan_with_gemini(state: AgentState) -> list[ContentVariant]
     except Exception as exc:
         raise GeminiUnavailable("google-genai package is not installed") from exc
 
-    client = genai.Client(api_key=config.GEMINI_API_KEY)
-    response = client.models.generate_content(
-        model=config.GEMINI_MODEL,
-        contents=_build_campaign_prompt(state),
-    )
+    response = _generate_with_gemini_models(genai, _build_campaign_prompt(state))
     text = getattr(response, "text", "") or ""
     return _parse_content_plan(text)
+
+
+def generate_text_with_gemini(prompt: str) -> str:
+    text, _ = generate_text_with_gemini_and_model(prompt)
+    return text
+
+
+def generate_text_with_gemini_and_model(prompt: str) -> tuple[str, str]:
+    if not config.GEMINI_API_KEY:
+        raise GeminiUnavailable("GEMINI_API_KEY missing")
+
+    try:
+        from google import genai
+    except Exception as exc:
+        raise GeminiUnavailable("google-genai package is not installed") from exc
+
+    response = _generate_with_gemini_models(genai, prompt)
+    return getattr(response, "text", "") or "", str(getattr(response, "_resolved_model", config.GEMINI_MODEL))
+
+
+def _generate_with_gemini_models(genai_module, prompt: str):
+    client = genai_module.Client(api_key=config.GEMINI_API_KEY)
+    errors: list[str] = []
+    for model in _gemini_model_candidates():
+        try:
+            response = client.models.generate_content(model=model, contents=prompt)
+            try:
+                setattr(response, "_resolved_model", model)
+            except Exception:
+                pass
+            return response
+        except Exception as exc:
+            errors.append(f"{model}: {exc}")
+            continue
+    raise GeminiUnavailable("Gemini models unavailable: " + " | ".join(errors[-3:]))
+
+
+def _gemini_model_candidates() -> list[str]:
+    candidates: list[str] = []
+    for model in [config.GEMINI_MODEL, *config.GEMINI_FALLBACK_MODELS]:
+        if model and model not in candidates:
+            candidates.append(model)
+    if "gemini-2.5-pro" in candidates:
+        candidates.remove("gemini-2.5-pro")
+        candidates.insert(0, "gemini-2.5-pro")
+    return candidates
 
 
 def _build_prompt(state: AgentState) -> str:

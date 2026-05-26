@@ -24,10 +24,12 @@ class Settings:
     facebook_access_token: str = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
     facebook_page_id: str = os.getenv("FACEBOOK_PAGE_ID", "")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3-pro")
+    gemini_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_FALLBACK_MODELS") or ["gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"])
     competitor_page_ids: list[str] = field(default_factory=lambda: _list("COMPETITOR_PAGE_IDS"))
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+    cmo_jury_enabled: bool = _bool("CMO_JURY_ENABLED", True)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     dry_run: bool = _bool("DRY_RUN", True)
     mock_mode: bool = _bool("MOCK_MODE", False)
@@ -70,6 +72,10 @@ OPENAI_API_KEY = settings.openai_api_key
 ANTHROPIC_API_KEY = settings.anthropic_api_key
 GEMINI_API_KEY = settings.gemini_api_key
 GEMINI_MODEL = settings.gemini_model
+GEMINI_FALLBACK_MODELS = settings.gemini_fallback_models
+OPENAI_MODEL = settings.openai_model
+ANTHROPIC_MODEL = settings.anthropic_model
+CMO_JURY_ENABLED = settings.cmo_jury_enabled
 AI_PROVIDER = settings.ai_provider
 FACEBOOK_ACCESS_TOKEN = settings.facebook_access_token
 FACEBOOK_PAGE_ID = settings.facebook_page_id

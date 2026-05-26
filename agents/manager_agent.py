@@ -1,5 +1,6 @@
 from graph.state import AgentState, ContentVariant, DraftContent
 from tools.compliance import compliance_flags
+from tools.cmo_jury import aggregate_jury_choice, evaluate_with_available_models, summarize_votes
 from utils.logger import get_logger
 
 
@@ -42,14 +43,22 @@ def run_manager_agent(state: AgentState) -> AgentState:
 
     scorecard = _score_variants(state, variants)
     state["cmo_scorecard"] = scorecard
-    selected_variant_index = _best_variant_index(scorecard)
+    model_votes = evaluate_with_available_models(state, scorecard)
+    jury_choice = aggregate_jury_choice(model_votes, scorecard)
+    state["cmo_model_votes"] = model_votes
+    state["cmo_jury_summary"] = summarize_votes(model_votes)
+
+    selected_variant_index = int(jury_choice.get("selected_variant_index", -1)) if jury_choice else _best_variant_index(scorecard)
+    if selected_variant_index < 0:
+        selected_variant_index = _best_variant_index(scorecard)
     if selected_variant_index >= 0 and selected_variant_index < len(variants):
         selected_variant = variants[selected_variant_index]
         state["draft_content"] = _draft_from_variant(selected_variant)
     else:
         selected_variant = None
 
-    selected_creative_index = _select_creative_index(assets, selected_variant_index)
+    jury_creative_index = int(jury_choice.get("selected_creative_index", -1)) if jury_choice else -1
+    selected_creative_index = jury_creative_index if 0 <= jury_creative_index < len(assets) else _select_creative_index(assets, selected_variant_index)
     state["cmo_selected_variant_index"] = selected_variant_index
     state["cmo_selected_creative_index"] = selected_creative_index
     state["cmo_campaign_brief"] = _campaign_brief(state, selected_variant, selected_creative_index)
@@ -64,7 +73,7 @@ def run_manager_agent(state: AgentState) -> AgentState:
             feedback="CMO chặn publish: không có draft_content sau khi chọn variant.",
         )
     else:
-        _decide_from_draft(state, draft, scorecard, selected_variant_index, selected_creative_index)
+        _decide_from_draft(state, draft, scorecard, selected_variant_index, selected_creative_index, jury_choice)
 
     _finish_report(state)
     return state
@@ -82,6 +91,8 @@ def _ensure_cmo_defaults(state: AgentState) -> None:
     state.setdefault("cmo_selected_creative_index", -1)
     state.setdefault("cmo_scorecard", [])
     state.setdefault("cmo_campaign_brief", "")
+    state.setdefault("cmo_model_votes", [])
+    state.setdefault("cmo_jury_summary", "")
 
 
 def _score_variants(state: AgentState, variants: list[ContentVariant]) -> list[dict]:
@@ -161,6 +172,7 @@ def _decide_from_draft(
     scorecard: list[dict],
     selected_variant_index: int,
     selected_creative_index: int,
+    jury_choice: dict | None = None,
 ) -> None:
     flags = compliance_flags(draft)
     selected_score = 0
@@ -169,6 +181,14 @@ def _decide_from_draft(
         flags.extend(scorecard[selected_variant_index].get("flags", []))
 
     word_count = len(draft.get("body", "").split())
+    jury_choice = jury_choice or {}
+    jury_decision = str(jury_choice.get("decision", "")).upper()
+    jury_risks = [str(flag) for flag in jury_choice.get("risk_flags", []) if str(flag)]
+    jury_changes = [str(change) for change in jury_choice.get("required_changes", []) if str(change)]
+
+    if jury_risks:
+        flags.extend(jury_risks)
+
     if flags:
         _set_cmo_decision(
             state,
@@ -176,6 +196,22 @@ def _decide_from_draft(
             next_action="revise" if state.get("revision_count", 0) < 3 else "stop",
             decision="REVISE",
             feedback="CMO yêu cầu sửa claim rủi ro trước khi publish: " + ", ".join(sorted(set(flags))),
+        )
+    elif jury_decision == "STOP":
+        _set_cmo_decision(
+            state,
+            status="rejected",
+            next_action="stop",
+            decision="STOP",
+            feedback="CMO Jury chặn publish: " + (", ".join(jury_changes) or "các model đánh giá chưa đủ dữ liệu/an toàn."),
+        )
+    elif jury_decision == "REVISE":
+        _set_cmo_decision(
+            state,
+            status="needs_revision",
+            next_action="revise",
+            decision="REVISE",
+            feedback="CMO Jury yêu cầu sửa: " + (", ".join(jury_changes) or "cần tăng lực chuyển đổi và độ an toàn trước publish."),
         )
     elif word_count < 110:
         _set_cmo_decision(
@@ -203,12 +239,13 @@ def _decide_from_draft(
         )
     else:
         creative_text = "có creative đi kèm" if selected_creative_index >= 0 else "chưa có creative, vẫn có thể dùng caption"
+        jury_text = f" Jury score trung bình {jury_choice.get('average_score')}." if jury_choice.get("average_score") else ""
         _set_cmo_decision(
             state,
             status="approved",
             next_action="publish",
             decision="APPROVE",
-            feedback=f"CMO duyệt publish: chọn variant #{selected_variant_index + 1}, {creative_text}, CTA an toàn và đúng trọng tâm SmileUp.",
+            feedback=f"CMO duyệt publish: chọn variant #{selected_variant_index + 1}, {creative_text}, CTA an toàn và đúng trọng tâm SmileUp.{jury_text}",
         )
 
 
@@ -273,6 +310,7 @@ def _daily_strategy(state: AgentState) -> str:
         f"CMO selected variant: #{state.get('cmo_selected_variant_index', -1) + 1 if state.get('cmo_selected_variant_index', -1) >= 0 else 'none'}\n"
         f"CMO selected creative: #{state.get('cmo_selected_creative_index', -1) + 1 if state.get('cmo_selected_creative_index', -1) >= 0 else 'none'}\n"
         f"CMO feedback: {state.get('cmo_feedback', '')}\n\n"
+        f"{state.get('cmo_jury_summary', '')}\n\n"
         f"{state.get('cmo_campaign_brief', '')}\n\n"
         "Thông điệp chủ đạo: SmileUp khác biệt bằng tư vấn cá nhân hóa, minh bạch chỉ định và an toàn y khoa.\n"
         "Dịch vụ trọng tâm: răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép implant.\n"
@@ -300,6 +338,7 @@ def _daily_report(state: AgentState) -> str:
         f"CMO status: {status}.\n"
         f"CMO decision: {state.get('cmo_decision', '')} -> {state.get('cmo_next_action', '')}\n"
         f"CMO feedback: {state.get('cmo_feedback', '')}\n"
+        f"CMO Jury: {state.get('cmo_jury_summary', '').replace(chr(10), ' ')}\n"
         f"CMO brief: {state.get('cmo_campaign_brief', '').replace(chr(10), ' ')}\n"
         f"Ad Library: {state.get('ad_library_report', '').replace(chr(10), ' ')}\n"
         f"Trend Facebook: {state.get('facebook_trend_analysis', '').replace(chr(10), ' ')}\n"

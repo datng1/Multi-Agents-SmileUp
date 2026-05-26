@@ -136,12 +136,20 @@ Copy `.env.example` thanh `.env`, dien cac bien:
 ```env
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3-pro
+GEMINI_FALLBACK_MODELS=gemini-3-pro,gemini-2.5-pro,gemini-2.5-flash
+OPENAI_MODEL=gpt-4o-mini
+ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
+CMO_JURY_ENABLED=true
 FACEBOOK_ACCESS_TOKEN=
 FACEBOOK_PAGE_ID=
 COMPETITOR_PAGE_IDS=page_id_1,page_id_2,page_id_3
 DRY_RUN=true
 MOCK_MODE=true
 ```
+
+CMO Jury tu dung cac key co san: co 1 model thi 1 phieu, co 2 model thi 2 phieu, co du Gemini/GPT/Claude thi tong hop 3 phieu de chon variant, creative va quyet dinh publish/revise.
 
 Mac dinh `DRY_RUN=true`, nen publisher khong dang bai that. Chi khi tat mock/dry-run va co token hop le thi adapter Facebook moi goi Graph API.
 

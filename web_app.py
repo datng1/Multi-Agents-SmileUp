@@ -42,7 +42,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "mock_mode": config.MOCK_MODE,
                     "dry_run": config.DRY_RUN,
                     "ai_provider": config.AI_PROVIDER,
-                    "ai_model": config.GEMINI_MODEL if config.AI_PROVIDER == "Gemini" else "local-template",
+                    "ai_model": _model_status_label(),
+                    "cmo_jury_enabled": config.CMO_JURY_ENABLED,
                     "ad_library_enabled": config.AD_LIBRARY_ENABLED,
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
                     "warnings": config.CONFIG_WARNINGS,
@@ -173,6 +174,17 @@ def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str
     output_path = UPLOAD_ROOT / filename
     output_path.write_bytes(raw)
     return str(output_path), f"/generated/uploads/{filename}"
+
+
+def _model_status_label() -> str:
+    models = []
+    if config.GEMINI_API_KEY:
+        models.append(f"Gemini:{config.GEMINI_MODEL}")
+    if config.OPENAI_API_KEY:
+        models.append(f"GPT:{config.OPENAI_MODEL}")
+    if config.ANTHROPIC_API_KEY:
+        models.append(f"Claude:{config.ANTHROPIC_MODEL}")
+    return " + ".join(models) if models else "local-template"
 
 
 def main() -> None:

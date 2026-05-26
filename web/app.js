@@ -38,6 +38,7 @@ const cmoObjective = document.querySelector("#cmoObjective");
 const cmoDecision = document.querySelector("#cmoDecision");
 const cmoSelected = document.querySelector("#cmoSelected");
 const cmoFeedback = document.querySelector("#cmoFeedback");
+const cmoJurySummary = document.querySelector("#cmoJurySummary");
 const cmoBrief = document.querySelector("#cmoBrief");
 const cmoScorecard = document.querySelector("#cmoScorecard");
 const visualBrief = document.querySelector("#visualBrief");
@@ -349,6 +350,7 @@ function renderCmoDecision(result) {
   cmoDecision.textContent = `${result.cmo_decision || "PENDING"} · ${result.approval_status || "pending"}`;
   cmoSelected.textContent = `Variant ${selectedVariant >= 0 ? `#${selectedVariant + 1}` : "chưa chọn"} · Creative ${selectedCreative >= 0 ? `#${selectedCreative + 1}` : "chưa chọn"}`;
   cmoFeedback.textContent = result.cmo_feedback || result.manager_feedback || "Chưa có feedback.";
+  cmoJurySummary.textContent = result.cmo_jury_summary || "CMO Jury chưa có phiếu model.";
   cmoBrief.textContent = result.cmo_campaign_brief || "CMO brief sẽ hiện ở đây sau khi chạy workflow.";
 
   const scorecard = Array.isArray(result.cmo_scorecard) ? result.cmo_scorecard : [];

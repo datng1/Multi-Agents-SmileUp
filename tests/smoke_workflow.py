@@ -26,6 +26,7 @@ def main() -> None:
     assert result["cmo_next_action"] == "publish", result["cmo_next_action"]
     assert result["cmo_selected_variant_index"] >= 0, "CMO should select a campaign variant"
     assert result["cmo_campaign_brief"], "CMO should produce a campaign brief"
+    assert "CMO Jury" in result["cmo_jury_summary"], "CMO should summarize model jury status"
     assert result["publish_result"], "publisher should produce a result"
     print("SMOKE OK")
     print("approval_status=", result["approval_status"])

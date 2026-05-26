@@ -90,6 +90,8 @@ class AgentState(TypedDict):
     cmo_selected_creative_index: int
     cmo_scorecard: list[dict[str, Any]]
     cmo_campaign_brief: str
+    cmo_model_votes: list[dict[str, Any]]
+    cmo_jury_summary: str
     revision_count: int
     approval_status: ApprovalStatus
     manager_feedback: str
@@ -134,6 +136,8 @@ def create_initial_state() -> AgentState:
         "cmo_selected_creative_index": -1,
         "cmo_scorecard": [],
         "cmo_campaign_brief": "",
+        "cmo_model_votes": [],
+        "cmo_jury_summary": "",
         "revision_count": 0,
         "approval_status": "pending",
         "manager_feedback": "",

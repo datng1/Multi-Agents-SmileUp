@@ -20,6 +20,7 @@ def run_publisher_agent(state: AgentState) -> AgentState:
     result["cmo_selected_variant_index"] = state.get("cmo_selected_variant_index", -1)
     result["cmo_selected_creative_index"] = state.get("cmo_selected_creative_index", -1)
     result["cmo_decision"] = state.get("cmo_decision", "")
+    result["cmo_model_votes"] = state.get("cmo_model_votes", [])
     result["campaign_payloads"] = [
         {
             "is_cmo_pick": index == state.get("cmo_selected_variant_index", -1),
