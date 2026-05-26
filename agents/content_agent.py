@@ -31,6 +31,12 @@ def _offline_draft(state: AgentState) -> DraftContent:
         revision_note = " Bài viết đã được điều chỉnh theo góp ý: nhấn mạnh tư vấn trước điều trị, tránh cam kết tuyệt đối và làm rõ điều kiện ưu đãi."
 
     return {
+        "marketing_analysis": (
+            "Khách hàng mục tiêu là người đang cân nhắc răng sứ hoặc implant nhưng còn lo về chi phí, đau, độ bền và chỉ định có phù hợp không. "
+            "Bài viết cần kéo họ vào tư vấn bằng thông điệp cá nhân hóa, minh bạch, bác sĩ thăm khám trước khi quyết định."
+        ),
+        "trend_angle": "Hook dạng câu hỏi về mất răng/thiếu tự tin, kết hợp lợi ích ăn nhai và thẩm mỹ, CTA inbox để được tư vấn.",
+        "post_structure": "Hook -> Nỗi đau -> Giải pháp SmileUp -> Lý do tin tưởng -> Lưu ý chuyên môn -> CTA.",
         "title": "Nụ cười chắc khỏe bắt đầu từ tư vấn răng sứ và implant đúng cách",
         "body": (
             "Bạn đang cân nhắc làm răng sứ để cải thiện nụ cười, hoặc cần cấy ghép implant để khôi phục khả năng ăn nhai sau mất răng? "

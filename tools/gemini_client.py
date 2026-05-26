@@ -61,7 +61,10 @@ Feedback cần xử lý:
 Hãy tạo một bài đăng Facebook mới cho SmileUp.
 Yêu cầu:
 - Bám trọng tâm răng sứ hoặc implant, không lan man sang dịch vụ khác nếu insight không yêu cầu.
-- Tiếng Việt tự nhiên, chuyên nghiệp, thân thiện.
+- Mặc định bạn là chuyên gia marketing nha khoa 10+ năm kinh nghiệm, hiểu hành vi khách hàng Việt Nam, tâm lý sợ đau/sợ giá cao/sợ làm sai chỉ định.
+- Bài viết phải có giọng marketing thật: hook sắc, nỗi đau rõ, lợi ích cụ thể, lý do tin tưởng, CTA có lực kéo inbox.
+- Chia output thành các phần chính xác: phân tích marketing, góc trend, cấu trúc bài, bài đăng Facebook.
+- Bài đăng Facebook phải đọc như caption có thể đăng ngay: tự nhiên, nổi bật, có nhịp cảm xúc, không khô như báo cáo.
 - Có yếu tố dễ lên xu hướng: hook mạnh, câu hỏi gợi nhu cầu, lợi ích dễ scan, CTA rõ, hashtag hẹp.
 - Không sao chép câu chữ hoặc ảnh của đối thủ.
 - Không cam kết tuyệt đối như 100%, vĩnh viễn, không đau hoàn toàn, chắc chắn khỏi.
@@ -72,6 +75,9 @@ Yêu cầu:
 
 Chỉ trả về JSON thuần, không markdown:
 {{
+  "marketing_analysis": "Phân tích khách hàng mục tiêu, nỗi đau, insight, lý do bài viết nên thu hút khách hàng.",
+  "trend_angle": "Góc bắt trend Facebook nên dùng cho bài này.",
+  "post_structure": "Hook -> Pain point -> SmileUp solution -> Trust proof -> CTA.",
   "title": "string",
   "body": "string",
   "hashtags": ["#tag"],
@@ -89,6 +95,9 @@ def _parse_draft(text: str) -> DraftContent:
 
     payload = json.loads(cleaned)
     return {
+        "marketing_analysis": str(payload.get("marketing_analysis", "")).strip(),
+        "trend_angle": str(payload.get("trend_angle", "")).strip(),
+        "post_structure": str(payload.get("post_structure", "")).strip(),
         "title": str(payload.get("title", "")).strip(),
         "body": str(payload.get("body", "")).strip(),
         "hashtags": [str(tag).strip() for tag in payload.get("hashtags", []) if str(tag).strip()],

@@ -35,6 +35,12 @@ def _split_source_and_content(block: str, index: int) -> tuple[str, str]:
     if source_match and len(lines) > 1:
         return source_match.group(2).strip(), " ".join(lines[1:]).strip()
 
+    if first.startswith("http") and len(lines) == 1:
+        return (
+            f"Manual link {index}",
+            f"URL Facebook được cung cấp: {first}. Chưa có caption/nội dung bài viết, nên chỉ có thể phân tích ở mức rất sơ bộ. Hãy dán thêm nội dung caption để có insight chính xác hơn.",
+        )
+
     if first.startswith("http") and len(lines) > 1:
         return f"Manual link {index}", " ".join(lines[1:]).strip()
 

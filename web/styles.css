@@ -379,6 +379,20 @@ pre {
   gap: 10px;
 }
 
+.analysis-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr 0.9fr;
+  gap: 12px;
+}
+
+.analysis-grid > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+
 .insight-row {
   display: grid;
   grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1.2fr) 110px;
@@ -550,6 +564,7 @@ dd {
   .status-strip,
   .workflow-panel,
   .dashboard-grid,
+  .analysis-grid,
   .insight-row {
     grid-template-columns: 1fr;
   }
