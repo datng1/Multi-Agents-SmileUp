@@ -79,7 +79,7 @@ def _variant_from_draft(draft: DraftContent, service_line: str) -> ContentVarian
 
 def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
     topics = _dominant_topics(state)
-    return [
+    plan: list[ContentVariant] = [
         {
             "service_line": "implant",
             "angle": "Mất răng lâu năm và ăn nhai khó khăn",
@@ -149,6 +149,57 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
             "image_prompt": "Ảnh gốc/AI mới: frame reels dọc, bác sĩ SmileUp chỉ vào câu hỏi text overlay, logo SmileUp góc trên trái, phòng khám sáng sạch.",
         },
     ]
+    return _vary_offline_plan(plan, state.get("run_seed", ""))
+
+
+def _vary_offline_plan(plan: list[ContentVariant], run_seed: str) -> list[ContentVariant]:
+    seed_value = sum(ord(char) for char in str(run_seed)) if run_seed else 0
+    variation_index = seed_value % 3
+    rotations = seed_value % len(plan) if plan else 0
+    if rotations:
+        plan = plan[rotations:] + plan[:rotations]
+
+    hooks = [
+        {
+            "implant": "Mất răng lâu năm: đừng để việc ăn nhai trở thành nỗi lo mỗi ngày",
+            "rang_su": "Làm răng sứ đẹp không nên bắt đầu từ màu răng, mà từ tư vấn đúng",
+            "trust": "Cùng là răng sứ hay implant, vì sao mỗi người cần một phác đồ riêng?",
+            "reels": "Mất 1 răng nhưng vẫn ăn được, có cần đi khám không?",
+        },
+        {
+            "implant": "Trước khi cấy implant, hãy hỏi bác sĩ 4 điều này",
+            "rang_su": "Răng sứ đẹp tự nhiên bắt đầu từ việc giữ lại phần răng thật có thể giữ",
+            "trust": "Đừng chọn nha khoa chỉ vì ưu đãi: hãy hỏi rõ phác đồ trước",
+            "reels": "Một khoảng trống mất răng có thể kéo theo điều gì?",
+        },
+        {
+            "implant": "Mất răng không chỉ là chuyện thẩm mỹ, mà còn là chuyện ăn nhai",
+            "rang_su": "Muốn làm răng sứ, điều đầu tiên không phải chọn màu trắng nhất",
+            "trust": "Một kế hoạch nha khoa tốt phải nói rõ cả giới hạn và rủi ro",
+            "reels": "Nếu đang phân vân răng sứ hay implant, bắt đầu từ đâu?",
+        },
+    ]
+    ctas = [
+        "Inbox SmileUp để được tư vấn cá nhân hóa theo tình trạng răng hiện tại.",
+        "Gửi tình trạng răng của bạn để SmileUp hẹn lịch thăm khám phù hợp.",
+        "Đặt lịch thăm khám tại SmileUp để bác sĩ tư vấn trực tiếp trước khi quyết định.",
+    ]
+    trend_notes = [
+        "Checklist dễ lưu: các câu hỏi cần hỏi bác sĩ trước khi quyết định.",
+        "Góc ngược số đông: không phải ai cũng cần làm ngay, cần đúng chỉ định trước.",
+        "Tình huống đời thường: khách sợ đau, sợ chi phí phát sinh và sợ bị tư vấn quá tay.",
+    ]
+
+    varied: list[ContentVariant] = []
+    for index, variant in enumerate(plan):
+        service = variant.get("service_line", "post")
+        updated = dict(variant)
+        updated["title"] = hooks[variation_index].get(service, variant.get("title", ""))
+        updated["trend_angle"] = trend_notes[(variation_index + index) % len(trend_notes)]
+        updated["call_to_action"] = ctas[(variation_index + index) % len(ctas)]
+        updated["angle"] = f"{variant.get('angle', '')} · variation {variation_index + 1}".strip(" ·")
+        varied.append(updated)
+    return varied
 
 
 def _offline_draft(state: AgentState) -> DraftContent:

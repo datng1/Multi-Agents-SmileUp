@@ -112,6 +112,7 @@ class AgentState(TypedDict):
     publish_result: Optional[dict[str, Any]]
     data_source: str
     manual_posts_count: int
+    run_seed: str
 
 
 def create_initial_state() -> AgentState:
@@ -166,4 +167,5 @@ def create_initial_state() -> AgentState:
         "publish_result": None,
         "data_source": "auto",
         "manual_posts_count": 0,
+        "run_seed": "",
     }

@@ -71,6 +71,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
             creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
             initial_state = create_initial_state()
+            initial_state["run_seed"] = str(time.time_ns())
             initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
             initial_state["competitor_visual_notes"] = visual_notes
             initial_state["competitor_video_notes"] = video_notes

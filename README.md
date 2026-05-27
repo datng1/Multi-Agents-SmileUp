@@ -101,6 +101,7 @@ Workflow hiện có thêm:
 - Tạo visual creative brief an toàn cho ảnh gốc của SmileUp, ảnh có license, ảnh AI tạo mới hoặc blueprint từ ad match cao nhất.
 - Tạo `content_plan` gồm nhiều biến thể bài viết: implant, răng sứ, trust/minh bạch, reels/short-form.
 - Mỗi biến thể có `differentiation` để làm rõ SmileUp khác gì so với ads đối thủ.
+- Mỗi lượt chạy có `run_seed` riêng để CMO Campaign Plan đổi hook/góc kể/CTA; trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
 - Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode top-match, hệ thống lấy bài viết và media của ad match cao nhất để Gemini rút blueprint bố cục, sau đó tạo ảnh SmileUp mới và overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
 
 Lưu ý: hệ thống không tái sử dụng/rebrand ảnh đối thủ thành ảnh của SmileUp. Mode top-match chỉ dùng ad gốc để rút blueprint không bảo hộ như bố cục, vùng chữ và mood màu; output không được dùng lại pixel, logo, mặt người, text gốc hoặc tài sản nhận diện của đối thủ.

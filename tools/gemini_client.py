@@ -180,6 +180,9 @@ Thay vì chỉ tạo 1 bài, hãy tạo 4 bài đăng Facebook khác nhau cho Sm
 3. Minh bạch chuyên môn: tập trung bác sĩ tư vấn, phim chụp/kiểm tra, không chạy đua giá rẻ.
 4. Reels/short post để bắt trend: hook ngắn, câu hỏi gợi comment, dùng cho Facebook/Reels caption.
 
+RUN SEED: {state.get('run_seed', '')}
+Mỗi lượt chạy phải tạo campaign plan mới theo seed này: đổi hook, góc kể chuyện, lead magnet, cấu trúc mở bài và CTA mềm. Không trả lại cùng một bộ tiêu đề/caption cứng nếu insight đầu vào giống lần trước.
+
 Mỗi bài phải khác biệt hơn các ads đầu vào bằng cách:
 - Không dựa vào giảm giá sốc làm lợi thế chính.
 - Không copy câu chữ, offer, bố cục copy của đối thủ.

@@ -84,6 +84,7 @@ let activeSourceMode = "auto";
 let uploadedCreativeImage = null;
 let originalFinalDraft = null;
 let currentCreativeAssets = [];
+let currentContentPlan = [];
 
 const agentOrder = [
   "crawler",
@@ -177,6 +178,7 @@ function resetAgents() {
 function resetFinalReview() {
   originalFinalDraft = null;
   currentCreativeAssets = [];
+  currentContentPlan = [];
   finalTitleInput.value = "";
   finalBodyInput.value = "";
   finalCtaInput.value = "";
@@ -461,6 +463,7 @@ function renderCmoDecision(result) {
 }
 
 function renderContentPlan(variants) {
+  currentContentPlan = Array.isArray(variants) ? variants : [];
   contentPlanCount.textContent = `${variants.length} biến thể`;
   if (!variants.length) {
     contentPlanList.className = "content-plan-list empty-state";
@@ -484,11 +487,49 @@ function renderContentPlan(variants) {
             <summary>Xem caption</summary>
             <pre>${escapeHtml(variant.body || "")}</pre>
           </details>
+          <div class="variant-actions">
+            <button class="secondary-button use-variant-button" type="button" data-variant-index="${index}">Dùng làm bài viết</button>
+          </div>
           <div class="topic-list">${tags}</div>
         </article>
       `;
     })
     .join("");
+}
+
+function useVariantAsFinal(index) {
+  const variant = currentContentPlan[index];
+  if (!variant) {
+    return;
+  }
+
+  originalFinalDraft = {
+    title: variant.title || "",
+    body: variant.body || "",
+    call_to_action: variant.call_to_action || "",
+    hashtags: Array.isArray(variant.hashtags) ? variant.hashtags : [],
+  };
+  finalTitleInput.value = originalFinalDraft.title;
+  finalBodyInput.value = originalFinalDraft.body;
+  finalCtaInput.value = originalFinalDraft.call_to_action;
+  finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
+
+  if (currentCreativeAssets[index]?.image_path) {
+    finalCreativeSelect.value = String(index);
+  }
+
+  marketingAnalysis.textContent = variant.marketing_analysis || "Campaign này chưa có phân tích marketing riêng.";
+  trendAngle.textContent = variant.trend_angle || "Campaign này chưa có góc trend riêng.";
+  postStructure.textContent = variant.post_structure || "Campaign này chưa có cấu trúc bài riêng.";
+  updateFacebookPreview();
+  markUsedVariant(index);
+  document.querySelector(".post-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function markUsedVariant(index) {
+  contentPlanList.querySelectorAll(".variant-card").forEach((card, cardIndex) => {
+    card.classList.toggle("used", cardIndex === index);
+  });
 }
 
 function renderCreatives(assets) {
@@ -799,6 +840,13 @@ resetFinalButton.addEventListener("click", () => {
   updateFacebookPreview();
 });
 copyFinalButton.addEventListener("click", copyFinalCaption);
+contentPlanList.addEventListener("click", (event) => {
+  const button = event.target.closest(".use-variant-button");
+  if (!button) {
+    return;
+  }
+  useVariantAsFinal(Number(button.dataset.variantIndex));
+});
 setSourceMode("auto");
 syncCreativeImageMode();
 updateFacebookPreview();

@@ -19,7 +19,9 @@ def _enable_utf8_console() -> None:
 
 def main() -> None:
     _enable_utf8_console()
-    result = build_workflow().invoke(create_initial_state())
+    initial_state = create_initial_state()
+    initial_state["run_seed"] = datetime.now().isoformat(timespec="microseconds")
+    result = build_workflow().invoke(initial_state)
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y-%m-%d")
     output_path = REPORT_DIR / f"daily_strategy_{stamp}.json"

@@ -1,6 +1,7 @@
 from graph.state import AgentState, create_initial_state
 from graph.workflow import build_workflow
 from utils import config
+from datetime import datetime
 
 
 def _enable_utf8_console() -> None:
@@ -17,7 +18,9 @@ def run_daily_marketing() -> AgentState:
         print("Mock mode enabled:", "; ".join(config.CONFIG_WARNINGS))
 
     app = build_workflow()
-    result = app.invoke(create_initial_state())
+    initial_state = create_initial_state()
+    initial_state["run_seed"] = datetime.now().isoformat(timespec="microseconds")
+    result = app.invoke(initial_state)
     _show_result(result)
     return result
 

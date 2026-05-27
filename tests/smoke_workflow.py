@@ -1,5 +1,6 @@
 from graph.state import create_initial_state
 from graph.workflow import build_workflow
+from datetime import datetime
 
 
 def _enable_utf8_console() -> None:
@@ -12,7 +13,9 @@ def _enable_utf8_console() -> None:
 
 def main() -> None:
     _enable_utf8_console()
-    result = build_workflow().invoke(create_initial_state())
+    initial_state = create_initial_state()
+    initial_state["run_seed"] = datetime.now().isoformat(timespec="microseconds")
+    result = build_workflow().invoke(initial_state)
     assert result["competitor_insights"], "crawler should produce insights"
     assert result["text_insight_report"], "text insight agent should produce a report"
     assert result["facebook_trend_analysis"], "trend agent should produce a report"
@@ -25,7 +28,7 @@ def main() -> None:
     assert result["hardness_score"] >= 0, "hardness agent should score the workflow"
     assert result["hardness_publish_readiness"] in {"ready", "revise", "block"}, result["hardness_publish_readiness"]
     assert result["approval_status"] == "approved", result["manager_feedback"]
-    assert result["cmo_decision"] == "APPROVE", result["cmo_feedback"]
+    assert result["cmo_decision"] == "APPROVE_TO_PUBLISH", result["cmo_feedback"]
     assert result["cmo_next_action"] == "publish", result["cmo_next_action"]
     assert result["cmo_selected_variant_index"] >= 0, "CMO should select a campaign variant"
     assert result["cmo_campaign_brief"], "CMO should produce a campaign brief"
