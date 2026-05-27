@@ -16,6 +16,12 @@ const finalBodyInput = document.querySelector("#finalBodyInput");
 const finalCtaInput = document.querySelector("#finalCtaInput");
 const finalTagsInput = document.querySelector("#finalTagsInput");
 const finalCreativeSelect = document.querySelector("#finalCreativeSelect");
+const finalCreativeUpload = document.querySelector("#finalCreativeUpload");
+const finalNoImageButton = document.querySelector("#finalNoImageButton");
+const finalRemoveImageButton = document.querySelector("#finalRemoveImageButton");
+const finalAddImageButton = document.querySelector("#finalAddImageButton");
+const finalAddImagePreviewButton = document.querySelector("#finalAddImagePreviewButton");
+const finalImageStatus = document.querySelector("#finalImageStatus");
 const finalCharCount = document.querySelector("#finalCharCount");
 const resetFinalButton = document.querySelector("#resetFinalButton");
 const copyFinalButton = document.querySelector("#copyFinalButton");
@@ -125,15 +131,17 @@ function syncCreativeImageMode() {
     auto: "Auto SmileUp",
     owned: hasUpload ? "Using uploaded image" : "Upload needed",
     layout_reference: hasUpload ? "Layout reference" : "Upload needed",
+    text_only: "Text only",
   };
   const hints = {
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
+    text_only: "Workflow chỉ sinh caption và chiến lược; bạn có thể thêm ảnh thủ công ở final review.",
   };
   creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
   creativeImageHint.textContent = hints[mode] || hints.auto;
-  creativeImageStatus.classList.toggle("warning", mode !== "auto" && !hasUpload);
+  creativeImageStatus.classList.toggle("warning", !["auto", "text_only"].includes(mode) && !hasUpload);
 }
 
 function setAgentState(activeStep) {
@@ -175,7 +183,7 @@ function resetFinalReview() {
 
   const option = document.createElement("option");
   option.value = "-1";
-  option.textContent = "Đang chờ ảnh creative mới";
+  option.textContent = "Không dùng ảnh cho bài này";
   finalCreativeSelect.appendChild(option);
   finalCreativeSelect.value = "-1";
   updateFacebookPreview();
@@ -541,11 +549,14 @@ function setFinalDraft(draft, assets, preferredCreativeIndex = 0) {
 
 function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
   finalCreativeSelect.innerHTML = "";
+  const noImageOption = document.createElement("option");
+  noImageOption.value = "-1";
+  noImageOption.textContent = "Không dùng ảnh cho bài này";
+  finalCreativeSelect.appendChild(noImageOption);
+
   if (!currentCreativeAssets.length) {
-    const option = document.createElement("option");
-    option.value = "-1";
-    option.textContent = "Chưa có ảnh creative";
-    finalCreativeSelect.appendChild(option);
+    finalCreativeSelect.value = "-1";
+    updateFinalImageControls();
     return;
   }
 
@@ -557,6 +568,7 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
   });
   const safeIndex = Number(preferredCreativeIndex);
   finalCreativeSelect.value = safeIndex >= 0 && safeIndex < currentCreativeAssets.length ? String(safeIndex) : "0";
+  updateFinalImageControls();
 }
 
 function updateFacebookPreview() {
@@ -572,8 +584,66 @@ function updateFacebookPreview() {
     fbPreviewImage.innerHTML = `<img src="${escapeHtml(selectedAsset.image_path)}" alt="${escapeHtml(selectedAsset.title || "SmileUp creative")}" />`;
   } else {
     fbPreviewImage.className = "fb-preview-image empty";
-    fbPreviewImage.textContent = "Ảnh creative sẽ hiện ở đây.";
+    fbPreviewImage.textContent = selectedIndex === -1 ? "Bài viết này đang ở chế độ không ảnh." : "Ảnh creative sẽ hiện ở đây.";
   }
+  updateFinalImageControls();
+}
+
+function updateFinalImageControls() {
+  const selectedIndex = Number(finalCreativeSelect.value);
+  const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
+  const hasSelectedImage = Boolean(selectedAsset?.image_path);
+  finalRemoveImageButton.disabled = !hasSelectedImage;
+  finalNoImageButton.classList.toggle("active", selectedIndex === -1);
+  finalImageStatus.textContent = hasSelectedImage
+    ? `Đang chọn ảnh: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
+    : "Đang chọn chế độ chỉ đăng bài viết, không kèm ảnh.";
+}
+
+function openFinalImagePicker() {
+  finalCreativeUpload.click();
+}
+
+function removeSelectedFinalImage() {
+  const selectedIndex = Number(finalCreativeSelect.value);
+  if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= currentCreativeAssets.length) {
+    finalCreativeSelect.value = "-1";
+    updateFacebookPreview();
+    return;
+  }
+  currentCreativeAssets.splice(selectedIndex, 1);
+  renderFinalCreativeOptions(-1);
+  updateFacebookPreview();
+}
+
+function addFinalCreativeFromFile(file) {
+  if (!file) {
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    finalImageStatus.textContent = "File không phải ảnh. Hãy chọn PNG, JPG hoặc WEBP.";
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    finalImageStatus.textContent = "Ảnh vượt quá 8 MB. Hãy chọn ảnh nhẹ hơn.";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = String(reader.result || "");
+    currentCreativeAssets.push({
+      service_line: "Ảnh thủ công",
+      title: file.name,
+      image_path: dataUrl,
+      image_prompt: "Ảnh được thêm thủ công ở bước final review.",
+      image_mode: "manual_final_upload",
+      source_policy: "Chỉ dùng nếu ảnh thuộc SmileUp hoặc bạn có quyền sử dụng.",
+    });
+    renderFinalCreativeOptions(currentCreativeAssets.length - 1);
+    updateFacebookPreview();
+  };
+  reader.readAsDataURL(file);
 }
 
 function formatFinalFacebookMessage() {
@@ -702,6 +772,17 @@ finalBodyInput.addEventListener("input", updateFacebookPreview);
 finalCtaInput.addEventListener("input", updateFacebookPreview);
 finalTagsInput.addEventListener("input", updateFacebookPreview);
 finalCreativeSelect.addEventListener("change", updateFacebookPreview);
+finalNoImageButton.addEventListener("click", () => {
+  finalCreativeSelect.value = "-1";
+  updateFacebookPreview();
+});
+finalRemoveImageButton.addEventListener("click", removeSelectedFinalImage);
+finalAddImageButton.addEventListener("click", openFinalImagePicker);
+finalAddImagePreviewButton.addEventListener("click", openFinalImagePicker);
+finalCreativeUpload.addEventListener("change", () => {
+  addFinalCreativeFromFile(finalCreativeUpload.files?.[0]);
+  finalCreativeUpload.value = "";
+});
 resetFinalButton.addEventListener("click", () => {
   if (!originalFinalDraft) {
     return;
@@ -710,7 +791,7 @@ resetFinalButton.addEventListener("click", () => {
   finalBodyInput.value = originalFinalDraft.body;
   finalCtaInput.value = originalFinalDraft.call_to_action;
   finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
-  finalCreativeSelect.value = currentCreativeAssets.length ? "0" : "-1";
+  renderFinalCreativeOptions(currentCreativeAssets.length ? 0 : -1);
   updateFacebookPreview();
 });
 copyFinalButton.addEventListener("click", copyFinalCaption);

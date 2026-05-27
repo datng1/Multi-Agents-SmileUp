@@ -17,6 +17,7 @@ def run_hardness_agent(state: AgentState) -> AgentState:
     variants = state.get("content_plan", [])
     assets = state.get("creative_assets", [])
     draft = state.get("draft_content")
+    text_only_mode = state.get("creative_image_mode") == "text_only"
 
     if len(insights) < 3 and ad_count < 3:
         missing.append("Thiếu dữ liệu đối thủ đủ rộng để kết luận trend.")
@@ -26,7 +27,7 @@ def run_hardness_agent(state: AgentState) -> AgentState:
         missing.append("Thiếu phân tích trend Facebook.")
         recommendations.append("trend_analysis")
         penalties += 12
-    if not state.get("visual_creative_brief") and not state.get("competitor_visual_notes"):
+    if not text_only_mode and not state.get("visual_creative_brief") and not state.get("competitor_visual_notes"):
         missing.append("Thiếu tín hiệu visual/creative để định hướng ảnh.")
         recommendations.append("visual_insight")
         penalties += 10
@@ -34,7 +35,7 @@ def run_hardness_agent(state: AgentState) -> AgentState:
         missing.append("Chưa có campaign variants để CMO chọn.")
         recommendations.append("content_creator")
         penalties += 26
-    if not assets:
+    if not assets and not text_only_mode:
         missing.append("Chưa có creative assets đi kèm bài đăng.")
         recommendations.append("content_creator")
         penalties += 8

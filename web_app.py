@@ -73,7 +73,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
             initial_state["competitor_visual_notes"] = visual_notes
             initial_state["competitor_video_notes"] = video_notes
-            if creative_image_mode not in {"auto", "owned", "layout_reference"}:
+            if creative_image_mode not in {"auto", "owned", "layout_reference", "text_only"}:
                 creative_image_mode = "auto"
             initial_state["creative_image_mode"] = creative_image_mode
             if creative_image_data_url and creative_image_mode in {"owned", "layout_reference"}:

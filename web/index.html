@@ -116,6 +116,7 @@
                     <option value="auto">Tự tạo ảnh SmileUp</option>
                     <option value="owned">Dùng ảnh SmileUp / ảnh có quyền</option>
                     <option value="layout_reference">Chỉ lấy form/layout từ ảnh tham chiếu</option>
+                    <option value="text_only">Chỉ gen bài viết, không gen ảnh</option>
                   </select>
                 </label>
                 <p id="creativeImageHint">Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.</p>
@@ -289,9 +290,16 @@
               <label>
                 <span class="label">Ảnh đi kèm</span>
                 <select id="finalCreativeSelect" class="mode-select">
-                  <option value="-1">Chưa có ảnh creative</option>
+                  <option value="-1">Không dùng ảnh cho bài này</option>
                 </select>
               </label>
+              <div class="final-image-actions">
+                <button id="finalNoImageButton" class="secondary-button" type="button">Chỉ đăng bài viết</button>
+                <button id="finalRemoveImageButton" class="secondary-button danger" type="button">Xóa ảnh đang chọn</button>
+                <button id="finalAddImageButton" class="secondary-button" type="button">Thêm / đổi ảnh</button>
+                <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+              </div>
+              <p id="finalImageStatus" class="final-image-status">Bạn có thể bỏ ảnh, đổi ảnh hoặc thêm ảnh mới trước khi đăng.</p>
               <div class="final-actions">
                 <button id="resetFinalButton" class="secondary-button" type="button">Khôi phục bản AI</button>
                 <button id="copyFinalButton" class="primary-button compact" type="button">Copy caption cuối</button>
@@ -313,6 +321,9 @@
               </div>
               <div id="fbPreviewText" class="fb-preview-text">Chạy workflow để xem bản preview cuối.</div>
               <div id="fbPreviewImage" class="fb-preview-image empty">Ảnh creative sẽ hiện ở đây.</div>
+              <div class="fb-image-footer">
+                <button id="finalAddImagePreviewButton" class="secondary-button" type="button">+ Thêm ảnh</button>
+              </div>
               <div class="fb-preview-stats"><span>Thích 0</span><span>0 bình luận · 0 lượt chia sẻ</span></div>
               <div class="fb-preview-actions"><span>Thích</span><span>Bình luận</span><span>Chia sẻ</span></div>
             </article>

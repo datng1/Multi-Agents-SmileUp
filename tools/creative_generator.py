@@ -30,6 +30,9 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
         return []
 
     context = context or {}
+    if str(context.get("creative_image_mode") or "auto") == "text_only":
+        return []
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     assets: list[dict[str, str]] = []
     stamp = datetime.now().strftime("%Y%m%d")

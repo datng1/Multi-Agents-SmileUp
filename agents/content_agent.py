@@ -36,6 +36,8 @@ def run_content_agent(state: AgentState) -> AgentState:
     state["creative_assets"] = generate_creative_assets(variants, creative_context)
     if state["creative_assets"]:
         state["messages"].append({"role": "content", "content": f"Generated {len(state['creative_assets'])} branded SmileUp creative images"})
+    elif creative_context["creative_image_mode"] == "text_only":
+        state["messages"].append({"role": "content", "content": "Text-only mode selected; skipped creative image generation"})
 
     state["approval_status"] = "pending"
     state["current_step"] = "content_creator"
