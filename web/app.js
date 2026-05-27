@@ -164,6 +164,77 @@ function resetAgents() {
   });
 }
 
+function resetFinalReview() {
+  originalFinalDraft = null;
+  currentCreativeAssets = [];
+  finalTitleInput.value = "";
+  finalBodyInput.value = "";
+  finalCtaInput.value = "";
+  finalTagsInput.value = "";
+  finalCreativeSelect.innerHTML = "";
+
+  const option = document.createElement("option");
+  option.value = "-1";
+  option.textContent = "Đang chờ ảnh creative mới";
+  finalCreativeSelect.appendChild(option);
+  finalCreativeSelect.value = "-1";
+  updateFacebookPreview();
+}
+
+function resetCmoPanel() {
+  cmoActionBadge.textContent = "Running";
+  cmoObjective.textContent = "CMO đang nhận dữ liệu mới từ workflow.";
+  cmoDecision.textContent = "Đang chờ quyết định mới.";
+  cmoSelected.textContent = "Đang chờ chọn variant/creative.";
+  cmoFeedback.textContent = "Đang tổng hợp feedback mới cho các agent.";
+  hardnessReport.textContent = "Hardness Agent đang đánh giá độ chắc dữ liệu mới.";
+  cmoJurySummary.textContent = "CMO Jury đang chờ phiếu đánh giá từ các model khả dụng.";
+  cmoBrief.textContent = "CMO brief sẽ được tạo lại sau lượt chạy này.";
+  cmoScorecard.className = "cmo-scorecard empty-state";
+  cmoScorecard.textContent = "Đang tạo scorecard mới.";
+}
+
+function resetRunOutputs() {
+  approvalValue.textContent = "Running";
+  approvalBadge.textContent = "running";
+  approvalBadge.className = "badge";
+  connectionState.textContent = "Running";
+  connectionState.classList.add("ready");
+  syncSourceMode();
+  adsValue.textContent = "-";
+  durationValue.textContent = "-";
+  lastRunValue.textContent = "Đang chạy...";
+
+  dailyReport.textContent = "Đang tạo báo cáo mới...";
+  dailyStrategy.textContent = "Đang tạo chiến lược mới...";
+  publishStatus.textContent = "-";
+  publishMode.textContent = "-";
+  postId.textContent = "-";
+
+  trendAnalysis.textContent = "Đang phân tích trend mới...";
+  adLibraryReport.textContent = "Đang quét Ad Library mới...";
+  visualBrief.textContent = "Đang tạo brief ảnh mới...";
+  textAgentReport.textContent = "Đang phân tích bài viết mới...";
+  visualAgentReport.textContent = "Đang phân tích ảnh mới...";
+  videoAgentReport.textContent = "Đang phân tích video mới...";
+  strategyAgentReport.textContent = "Đang chọn hướng chiến lược mới...";
+  complianceAgentReport.textContent = "Đang kiểm tra compliance mới...";
+  hardnessAgentReport.textContent = "Đang đánh giá hardness mới...";
+  marketingAnalysis.textContent = "Đang tạo phân tích marketing mới...";
+  trendAngle.textContent = "Đang chọn góc trend mới...";
+  postStructure.textContent = "Đang dựng cấu trúc bài mới...";
+  logOutput.textContent = "Workflow mới đang chạy...";
+
+  renderInsights([]);
+  renderReferencedAds([]);
+  renderContentPlan([]);
+  renderCreatives([]);
+  resetCmoPanel();
+  resetFinalReview();
+  renderPublishedPostLink({});
+  safePayload.textContent = "Payload mới sẽ hiển thị khi workflow hoàn tất.";
+}
+
 async function loadStatus() {
   const response = await fetch("/api/status");
   const status = await response.json();
@@ -179,11 +250,8 @@ async function loadStatus() {
 async function runWorkflow() {
   runButton.disabled = true;
   runButton.querySelector(".button-icon").textContent = "...";
-  approvalValue.textContent = "Running";
-  syncSourceMode();
-  adsValue.textContent = "-";
-  durationValue.textContent = "-";
   resetAgents();
+  resetRunOutputs();
   setAgentState("crawler");
 
   try {
