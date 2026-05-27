@@ -15,8 +15,10 @@ def run_publisher_agent(state: AgentState) -> AgentState:
         state["error"] = "Publisher received no draft"
         return state
 
-    approved = state.get("approval_status") == "approved"
+    approved = state.get("approval_status") == "approved" and state.get("cmo_decision") == "APPROVE_TO_PUBLISH"
     result = publish_facebook_post(draft, approved=approved)
+    if not approved:
+        result["reason"] = "Publisher blocked: CMO decision must be APPROVE_TO_PUBLISH and approval_status must be approved."
     result["cmo_selected_variant_index"] = state.get("cmo_selected_variant_index", -1)
     result["cmo_selected_creative_index"] = state.get("cmo_selected_creative_index", -1)
     result["cmo_decision"] = state.get("cmo_decision", "")

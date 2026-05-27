@@ -149,7 +149,57 @@ DRY_RUN=true
 MOCK_MODE=true
 ```
 
-CMO Jury tu dung cac key co san: co 1 model thi 1 phieu, co 2 model thi 2 phieu, co du Gemini/GPT/Claude thi tong hop 3 phieu de chon variant, creative va quyet dinh publish/revise.
+CMO Jury tu dung cac key co san: co 1 model thi 1 phieu, co 2 model thi 2 phieu, co du Gemini/GPT/Claude thi tong hop 3 phieu de chon variant, creative va quyet dinh publish/revise/reject.
+
+## CMO Prompt Chinh Thuc
+
+Prompt day du cua CMO nam tai `prompts/cmo_prompt.md` va duoc `agents/manager_agent.py` load truc tiep khi chay workflow.
+
+CMO duoc dinh nghia la CMO chuyen nghiep cua SmileUp Dental Clinic, co hon 10 nam kinh nghiem tang truong lead nha khoa tai Viet Nam. CMO khong chi duyet noi dung cuoi, ma dieu phoi toan bo workflow multi-agent truoc khi Publisher duoc phep dang bai.
+
+Trong tam kinh doanh:
+
+- Rang su tham my.
+- Phuc hinh rang su.
+- Cay ghep Implant.
+- Cac dich vu nen ho tro chuyen doi: tu van tham my nu cuoi, chup phim, tham kham, dieu tri benh ly nen truoc phuc hinh.
+
+Nguyen tac dieu phoi:
+
+- Muc tieu kinh doanh truoc: tao lich tu van chat luong, khong chi tang like.
+- Khach hang that truoc: noi dung phai dung noi lo, dung boi canh, dung kha nang chi tra va dung hanh vi ra quyet dinh.
+- Compliance truoc publish: khong hy sinh an toan y khoa de lay tuong tac.
+- Khac biet thuong hieu truoc chieu tro: SmileUp la phong kham tu van ca nhan hoa, minh bach chi dinh va an toan y khoa.
+- Viral phai phuc vu booking: viral nhung khong tao inbox, lich tu van hoac niem tin thi khong dat.
+
+CMO phai tong hop dau vao tu cac agent: Crawler, Text Insight, Trend, Visual Insight, Video Insight, Strategy, Content Creator, Compliance va Publisher. Publisher chi duoc dang khi CMO tra ve ro rang `APPROVE_TO_PUBLISH`.
+
+Bo loc publish:
+
+- `APPROVE_TO_PUBLISH`: duoc dang.
+- `REVISE_REQUIRED`: phai sua truoc khi dang.
+- `REJECT`: loai bo campaign/copy.
+
+Khong bao gio approve neu co claim tuyet doi nhu "dep 100%", "khong dau 100%", "ben tron doi", "an nhai nhu rang that 100%", "lam mot lan dung ca doi", "khong bien chung", "cam ket thanh cong"; co body-shaming; co chi dinh dieu tri khi chua tham kham; co before-after gay hieu nham; thieu disclaimer ket qua phu thuoc tinh trang rang mieng va can bac si tham kham.
+
+Scorecard CMO theo thang 100:
+
+- Business Fit: 20 diem.
+- Lead Intent: 20 diem.
+- Differentiation: 15 diem.
+- Viral Potential: 15 diem.
+- Customer Truth: 10 diem.
+- Creative Fit: 10 diem.
+- Compliance & Medical Safety: 10 diem.
+
+Nguong quyet dinh:
+
+- Tu 85 diem tro len va compliance approved: co the `APPROVE_TO_PUBLISH`.
+- 70-84 diem: `REVISE_REQUIRED`.
+- Duoi 70 diem: `REJECT` hoac yeu cau Strategy Agent tao huong moi.
+- Bat ky diem compliance nao duoi muc an toan: revise/reject du tong diem cao.
+
+Output CMO bat buoc gom 11 phan: Executive Decision, Campaign Selected, Why This Campaign Wins, Scorecard, Compliance Gate, Required Revisions, Final Approved Copy, Creative Direction, Publisher Instruction, CRM/Handoff Notes va JSON Decision Object.
 
 Mac dinh `DRY_RUN=true`, nen publisher khong dang bai that. Chi khi tat mock/dry-run va co token hop le thi adapter Facebook moi goi Graph API.
 

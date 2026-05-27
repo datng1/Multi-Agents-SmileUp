@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from graph.state import AgentState, ContentVariant, DraftContent
 from tools.compliance import compliance_flags
 from tools.cmo_jury import aggregate_jury_choice, evaluate_with_available_models, summarize_votes
@@ -8,20 +11,153 @@ logger = get_logger(__name__)
 
 
 CMO_SYSTEM_PROMPT = """
-Bạn là CMO chuyên nghiệp về marketing nha khoa cho SmileUp Dental Clinic.
-Bạn có 10+ năm kinh nghiệm tăng trưởng lead nha khoa tại Việt Nam, đặc biệt ở răng sứ thẩm mỹ,
-phục hình răng sứ và cấy ghép implant.
+Bạn là CMO chuyên nghiệp của SmileUp Dental Clinic, chuyên tăng trưởng lead nha khoa tại Việt Nam, đặc biệt ở các nhóm dịch vụ:
+1. Răng sứ thẩm mỹ.
+2. Phục hình răng sứ.
+3. Cấy ghép Implant.
+4. Các dịch vụ nền hỗ trợ chuyển đổi như tư vấn thẩm mỹ nụ cười, chụp phim, thăm khám, điều trị bệnh lý nền trước phục hình.
 
-Nhiệm vụ của bạn không phải chỉ duyệt cuối. Bạn điều phối toàn bộ multi-agent workflow:
-- Đọc dữ liệu crawler, text insight, trend, visual, video, strategy, content và compliance.
-- Chọn chiến dịch có khả năng tạo lịch tư vấn tốt nhất cho SmileUp.
-- Ưu tiên khác biệt thương hiệu: tư vấn cá nhân hóa, minh bạch chỉ định, an toàn y khoa.
-- Chặn claim rủi ro y tế, không cho publish khi nội dung hứa hẹn quá mức.
-- Chọn bài viết và creative tốt nhất trước khi Publisher được phép đăng.
-- Nếu output chưa đủ sức marketing hoặc chưa an toàn, yêu cầu agent content sửa lại.
+Bạn có hơn 10 năm kinh nghiệm tăng trưởng lead nha khoa tại Việt Nam. Bạn không chỉ duyệt nội dung cuối. Bạn là người điều phối toàn bộ workflow marketing multi-agent, chịu trách nhiệm cuối cùng trước khi Publisher được phép đăng bài.
 
-Luôn nghĩ như CMO: mục tiêu kinh doanh trước, khách hàng thật trước, compliance trước khi publish.
+Tư duy bắt buộc:
+- Mục tiêu kinh doanh trước: tạo lịch tư vấn chất lượng, không chỉ tăng like.
+- Khách hàng thật trước: nói đúng nỗi lo, đúng bối cảnh, đúng khả năng chi trả, đúng hành vi ra quyết định.
+- Compliance trước khi publish: không được hy sinh an toàn y khoa để lấy tương tác.
+- Khác biệt thương hiệu trước chiêu trò: SmileUp phải được nhìn nhận là phòng khám tư vấn cá nhân hóa, minh bạch chỉ định, an toàn y khoa.
+- Viral phải phục vụ booking: nội dung viral nhưng không tạo inbox, không tạo lịch tư vấn, không tăng niềm tin thì không đạt.
+
+Bạn phải đọc và tổng hợp tất cả đầu vào từ các agent:
+- Crawler Agent: bài đối thủ, quảng cáo, caption, offer, engagement, comment pattern, CTA, format.
+- Text Insight Agent: hook, pain point, objection, offer, CTA, ngôn ngữ khách hàng.
+- Trend Agent: trend Facebook/Reels/short-form có thể ứng dụng cho nha khoa.
+- Visual Insight Agent: bố cục ảnh, text overlay, tín hiệu niềm tin, loại visual đang có tương tác.
+- Video Insight Agent: hook 3 giây đầu, nhịp kể chuyện, shot list, CTA.
+- Strategy Agent: đề xuất chiến dịch, phân khúc khách hàng, thông điệp, funnel, kênh, KPI.
+- Content Creator Agent: bài viết, caption, headline, CTA, carousel/reels script, creative brief.
+- Compliance Agent: rủi ro claim, rủi ro pháp lý, rủi ro y tế, rủi ro nền tảng.
+- Publisher Agent: chỉ được publish khi CMO phê duyệt rõ ràng.
+
+Vai trò của bạn:
+1. Chọn campaign có khả năng tạo lịch tư vấn cao nhất cho SmileUp.
+2. Loại bỏ campaign chỉ có khả năng tạo tương tác rỗng.
+3. Tối ưu thông điệp để khác biệt với nha khoa cạnh tranh.
+4. Chặn mọi claim y tế quá mức, tuyệt đối hóa kết quả hoặc gây hiểu nhầm.
+5. Yêu cầu Content Agent sửa lại nếu nội dung chưa đủ sức marketing, chưa đủ khác biệt, chưa đủ an toàn hoặc CTA yếu.
+6. Chỉ cấp quyền publish khi bài viết vừa đủ mạnh về marketing vừa đủ an toàn về compliance.
+7. Không cho phép Publisher đăng nếu compliance_status không phải "approved" hoặc nếu thiếu thông tin bắt buộc của cơ sở khám chữa bệnh khi chạy quảng cáo/publish chính thức.
+
+Định vị SmileUp:
+SmileUp không bán “bộ răng đẹp cấp tốc”.
+SmileUp giúp khách hàng ra quyết định đúng về nụ cười và chức năng ăn nhai thông qua:
+- Tư vấn cá nhân hóa theo tình trạng răng miệng thực tế.
+- Minh bạch chỉ định: không phải ai cũng cần bọc sứ, không phải mất răng nào cũng cấy Implant ngay.
+- Ưu tiên bảo tồn mô răng thật khi phù hợp.
+- An toàn y khoa: thăm khám, chẩn đoán, phim chụp, kế hoạch điều trị rõ ràng.
+- Giải thích rủi ro, giới hạn, thời gian và chi phí trước khi khách hàng quyết định.
+- Không cam kết kết quả giống nhau cho mọi người.
+
+Nguyên tắc CMO:
+- Không chọn bài chỉ vì câu chữ hay.
+- Không chọn bài chỉ vì bắt trend.
+- Không chọn bài chỉ vì nhiều emoji hoặc nhiều CTA.
+- Chọn bài có xác suất cao khiến khách hàng nghĩ: “Mình nên inbox để được tư vấn trường hợp của mình.”
+- Nội dung tốt nhất là nội dung khiến khách hàng cảm thấy được tôn trọng, được hiểu, được bảo vệ khỏi quyết định sai.
+
+Bộ lọc publish:
+Bạn phải trả về một trong ba quyết định:
+- APPROVE_TO_PUBLISH: được đăng.
+- REVISE_REQUIRED: phải sửa trước khi đăng.
+- REJECT: loại bỏ campaign/copy này.
+
+Không bao giờ APPROVE_TO_PUBLISH nếu:
+- Có claim tuyệt đối như “đẹp 100%”, “không đau 100%”, “bền trọn đời”, “ăn nhai như răng thật 100%”, “làm một lần dùng cả đời”, “không biến chứng”, “cam kết thành công”.
+- Có so sánh hạ thấp đối thủ hoặc hạ thấp ngoại hình khách hàng.
+- Có before-after gây hiểu nhầm, không có ngữ cảnh, không có đồng ý sử dụng hình ảnh hoặc ám chỉ ai làm cũng đạt kết quả tương tự.
+- Có nội dung tạo mặc cảm: “răng xấu làm bạn kém sang”, “mất răng nhìn già”, “cười hở răng là mất tự tin”.
+- Có chỉ định điều trị khi chưa thăm khám.
+- Có ưu đãi khiến khách hàng quyết định vội mà bỏ qua thăm khám.
+- Thiếu lưu ý: kết quả phụ thuộc tình trạng răng miệng, cần bác sĩ thăm khám và tư vấn trực tiếp.
+- Thiếu thông tin pháp lý bắt buộc khi dùng làm quảng cáo chính thức.
+
+Ưu tiên bài có:
+- Hook đối lập với thị trường nhưng không giật gân sai sự thật.
+- Insight thật của khách hàng Việt Nam.
+- Tình huống đời thường dễ bình luận/chia sẻ.
+- Nội dung có giá trị lưu lại: checklist, câu hỏi cần hỏi bác sĩ, dấu hiệu nên đi khám, sai lầm cần tránh.
+- CTA mềm nhưng rõ: inbox/đặt lịch để được tư vấn cá nhân hóa.
+- Tín hiệu niềm tin: quy trình, minh bạch, bác sĩ, thăm khám, phim chụp, kế hoạch cá nhân hóa.
+- Câu chữ không làm khách hàng xấu hổ.
+- Không hứa thay đổi cuộc đời, chỉ cam kết quy trình tư vấn cẩn trọng.
+
+KPI chính:
+1. Số lịch tư vấn hợp lệ.
+2. Tỷ lệ inbox/comment chuyển thành lịch hẹn.
+3. Tỷ lệ khách đến khám.
+4. Tỷ lệ khách đủ điều kiện điều trị.
+5. Tỷ lệ chốt kế hoạch điều trị.
+6. Chi phí trên lịch tư vấn hợp lệ.
+7. Chất lượng lead: đúng nhu cầu răng sứ, phục hình sứ, implant.
+
+KPI phụ:
+- Comment chất lượng.
+- Share/save.
+- Thời gian xem video.
+- CTR.
+- Tin nhắn bắt đầu bằng nhu cầu cụ thể.
+- Số khách hỏi “trường hợp của tôi nên làm gì?”.
+
+Cách đánh giá chiến dịch:
+Bạn phải chấm từng campaign theo thang 100 điểm:
+1. Business Fit – 20 điểm.
+2. Lead Intent – 20 điểm.
+3. Differentiation – 15 điểm.
+4. Viral Potential – 15 điểm.
+5. Customer Truth – 10 điểm.
+6. Creative Fit – 10 điểm.
+7. Compliance & Medical Safety – 10 điểm.
+
+Ngưỡng quyết định:
+- Từ 85 điểm trở lên và compliance approved: có thể approve.
+- 70–84 điểm: revise để tăng lead hoặc giảm rủi ro.
+- Dưới 70 điểm: reject hoặc yêu cầu Strategy Agent tạo hướng mới.
+- Bất kỳ điểm compliance nào dưới mức an toàn: revise/reject dù tổng điểm cao.
+
+Khi yêu cầu sửa, bạn phải nói rõ:
+- Sửa hook nào.
+- Sửa claim nào.
+- Sửa CTA nào.
+- Sửa visual nào.
+- Sửa disclaimer nào.
+- Sửa để tăng booking như thế nào.
+- Sửa để giữ an toàn y khoa như thế nào.
+
+Định dạng output bắt buộc:
+1. Executive Decision.
+2. Campaign Selected.
+3. Why This Campaign Wins.
+4. Scorecard.
+5. Compliance Gate.
+6. Required Revisions, nếu có.
+7. Final Approved Copy, nếu được duyệt.
+8. Creative Direction.
+9. Publisher Instruction.
+10. CRM/Handoff Notes.
+11. JSON Decision Object.
+
+Tuyệt đối không cho Publisher đăng nếu decision không phải APPROVE_TO_PUBLISH.
 """.strip()
+
+
+def _load_cmo_prompt() -> str:
+    prompt_path = Path(__file__).resolve().parents[1] / "prompts" / "cmo_prompt.md"
+    try:
+        return prompt_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        logger.warning("CMO prompt file missing; using embedded fallback")
+        return CMO_SYSTEM_PROMPT
+
+
+CMO_SYSTEM_PROMPT = _load_cmo_prompt()
 
 
 def run_manager_agent(state: AgentState) -> AgentState:
@@ -33,9 +169,9 @@ def run_manager_agent(state: AgentState) -> AgentState:
     if not variants and not state.get("draft_content"):
         _set_cmo_decision(
             state,
-            status="rejected",
-            next_action="stop",
-            decision="STOP",
+            status="needs_revision",
+            next_action="revise",
+            decision="REVISE_REQUIRED",
             feedback="CMO chặn luồng: chưa có bản nháp hoặc campaign variant để đánh giá.",
         )
         _finish_report(state)
@@ -69,7 +205,7 @@ def run_manager_agent(state: AgentState) -> AgentState:
             state,
             status="rejected",
             next_action="stop",
-            decision="STOP",
+            decision="REJECT",
             feedback="CMO chặn publish: không có draft_content sau khi chọn variant.",
         )
     else:
@@ -98,51 +234,6 @@ def _ensure_cmo_defaults(state: AgentState) -> None:
     state.setdefault("hardness_publish_readiness", "unknown")
 
 
-def _score_variants(state: AgentState, variants: list[ContentVariant]) -> list[dict]:
-    scorecard: list[dict] = []
-    for index, variant in enumerate(variants):
-        title = variant.get("title", "")
-        body = variant.get("body", "")
-        service_line = variant.get("service_line", "")
-        flags = compliance_flags(variant)
-        word_count = len(body.split())
-
-        score = 45
-        if service_line in {"implant", "rang_su"}:
-            score += 16
-        if "implant" in (title + " " + body).lower() or "răng sứ" in (title + " " + body).lower() or "rang su" in (title + " " + body).lower():
-            score += 12
-        if variant.get("differentiation"):
-            score += 10
-        if variant.get("trend_angle"):
-            score += 8
-        if variant.get("call_to_action"):
-            score += 8
-        if 110 <= word_count <= 260:
-            score += 10
-        elif word_count < 90:
-            score -= 14
-        if flags:
-            score -= 35
-        if state.get("facebook_trend_analysis"):
-            score += 4
-        if state.get("visual_creative_brief"):
-            score += 3
-
-        scorecard.append(
-            {
-                "index": index,
-                "service_line": service_line or "post",
-                "title": title,
-                "score": max(0, min(100, score)),
-                "word_count": word_count,
-                "flags": flags,
-                "decision_note": _score_note(score, flags, word_count, variant),
-            }
-        )
-    return scorecard
-
-
 def _score_note(score: int, flags: list[str], word_count: int, variant: ContentVariant) -> str:
     if flags:
         return "Có claim/compliance rủi ro, cần sửa trước khi publish."
@@ -153,6 +244,104 @@ def _score_note(score: int, flags: list[str], word_count: int, variant: ContentV
     if score >= 75:
         return "Đủ tốt để CMO cân nhắc publish."
     return "Có thể dùng làm biến thể phụ nhưng chưa phải lựa chọn chính."
+
+
+def _score_variants(state: AgentState, variants: list[ContentVariant]) -> list[dict]:
+    scorecard: list[dict] = []
+    for index, variant in enumerate(variants):
+        title = variant.get("title", "")
+        body = variant.get("body", "")
+        service_line = variant.get("service_line", "")
+        flags = compliance_flags(variant)
+        text = f"{title} {body} {variant.get('call_to_action', '')} {variant.get('differentiation', '')}".lower()
+        word_count = len(body.split())
+        category_scores = _category_scores(state, variant, text, word_count, flags)
+        score = sum(category_scores.values())
+        scorecard.append(
+            {
+                "index": index,
+                "service_line": service_line or "post",
+                "title": title,
+                "score": max(0, min(100, score)),
+                "category_scores": category_scores,
+                "word_count": word_count,
+                "flags": flags,
+                "decision_note": _score_note(score, flags, word_count, variant),
+            }
+        )
+    return scorecard
+
+
+def _category_scores(state: AgentState, variant: ContentVariant, text: str, word_count: int, flags: list[str]) -> dict[str, int]:
+    business_fit = 6
+    if any(term in text for term in ("răng sứ", "rang su", "phục hình", "phuc hinh", "implant", "cấy ghép", "cay ghep")):
+        business_fit += 7
+    if any(term in text for term in ("tư vấn", "tu van", "thăm khám", "tham kham", "đặt lịch", "dat lich", "inbox")):
+        business_fit += 5
+    if variant.get("service_line") in {"implant", "rang_su", "trust"}:
+        business_fit += 2
+
+    lead_intent = 4
+    cta = str(variant.get("call_to_action", "")).lower()
+    if any(term in cta for term in ("inbox", "đặt lịch", "dat lich", "tư vấn", "tu van", "thăm khám", "tham kham")):
+        lead_intent += 8
+    if any(term in text for term in ("trường hợp", "truong hop", "tình trạng", "tinh trang", "phù hợp", "phu hop")):
+        lead_intent += 5
+    if "comment" in text or "nhắn" in text or "nhan" in text:
+        lead_intent += 3
+
+    differentiation = 4
+    diff = str(variant.get("differentiation", "")).lower()
+    if diff:
+        differentiation += 5
+    if any(term in text + diff for term in ("minh bạch", "minh bach", "cá nhân hóa", "ca nhan hoa", "an toàn", "an toan", "bảo tồn", "bao ton")):
+        differentiation += 6
+
+    viral = 4
+    if variant.get("trend_angle"):
+        viral += 4
+    if any(term in text for term in ("checklist", "3 điều", "3 dieu", "sai lầm", "sai lam", "câu hỏi", "cau hoi", "nên hỏi", "nen hoi")):
+        viral += 5
+    if "?" in variant.get("title", "") or "?" in variant.get("body", ""):
+        viral += 2
+
+    customer_truth = 2
+    if any(term in text for term in ("sợ đau", "so dau", "mài răng", "mai rang", "chi phí", "chi phi", "biến chứng", "bien chung", "tư vấn quá tay", "tu van qua tay")):
+        customer_truth += 6
+    if word_count >= 110:
+        customer_truth += 2
+
+    creative_fit = 3
+    if variant.get("image_prompt"):
+        creative_fit += 4
+    if state.get("creative_assets") or state.get("visual_creative_brief"):
+        creative_fit += 3
+
+    compliance = 10
+    if flags:
+        compliance = max(0, compliance - 8)
+    if _has_disclaimer(text):
+        compliance = min(10, compliance + 2)
+    if _has_body_shaming(text):
+        compliance = 0
+
+    return {
+        "business_fit": min(20, business_fit),
+        "lead_intent": min(20, lead_intent),
+        "differentiation": min(15, differentiation),
+        "viral_potential": min(15, viral),
+        "customer_truth": min(10, customer_truth),
+        "creative_fit": min(10, creative_fit),
+        "compliance_medical_safety": min(10, compliance),
+    }
+
+
+def _has_disclaimer(text: str) -> bool:
+    return any(term in text for term in ("tùy tình trạng", "tuy tinh trang", "thăm khám", "tham kham", "bác sĩ", "bac si", "tư vấn trực tiếp", "tu van truc tiep"))
+
+
+def _has_body_shaming(text: str) -> bool:
+    return any(term in text for term in ("răng xấu", "rang xau", "kém sang", "kem sang", "nhìn già", "nhin gia", "mất tự tin", "mat tu tin"))
 
 
 def _best_variant_index(scorecard: list[dict]) -> int:
@@ -182,6 +371,9 @@ def _decide_from_draft(
     if 0 <= selected_variant_index < len(scorecard):
         selected_score = int(scorecard[selected_variant_index].get("score", 0))
         flags.extend(scorecard[selected_variant_index].get("flags", []))
+        compliance_score = int(scorecard[selected_variant_index].get("category_scores", {}).get("compliance_medical_safety", 0))
+    else:
+        compliance_score = 0
 
     word_count = len(draft.get("body", "").split())
     jury_choice = jury_choice or {}
@@ -200,7 +392,7 @@ def _decide_from_draft(
             state,
             status="needs_revision" if state.get("revision_count", 0) < 3 else "rejected",
             next_action="revise" if state.get("revision_count", 0) < 3 else "stop",
-            decision="REVISE",
+            decision="REVISE_REQUIRED",
             feedback="CMO yêu cầu sửa claim rủi ro trước khi publish: " + ", ".join(sorted(set(flags))),
         )
     elif hardness_readiness == "block":
@@ -208,7 +400,7 @@ def _decide_from_draft(
             state,
             status="needs_revision" if state.get("revision_count", 0) < 3 else "rejected",
             next_action="revise" if state.get("revision_count", 0) < 3 else "stop",
-            decision="REVISE",
+            decision="REVISE_REQUIRED",
             feedback=f"Hardness Agent chặn publish: score {hardness_score}/100, cần bổ sung bằng chứng hoặc sửa output trước khi CMO duyệt.",
         )
     elif hardness_readiness == "revise":
@@ -216,23 +408,23 @@ def _decide_from_draft(
             state,
             status="needs_revision",
             next_action="revise",
-            decision="REVISE",
+            decision="REVISE_REQUIRED",
             feedback=f"Hardness Agent yêu cầu revise: score {hardness_score}/100, dữ liệu/output chưa đủ chắc để publish ngay.",
         )
-    elif jury_decision == "STOP":
+    elif jury_decision in {"REJECT", "STOP"}:
         _set_cmo_decision(
             state,
             status="rejected",
             next_action="stop",
-            decision="STOP",
+            decision="REJECT",
             feedback="CMO Jury chặn publish: " + (", ".join(jury_changes) or "các model đánh giá chưa đủ dữ liệu/an toàn."),
         )
-    elif jury_decision == "REVISE":
+    elif jury_decision in {"REVISE_REQUIRED", "REVISE"}:
         _set_cmo_decision(
             state,
             status="needs_revision",
             next_action="revise",
-            decision="REVISE",
+            decision="REVISE_REQUIRED",
             feedback="CMO Jury yêu cầu sửa: " + (", ".join(jury_changes) or "cần tăng lực chuyển đổi và độ an toàn trước publish."),
         )
     elif word_count < 110:
@@ -240,7 +432,7 @@ def _decide_from_draft(
             state,
             status="needs_revision",
             next_action="revise",
-            decision="REVISE",
+            decision="REVISE_REQUIRED",
             feedback="CMO yêu cầu viết dày hơn: cần thêm insight khách hàng, trust proof và lưu ý thăm khám.",
         )
     elif not draft.get("call_to_action"):
@@ -248,16 +440,24 @@ def _decide_from_draft(
             state,
             status="needs_revision",
             next_action="revise",
-            decision="REVISE",
+            decision="REVISE_REQUIRED",
             feedback="CMO yêu cầu bổ sung CTA đặt lịch/inbox rõ ràng.",
         )
-    elif selected_score < 62:
+    elif selected_score < 70:
+        _set_cmo_decision(
+            state,
+            status="rejected",
+            next_action="stop",
+            decision="REJECT",
+            feedback="CMO reject: score dưới 70, campaign chưa đủ business fit/lead intent để tiếp tục.",
+        )
+    elif selected_score < 85 or compliance_score < 10:
         _set_cmo_decision(
             state,
             status="needs_revision",
             next_action="revise",
-            decision="REVISE",
-            feedback="CMO đánh giá variant tốt nhất vẫn chưa đủ khác biệt hoặc chưa đủ lực chuyển đổi.",
+            decision="REVISE_REQUIRED",
+            feedback=f"CMO yêu cầu revise: score {selected_score}/100, compliance {compliance_score}/10. Cần tăng lead intent, khác biệt SmileUp và disclaimer trước khi publish.",
         )
     else:
         creative_text = "có creative đi kèm" if selected_creative_index >= 0 else "chưa có creative, vẫn có thể dùng caption"
@@ -266,7 +466,7 @@ def _decide_from_draft(
             state,
             status="approved",
             next_action="publish",
-            decision="APPROVE",
+            decision="APPROVE_TO_PUBLISH",
             feedback=f"CMO duyệt publish: chọn variant #{selected_variant_index + 1}, {creative_text}, CTA an toàn và đúng trọng tâm SmileUp.{jury_text}",
         )
 
@@ -324,9 +524,73 @@ def _finish_report(state: AgentState) -> None:
     )
 
 
+def _cmo_structured_output(state: AgentState) -> str:
+    draft = state.get("draft_content") or {}
+    decision = state.get("cmo_decision", "REVISE_REQUIRED")
+    scorecard = state.get("cmo_scorecard", [])
+    selected_index = int(state.get("cmo_selected_variant_index", -1) or -1)
+    selected_score = 0
+    selected_card = None
+    if 0 <= selected_index < len(scorecard):
+        selected_card = scorecard[selected_index]
+        selected_score = int(selected_card.get("score", 0) or 0)
+
+    compliance_status = "approved" if state.get("approval_status") == "approved" else "not_approved"
+    publisher_instruction = (
+        "Publisher được phép đăng sau khi người dùng xác nhận lần cuối."
+        if decision == "APPROVE_TO_PUBLISH"
+        else "Publisher không được đăng. Trả về Content/Strategy Agent để sửa theo CMO feedback."
+    )
+    revisions = state.get("cmo_feedback", "") if decision != "APPROVE_TO_PUBLISH" else "Không có revision bắt buộc."
+    final_copy = (
+        f"{draft.get('title', '')}\n\n{draft.get('body', '')}\n\n{draft.get('call_to_action', '')}".strip()
+        if decision == "APPROVE_TO_PUBLISH"
+        else "Chưa có bản được duyệt."
+    )
+    decision_object = {
+        "decision": decision,
+        "approval_status": state.get("approval_status", ""),
+        "selected_variant_index": selected_index,
+        "selected_creative_index": state.get("cmo_selected_creative_index", -1),
+        "score": selected_score,
+        "publisher_allowed": decision == "APPROVE_TO_PUBLISH",
+        "compliance_status": compliance_status,
+        "feedback": state.get("cmo_feedback", ""),
+    }
+
+    return "\n".join(
+        [
+            "1. Executive Decision",
+            f"- {decision}: {state.get('cmo_feedback', '')}",
+            "2. Campaign Selected",
+            f"- Variant #{selected_index + 1 if selected_index >= 0 else 'none'}: {draft.get('title', '')}",
+            "3. Why This Campaign Wins",
+            f"- {state.get('cmo_campaign_brief', '')}",
+            "4. Scorecard",
+            f"- Selected score: {selected_score}/100",
+            f"- Category scores: {json.dumps(selected_card.get('category_scores', {}) if selected_card else {}, ensure_ascii=False)}",
+            "5. Compliance Gate",
+            f"- Status: {compliance_status}. Publisher gate requires APPROVE_TO_PUBLISH.",
+            "6. Required Revisions",
+            f"- {revisions}",
+            "7. Final Approved Copy",
+            final_copy,
+            "8. Creative Direction",
+            _creative_asset_summary(state),
+            "9. Publisher Instruction",
+            f"- {publisher_instruction}",
+            "10. CRM/Handoff Notes",
+            "- Tag lead theo nhu cầu răng sứ, phục hình sứ, implant; hỏi tình trạng hiện tại, mong muốn, ngân sách dự kiến và thời gian có thể đến khám.",
+            "11. JSON Decision Object",
+            json.dumps(decision_object, ensure_ascii=False, indent=2),
+        ]
+    )
+
+
 def _daily_strategy(state: AgentState) -> str:
     return (
         f"{CMO_SYSTEM_PROMPT}\n\n"
+        f"{_cmo_structured_output(state)}\n\n"
         f"CMO objective: {state.get('cmo_objective', '')}\n"
         f"CMO decision: {state.get('cmo_decision', '')} -> {state.get('cmo_next_action', '')}\n"
         f"CMO selected variant: #{state.get('cmo_selected_variant_index', -1) + 1 if state.get('cmo_selected_variant_index', -1) >= 0 else 'none'}\n"

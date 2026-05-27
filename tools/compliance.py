@@ -1,15 +1,26 @@
 RISKY_CLAIMS = [
     "100%",
-    "vĩnh viễn",
+    "đẹp 100%",
+    "không đau 100%",
     "không đau hoàn toàn",
     "không đau",
+    "bền trọn đời",
+    "ăn nhai như răng thật 100%",
+    "làm một lần dùng cả đời",
+    "không biến chứng",
+    "cam kết thành công",
+    "cam kết khỏi",
+    "bảo đảm thành công",
+    "vĩnh viễn",
     "đẹp ngay lập tức",
     "số 1",
     "duy nhất",
     "rẻ nhất",
     "chắc chắn khỏi",
-    "cam kết khỏi",
-    "bảo đảm thành công",
+    "răng xấu",
+    "kém sang",
+    "mất răng nhìn già",
+    "cười hở răng là mất tự tin",
 ]
 
 
@@ -27,7 +38,8 @@ def build_compliance_report(draft: dict | None) -> str:
         return (
             "Compliance Agent:\n"
             f"- Phát hiện claim rủi ro: {', '.join(flags)}.\n"
-            "- Cần sửa trước khi duyệt: tránh cam kết tuyệt đối, tránh khẳng định kết quả chắc chắn, thêm lưu ý cần bác sĩ thăm khám."
+            "- Cần sửa trước khi duyệt: tránh cam kết tuyệt đối, tránh khẳng định kết quả chắc chắn, "
+            "không tạo mặc cảm ngoại hình và thêm lưu ý cần bác sĩ thăm khám."
         )
 
     return (

@@ -70,7 +70,7 @@ def summarize_votes(votes: list[dict[str, Any]]) -> str:
 
 
 def aggregate_jury_choice(votes: list[dict[str, Any]], scorecard: list[dict[str, Any]]) -> dict[str, Any]:
-    usable = [vote for vote in votes if vote.get("decision") in {"APPROVE", "REVISE", "STOP"}]
+    usable = [vote for vote in votes if vote.get("decision") in {"APPROVE_TO_PUBLISH", "REVISE_REQUIRED", "REJECT"}]
     if not usable:
         return {}
 
@@ -87,10 +87,10 @@ def aggregate_jury_choice(votes: list[dict[str, Any]], scorecard: list[dict[str,
             creative_scores[creative] = creative_scores.get(creative, 0) + weight
 
     majority_decision = max(decisions.items(), key=lambda item: item[1])[0]
-    if decisions.get("STOP", 0) >= max(1, len(usable) // 2 + 1):
-        majority_decision = "STOP"
-    elif decisions.get("REVISE", 0) >= max(1, len(usable) // 2 + 1):
-        majority_decision = "REVISE"
+    if decisions.get("REJECT", 0) >= max(1, len(usable) // 2 + 1):
+        majority_decision = "REJECT"
+    elif decisions.get("REVISE_REQUIRED", 0) >= max(1, len(usable) // 2 + 1):
+        majority_decision = "REVISE_REQUIRED"
 
     selected_variant = _best_weighted_index(variant_scores)
     if selected_variant < 0 and scorecard:
@@ -208,14 +208,18 @@ Creative assets:
 Yêu cầu đánh giá:
 - Chọn variant có khả năng tạo lịch tư vấn tốt nhất.
 - Chọn creative phù hợp nhất.
-- APPROVE nếu có thể publish.
-- REVISE nếu cần sửa copy/CTA/claim.
-- STOP nếu rủi ro nghiêm trọng hoặc thiếu dữ liệu không thể publish.
+- APPROVE_TO_PUBLISH nếu có thể publish, score tối thiểu 85 và compliance an toàn.
+- REVISE_REQUIRED nếu cần sửa copy/CTA/claim/visual/disclaimer trước khi publish.
+- REJECT nếu rủi ro nghiêm trọng, dưới 70 điểm hoặc thiếu dữ liệu không thể publish.
 - Không cho phép claim tuyệt đối, không copy/rebrand tài sản đối thủ.
 
 JSON schema:
+Decision must use the new CMO contract:
+- APPROVE_TO_PUBLISH: only when score is at least 85 and compliance is safe.
+- REVISE_REQUIRED: copy, CTA, hook, visual, claim, or disclaimer must be revised before publish.
+- REJECT: score below 70, serious risk, or not enough data to publish.
 {{
-  "decision": "APPROVE | REVISE | STOP",
+  "decision": "APPROVE_TO_PUBLISH | REVISE_REQUIRED | REJECT",
   "selected_variant_index": 0,
   "selected_creative_index": 0,
   "score": 0,
@@ -232,9 +236,7 @@ def _parse_vote(text: str) -> dict[str, Any]:
     if match:
         cleaned = match.group(0)
     payload = json.loads(cleaned)
-    decision = str(payload.get("decision", "REVISE")).strip().upper()
-    if decision not in {"APPROVE", "REVISE", "STOP"}:
-        decision = "REVISE"
+    decision = _normalize_decision(payload.get("decision", "REVISE_REQUIRED"))
     return {
         "decision": decision,
         "selected_variant_index": int(payload.get("selected_variant_index", -1)),
@@ -244,6 +246,24 @@ def _parse_vote(text: str) -> dict[str, Any]:
         "required_changes": [str(item).strip() for item in payload.get("required_changes", []) if str(item).strip()],
         "risk_flags": [str(item).strip() for item in payload.get("risk_flags", []) if str(item).strip()],
     }
+
+
+def _normalize_decision(value: Any) -> str:
+    decision = str(value).strip().upper()
+    aliases = {
+        "APPROVE": "APPROVE_TO_PUBLISH",
+        "APPROVED": "APPROVE_TO_PUBLISH",
+        "PUBLISH": "APPROVE_TO_PUBLISH",
+        "REVISE": "REVISE_REQUIRED",
+        "REVISION_REQUIRED": "REVISE_REQUIRED",
+        "NEEDS_REVISION": "REVISE_REQUIRED",
+        "STOP": "REJECT",
+        "BLOCK": "REJECT",
+    }
+    decision = aliases.get(decision, decision)
+    if decision not in {"APPROVE_TO_PUBLISH", "REVISE_REQUIRED", "REJECT"}:
+        return "REVISE_REQUIRED"
+    return decision
 
 
 def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
