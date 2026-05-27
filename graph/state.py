@@ -19,6 +19,7 @@ CurrentStep = Literal[
     "strategy",
     "content_creator",
     "compliance",
+    "hardness",
     "manager_review",
     "publisher",
     "end",
@@ -75,6 +76,12 @@ class AgentState(TypedDict):
     video_insight_report: str
     strategic_direction: str
     compliance_report: str
+    hardness_score: int
+    hardness_risk_level: str
+    hardness_missing_evidence: list[str]
+    hardness_recommended_next_agents: list[str]
+    hardness_publish_readiness: str
+    hardness_report: str
     draft_content: Optional[DraftContent]
     content_plan: list[ContentVariant]
     creative_assets: list[dict[str, Any]]
@@ -121,6 +128,12 @@ def create_initial_state() -> AgentState:
         "video_insight_report": "",
         "strategic_direction": "",
         "compliance_report": "",
+        "hardness_score": 0,
+        "hardness_risk_level": "unknown",
+        "hardness_missing_evidence": [],
+        "hardness_recommended_next_agents": [],
+        "hardness_publish_readiness": "unknown",
+        "hardness_report": "",
         "draft_content": None,
         "content_plan": [],
         "creative_assets": [],

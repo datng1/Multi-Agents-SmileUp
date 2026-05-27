@@ -1,6 +1,7 @@
 from agents.compliance_agent import run_compliance_agent
 from agents.content_agent import run_content_agent
 from agents.crawler_agent import run_crawler_agent
+from agents.hardness_agent import run_hardness_agent
 from agents.manager_agent import run_manager_agent
 from agents.publisher_agent import run_publisher_agent
 from agents.strategy_agent import run_strategy_agent
@@ -30,6 +31,7 @@ class SimpleRunner:
 
         while True:
             state = run_compliance_agent(state)
+            state = run_hardness_agent(state)
             state = run_manager_agent(state)
             route = route_after_manager(state)
             if route == "publish":
@@ -53,6 +55,7 @@ def build_workflow():
     workflow.add_node("strategy", run_strategy_agent)
     workflow.add_node("content_creator", run_content_agent)
     workflow.add_node("compliance", run_compliance_agent)
+    workflow.add_node("hardness", run_hardness_agent)
     workflow.add_node("manager_review", run_manager_agent)
     workflow.add_node("publisher", run_publisher_agent)
     workflow.set_entry_point("crawler")
@@ -63,7 +66,8 @@ def build_workflow():
     workflow.add_edge("video_insight", "strategy")
     workflow.add_edge("strategy", "content_creator")
     workflow.add_edge("content_creator", "compliance")
-    workflow.add_edge("compliance", "manager_review")
+    workflow.add_edge("compliance", "hardness")
+    workflow.add_edge("hardness", "manager_review")
     workflow.add_conditional_edges(
         "manager_review",
         route_after_manager,

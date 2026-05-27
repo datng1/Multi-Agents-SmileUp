@@ -21,6 +21,9 @@ def main() -> None:
     assert result["strategic_direction"], "strategy agent should produce a direction"
     assert result["draft_content"], "content agent should produce draft"
     assert result["compliance_report"], "compliance agent should produce a report"
+    assert result["hardness_report"], "hardness agent should produce a report"
+    assert result["hardness_score"] >= 0, "hardness agent should score the workflow"
+    assert result["hardness_publish_readiness"] in {"ready", "revise", "block"}, result["hardness_publish_readiness"]
     assert result["approval_status"] == "approved", result["manager_feedback"]
     assert result["cmo_decision"] == "APPROVE", result["cmo_feedback"]
     assert result["cmo_next_action"] == "publish", result["cmo_next_action"]

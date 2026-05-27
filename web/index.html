@@ -173,8 +173,9 @@
         <article class="agent-card" data-agent="strategy"><div class="agent-topline"><span class="agent-number">06</span><span class="agent-state">Idle</span></div><h2>Strategy</h2><p>Chốt hướng cho răng sứ và implant.</p></article>
         <article class="agent-card" data-agent="content_creator"><div class="agent-topline"><span class="agent-number">07</span><span class="agent-state">Idle</span></div><h2>Content</h2><p>Viết bài Facebook theo giọng marketing.</p></article>
         <article class="agent-card" data-agent="compliance"><div class="agent-topline"><span class="agent-number">08</span><span class="agent-state">Idle</span></div><h2>Compliance</h2><p>Chặn claim nha khoa quá đà.</p></article>
-        <article class="agent-card" data-agent="manager_review"><div class="agent-topline"><span class="agent-number">09</span><span class="agent-state">Idle</span></div><h2>CMO</h2><p>Chọn variant, creative và quyết định publish.</p></article>
-        <article class="agent-card" data-agent="publisher"><div class="agent-topline"><span class="agent-number">10</span><span class="agent-state">Idle</span></div><h2>Publisher</h2><p>Xuất payload an toàn ở chế độ dry-run.</p></article>
+        <article class="agent-card" data-agent="hardness"><div class="agent-topline"><span class="agent-number">09</span><span class="agent-state">Idle</span></div><h2>Hardness</h2><p>Đo độ chắc dữ liệu và readiness.</p></article>
+        <article class="agent-card" data-agent="manager_review"><div class="agent-topline"><span class="agent-number">10</span><span class="agent-state">Idle</span></div><h2>CMO</h2><p>Chọn variant, creative và quyết định publish.</p></article>
+        <article class="agent-card" data-agent="publisher"><div class="agent-topline"><span class="agent-number">11</span><span class="agent-state">Idle</span></div><h2>Publisher</h2><p>Xuất payload an toàn ở chế độ dry-run.</p></article>
       </section>
 
       <section class="dashboard-grid">
@@ -244,6 +245,7 @@
               <p id="cmoFeedback">Chưa có feedback.</p>
             </div>
           </div>
+          <pre id="hardnessReport" class="cmo-brief">Hardness Agent sẽ đánh giá độ chắc dữ liệu ở đây.</pre>
           <pre id="cmoJurySummary" class="cmo-brief">CMO Jury sẽ hiện các phiếu Gemini/GPT/Claude ở đây.</pre>
           <pre id="cmoBrief" class="cmo-brief">CMO brief sẽ hiện ở đây sau khi chạy workflow.</pre>
           <div id="cmoScorecard" class="cmo-scorecard empty-state">Chưa có scorecard.</div>
@@ -342,6 +344,7 @@
             <div><span class="label">Video Agent</span><pre id="videoAgentReport">Chưa có phân tích video.</pre></div>
             <div><span class="label">Strategy Agent</span><pre id="strategyAgentReport">Chưa có hướng chiến lược.</pre></div>
             <div><span class="label">Compliance Agent</span><pre id="complianceAgentReport">Chưa có kiểm tra compliance.</pre></div>
+            <div><span class="label">Hardness Agent</span><pre id="hardnessAgentReport">Chưa có đánh giá hardness.</pre></div>
           </div>
         </section>
 

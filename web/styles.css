@@ -549,7 +549,7 @@ h2 {
 }
 
 .workflow-panel {
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(11, minmax(0, 1fr));
   margin-bottom: 14px;
 }
 

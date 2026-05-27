@@ -38,6 +38,7 @@ const cmoObjective = document.querySelector("#cmoObjective");
 const cmoDecision = document.querySelector("#cmoDecision");
 const cmoSelected = document.querySelector("#cmoSelected");
 const cmoFeedback = document.querySelector("#cmoFeedback");
+const hardnessReport = document.querySelector("#hardnessReport");
 const cmoJurySummary = document.querySelector("#cmoJurySummary");
 const cmoBrief = document.querySelector("#cmoBrief");
 const cmoScorecard = document.querySelector("#cmoScorecard");
@@ -50,6 +51,7 @@ const visualAgentReport = document.querySelector("#visualAgentReport");
 const videoAgentReport = document.querySelector("#videoAgentReport");
 const strategyAgentReport = document.querySelector("#strategyAgentReport");
 const complianceAgentReport = document.querySelector("#complianceAgentReport");
+const hardnessAgentReport = document.querySelector("#hardnessAgentReport");
 const contentPlanList = document.querySelector("#contentPlanList");
 const contentPlanCount = document.querySelector("#contentPlanCount");
 const creativeGrid = document.querySelector("#creativeGrid");
@@ -86,6 +88,7 @@ const agentOrder = [
   "strategy",
   "content_creator",
   "compliance",
+  "hardness",
   "manager_review",
   "publisher",
 ];
@@ -254,6 +257,7 @@ function renderResult(result, logs, durationMs) {
   videoAgentReport.textContent = result.video_insight_report || "Chưa có phân tích video.";
   strategyAgentReport.textContent = result.strategic_direction || "Chưa có hướng chiến lược.";
   complianceAgentReport.textContent = result.compliance_report || "Chưa có kiểm tra compliance.";
+  hardnessAgentReport.textContent = result.hardness_report || "Chưa có đánh giá hardness.";
   marketingAnalysis.textContent = draft.marketing_analysis || "Chưa có phân tích marketing.";
   trendAngle.textContent = draft.trend_angle || "Chưa có góc trend.";
   postStructure.textContent = draft.post_structure || "Chưa có cấu trúc bài.";
@@ -350,6 +354,7 @@ function renderCmoDecision(result) {
   cmoDecision.textContent = `${result.cmo_decision || "PENDING"} · ${result.approval_status || "pending"}`;
   cmoSelected.textContent = `Variant ${selectedVariant >= 0 ? `#${selectedVariant + 1}` : "chưa chọn"} · Creative ${selectedCreative >= 0 ? `#${selectedCreative + 1}` : "chưa chọn"}`;
   cmoFeedback.textContent = result.cmo_feedback || result.manager_feedback || "Chưa có feedback.";
+  hardnessReport.textContent = result.hardness_report || "Hardness Agent chưa có đánh giá.";
   cmoJurySummary.textContent = result.cmo_jury_summary || "CMO Jury chưa có phiếu model.";
   cmoBrief.textContent = result.cmo_campaign_brief || "CMO brief sẽ hiện ở đây sau khi chạy workflow.";
 

@@ -93,6 +93,9 @@ def _ensure_cmo_defaults(state: AgentState) -> None:
     state.setdefault("cmo_campaign_brief", "")
     state.setdefault("cmo_model_votes", [])
     state.setdefault("cmo_jury_summary", "")
+    state.setdefault("hardness_score", 0)
+    state.setdefault("hardness_risk_level", "unknown")
+    state.setdefault("hardness_publish_readiness", "unknown")
 
 
 def _score_variants(state: AgentState, variants: list[ContentVariant]) -> list[dict]:
@@ -189,6 +192,9 @@ def _decide_from_draft(
     if jury_risks:
         flags.extend(jury_risks)
 
+    hardness_readiness = state.get("hardness_publish_readiness", "unknown")
+    hardness_score = int(state.get("hardness_score", 0) or 0)
+
     if flags:
         _set_cmo_decision(
             state,
@@ -196,6 +202,22 @@ def _decide_from_draft(
             next_action="revise" if state.get("revision_count", 0) < 3 else "stop",
             decision="REVISE",
             feedback="CMO yêu cầu sửa claim rủi ro trước khi publish: " + ", ".join(sorted(set(flags))),
+        )
+    elif hardness_readiness == "block":
+        _set_cmo_decision(
+            state,
+            status="needs_revision" if state.get("revision_count", 0) < 3 else "rejected",
+            next_action="revise" if state.get("revision_count", 0) < 3 else "stop",
+            decision="REVISE",
+            feedback=f"Hardness Agent chặn publish: score {hardness_score}/100, cần bổ sung bằng chứng hoặc sửa output trước khi CMO duyệt.",
+        )
+    elif hardness_readiness == "revise":
+        _set_cmo_decision(
+            state,
+            status="needs_revision",
+            next_action="revise",
+            decision="REVISE",
+            feedback=f"Hardness Agent yêu cầu revise: score {hardness_score}/100, dữ liệu/output chưa đủ chắc để publish ngay.",
         )
     elif jury_decision == "STOP":
         _set_cmo_decision(
@@ -310,6 +332,7 @@ def _daily_strategy(state: AgentState) -> str:
         f"CMO selected variant: #{state.get('cmo_selected_variant_index', -1) + 1 if state.get('cmo_selected_variant_index', -1) >= 0 else 'none'}\n"
         f"CMO selected creative: #{state.get('cmo_selected_creative_index', -1) + 1 if state.get('cmo_selected_creative_index', -1) >= 0 else 'none'}\n"
         f"CMO feedback: {state.get('cmo_feedback', '')}\n\n"
+        f"{state.get('hardness_report', '')}\n\n"
         f"{state.get('cmo_jury_summary', '')}\n\n"
         f"{state.get('cmo_campaign_brief', '')}\n\n"
         "Thông điệp chủ đạo: SmileUp khác biệt bằng tư vấn cá nhân hóa, minh bạch chỉ định và an toàn y khoa.\n"
@@ -338,6 +361,7 @@ def _daily_report(state: AgentState) -> str:
         f"CMO status: {status}.\n"
         f"CMO decision: {state.get('cmo_decision', '')} -> {state.get('cmo_next_action', '')}\n"
         f"CMO feedback: {state.get('cmo_feedback', '')}\n"
+        f"Hardness: {state.get('hardness_report', '').replace(chr(10), ' ')}\n"
         f"CMO Jury: {state.get('cmo_jury_summary', '').replace(chr(10), ' ')}\n"
         f"CMO brief: {state.get('cmo_campaign_brief', '').replace(chr(10), ' ')}\n"
         f"Ad Library: {state.get('ad_library_report', '').replace(chr(10), ' ')}\n"
