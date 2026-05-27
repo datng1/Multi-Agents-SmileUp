@@ -42,7 +42,7 @@ def build_text_insight_report(insights: list[dict]) -> str:
         "Text Insight Agent:\n"
         f"- Tín hiệu caption nổi bật: {dominant}.\n"
         "- Nên ưu tiên hook đánh vào nỗi lo thật: sợ đau, sợ sai chỉ định, sợ giá cao, mất tự tin khi cười hoặc mất răng khó ăn nhai.\n"
-        "- Với Smile Up, chuyển góc cạnh tranh sang tư vấn cá nhân hóa cho răng sứ và implant thay vì chạy ưu đãi chung chung.\n"
+        "- Với SmileUp, chuyển góc cạnh tranh sang tư vấn cá nhân hóa cho răng sứ và implant thay vì chạy ưu đãi chung chung.\n"
         f"- Hook/caption tham chiếu từ dữ liệu đầu vào: {hook_examples}"
     )
 
@@ -58,8 +58,8 @@ def build_visual_insight_report(visual_notes: str, visual_brief: str) -> str:
         "Visual Insight Agent:\n"
         f"- Tín hiệu hình ảnh ghi nhận: {dominant}.\n"
         f"- Ghi chú ảnh/video frame đầu vào: {evidence}\n"
-        "- Hướng đúng cho Smile Up: dùng ảnh gốc, ảnh có license hoặc ảnh AI mới; giữ cảm giác phòng khám thật, sạch, hiện đại, có bác sĩ tư vấn.\n"
-        "- Không rebrand ảnh đối thủ. Có thể học bố cục/hook thị giác rồi tạo creative mới có logo Smile Up.\n"
+        "- Hướng đúng cho SmileUp: dùng ảnh gốc, ảnh có license hoặc ảnh AI mới; giữ cảm giác phòng khám thật, sạch, hiện đại, có bác sĩ tư vấn.\n"
+        "- Không rebrand ảnh đối thủ. Có thể học bố cục/hook thị giác rồi tạo creative mới có logo SmileUp.\n"
         f"- Brief nền hiện có: {_shorten(visual_brief, 260)}"
     )
 
@@ -92,8 +92,8 @@ def build_strategic_direction(
     return (
         "Strategic Direction Agent:\n"
         f"- Trụ cột chính nên triển khai hôm nay: {focus}; trụ cột phụ: {secondary}.\n"
-        "- Góc nội dung: không sao chép đối thủ, dùng insight thị trường để viết lại theo lợi thế Smile Up: tư vấn rõ chỉ định, bác sĩ đồng hành, phòng khám hiện đại.\n"
-        "- Công thức ưu tiên: Hook vấn đề thật -> checklist dấu hiệu cần đi khám -> giải pháp Smile Up -> lưu ý kết quả tùy tình trạng -> CTA inbox/đặt lịch.\n"
+        "- Góc nội dung: không sao chép đối thủ, dùng insight thị trường để viết lại theo lợi thế SmileUp: tư vấn rõ chỉ định, bác sĩ đồng hành, phòng khám hiện đại.\n"
+        "- Công thức ưu tiên: Hook vấn đề thật -> checklist dấu hiệu cần đi khám -> giải pháp SmileUp -> lưu ý kết quả tùy tình trạng -> CTA inbox/đặt lịch.\n"
         "- Trend Facebook nên bám: caption ngắn đoạn, câu hỏi ở đầu bài, lợi ích dạng bullet, hình/video có mặt bác sĩ hoặc bối cảnh phòng khám, hashtag hẹp theo dịch vụ.\n"
         "- KPI nội dung: tăng inbox tư vấn, tăng lịch thăm khám, không chạy claim quá đà hoặc cam kết kết quả tuyệt đối."
     )

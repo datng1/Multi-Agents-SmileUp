@@ -123,7 +123,7 @@ def _call_openai(prompt: str) -> tuple[str, str]:
         json={
             "model": config.OPENAI_MODEL,
             "messages": [
-                {"role": "system", "content": "You are a senior dental marketing CMO. Return JSON only."},
+                {"role": "system", "content": "Bạn là CMO marketing nha khoa cấp cao. Chỉ trả JSON."},
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.2,
@@ -147,7 +147,7 @@ def _call_claude(prompt: str) -> tuple[str, str]:
             "model": config.ANTHROPIC_MODEL,
             "max_tokens": 1400,
             "temperature": 0.2,
-            "system": "You are a senior dental marketing CMO. Return JSON only.",
+            "system": "Bạn là CMO marketing nha khoa cấp cao. Chỉ trả JSON.",
             "messages": [{"role": "user", "content": prompt}],
         },
         timeout=40,
@@ -214,10 +214,10 @@ Yêu cầu đánh giá:
 - Không cho phép claim tuyệt đối, không copy/rebrand tài sản đối thủ.
 
 JSON schema:
-Decision must use the new CMO contract:
-- APPROVE_TO_PUBLISH: only when score is at least 85 and compliance is safe.
-- REVISE_REQUIRED: copy, CTA, hook, visual, claim, or disclaimer must be revised before publish.
-- REJECT: score below 70, serious risk, or not enough data to publish.
+Decision phải dùng đúng contract mới của CMO:
+- APPROVE_TO_PUBLISH: chỉ dùng khi score tối thiểu 85 và compliance an toàn.
+- REVISE_REQUIRED: copy, CTA, hook, visual, claim hoặc disclaimer cần sửa trước khi publish.
+- REJECT: score dưới 70, rủi ro nghiêm trọng hoặc không đủ dữ liệu để publish.
 {{
   "decision": "APPROVE_TO_PUBLISH | REVISE_REQUIRED | REJECT",
   "selected_variant_index": 0,

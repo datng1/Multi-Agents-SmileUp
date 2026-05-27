@@ -278,7 +278,7 @@ def _started_timestamp(started: str) -> float:
     if not text:
         return 0.0
     date_text = text
-    for pattern in (r"Started running on\s+(.+)", r"Bắt đầu chạy vào\s+(.+)", r"Báº¯t Ä‘áº§u cháº¡y vào\s+(.+)"):
+    for pattern in (r"Started running on\s+(.+)", r"Bắt đầu chạy vào\s+(.+)"):
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             date_text = match.group(1).strip()

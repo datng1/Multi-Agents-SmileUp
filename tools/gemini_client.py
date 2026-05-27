@@ -173,34 +173,34 @@ def _build_campaign_prompt(state: AgentState) -> str:
     return f"""
 {base}
 
-NHIEM VU MO RONG CHO CMO:
-Thay vi chi tao 1 bai, hay tao 4 bai dang Facebook khac nhau cho SmileUp, moi bai gan voi mot tru cot chien dich rieng:
-1. Cay ghep implant: tap trung an nhai, mat rang lau nam, can tham kham dung chi dinh.
-2. Rang su tham my: tap trung nu cuoi tu nhien, tu tin, bao ton rang that khi co the.
-3. Minh bach chuyen mon: tap trung bac si tu van, phim chup/kiem tra, khong chay dua gia re.
-4. Reels/short post de bat trend: hook ngan, cau hoi goi comment, dung cho Facebook/Reels caption.
+NHIỆM VỤ MỞ RỘNG CHO CMO:
+Thay vì chỉ tạo 1 bài, hãy tạo 4 bài đăng Facebook khác nhau cho SmileUp, mỗi bài gắn với một trụ cột chiến dịch riêng:
+1. Cấy ghép implant: tập trung ăn nhai, mất răng lâu năm, cần thăm khám đúng chỉ định.
+2. Răng sứ thẩm mỹ: tập trung nụ cười tự nhiên, tự tin, bảo tồn răng thật khi có thể.
+3. Minh bạch chuyên môn: tập trung bác sĩ tư vấn, phim chụp/kiểm tra, không chạy đua giá rẻ.
+4. Reels/short post để bắt trend: hook ngắn, câu hỏi gợi comment, dùng cho Facebook/Reels caption.
 
-Moi bai phai khac biet hon cac ads dau vao bang cach:
-- Khong dua vao giam gia soc lam loi the chinh.
-- Khong copy cau chu, offer, bo cuc copy cua doi thu.
-- Lam noi bat SmileUp: tu van ca nhan hoa, quy trinh minh bach, phong kham hien dai, an toan y khoa.
-- Co visual direction rieng va image_prompt rieng. image_prompt bat buoc yeu cau anh goc/AI moi, co logo SmileUp, khong rebrand anh doi thu.
+Mỗi bài phải khác biệt hơn các ads đầu vào bằng cách:
+- Không dựa vào giảm giá sốc làm lợi thế chính.
+- Không copy câu chữ, offer, bố cục copy của đối thủ.
+- Làm nổi bật SmileUp: tư vấn cá nhân hóa, quy trình minh bạch, phòng khám hiện đại, an toàn y khoa.
+- Có visual direction riêng và image_prompt riêng. image_prompt bắt buộc yêu cầu ảnh gốc/AI mới, có logo SmileUp, không rebrand ảnh đối thủ.
 
-Chi tra ve JSON thuan theo schema:
+Chỉ trả về JSON thuần theo schema:
 {{
   "variants": [
     {{
       "service_line": "implant | rang_su | trust | reels",
-      "angle": "goc noi dung",
-      "differentiation": "SmileUp khac biet hon ads doi thu o diem nao",
-      "marketing_analysis": "phan tich ngan cho bai nay",
+      "angle": "góc nội dung",
+      "differentiation": "SmileUp khác biệt hơn ads đối thủ ở điểm nào",
+      "marketing_analysis": "phân tích ngắn cho bài này",
       "trend_angle": "trend angle rieng",
       "post_structure": "Hook -> Pain point -> SmileUp solution -> Trust proof -> CTA",
       "title": "string",
-      "body": "caption co the dang ngay",
+      "body": "caption có thể đăng ngay",
       "hashtags": ["#tag"],
       "call_to_action": "string",
-      "image_prompt": "prompt anh goc co logo SmileUp"
+      "image_prompt": "prompt ảnh gốc có logo SmileUp"
     }}
   ]
 }}

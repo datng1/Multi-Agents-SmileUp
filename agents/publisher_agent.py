@@ -10,15 +10,15 @@ def run_publisher_agent(state: AgentState) -> AgentState:
     logger.info("Publisher Agent preparing publish step")
     draft = state.get("draft_content")
     if not draft:
-        state["publish_result"] = {"published": False, "reason": "Missing draft"}
+        state["publish_result"] = {"published": False, "reason": "Thiếu bản nháp để Publisher xử lý."}
         state["current_step"] = "error"
-        state["error"] = "Publisher received no draft"
+        state["error"] = "Publisher không nhận được bản nháp."
         return state
 
     approved = state.get("approval_status") == "approved" and state.get("cmo_decision") == "APPROVE_TO_PUBLISH"
     result = publish_facebook_post(draft, approved=approved)
     if not approved:
-        result["reason"] = "Publisher blocked: CMO decision must be APPROVE_TO_PUBLISH and approval_status must be approved."
+        result["reason"] = "Publisher bị chặn: CMO decision phải là APPROVE_TO_PUBLISH và approval_status phải là approved."
     result["cmo_selected_variant_index"] = state.get("cmo_selected_variant_index", -1)
     result["cmo_selected_creative_index"] = state.get("cmo_selected_creative_index", -1)
     result["cmo_decision"] = state.get("cmo_decision", "")

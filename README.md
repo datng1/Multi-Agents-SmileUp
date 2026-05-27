@@ -1,28 +1,28 @@
 # Dental Marketing Multi-Agent System
 
-He thong MVP cho marketing nha khoa, dung mo hinh nhieu agent theo dac ta trong `README (1).md`.
+Hệ thống MVP cho marketing nha khoa, dùng mô hình nhiều agent theo đặc tả trong `README (1).md`.
 
-## Kien Truc
+## Kiến Trúc
 
-- `graph/`: AgentState, routing va workflow. Co fallback `SimpleRunner` neu chua cai LangGraph.
-- `agents/`: crawler, content, manager va publisher agent.
-- `tools/`: adapter Facebook Graph API, mock fixtures va summarizer.
-- `utils/`: config fail-soft va logger.
-- `prompts/`: prompt rieng cho tung agent.
+- `graph/`: AgentState, routing và workflow. Có fallback `SimpleRunner` nếu chưa cài LangGraph.
+- `agents/`: crawler, content, manager và publisher agent.
+- `tools/`: adapter Facebook Graph API, mock fixtures và summarizer.
+- `utils/`: config fail-soft và logger.
+- `prompts/`: prompt riêng cho từng agent.
 
-## Chay Demo Khong Can API Key
+## Chạy Demo Không Cần API Key
 
 ```bash
 python main.py
 ```
 
-Neu thieu API key, he thong tu bat mock mode:
+Nếu thiếu API key, hệ thống tự bật mock mode:
 
 ```txt
 Mock mode enabled: OPENAI_API_KEY missing; ANTHROPIC_API_KEY missing; FACEBOOK_ACCESS_TOKEN missing; FACEBOOK_PAGE_ID missing
 ```
 
-Sau do workflow chay du luong:
+Sau đó workflow chạy đủ luồng:
 
 ```txt
 crawler -> text_insight -> trend_analysis -> visual_insight -> video_insight -> strategy -> content_creator -> compliance -> manager_review -> publisher
@@ -34,7 +34,7 @@ crawler -> text_insight -> trend_analysis -> visual_insight -> video_insight -> 
 python -m tests.smoke_workflow
 ```
 
-Ky vong:
+Kỳ vọng:
 
 ```txt
 SMOKE OK
@@ -42,84 +42,84 @@ approval_status= approved
 publish_result= {...}
 ```
 
-## Chay Giao Dien Web
+## Chạy Giao Diện Web
 
 ```bash
 python web_app.py
 ```
 
-Mo trinh duyet tai:
+Mở trình duyệt tại:
 
 ```txt
 http://127.0.0.1:8765
 ```
 
-Giao dien co nut "Chay workflow" de goi API `/api/run`, sau do hien thi:
+Giao diện có nút "Chạy workflow" để gọi API `/api/run`, sau đó hiển thị:
 
-- Trang thai mock/dry-run
-- Cac buoc Crawler, Text, Trend, Visual, Video, Strategy, Content, Compliance, Manager, Publisher
-- Bao cao ngay
-- Chien luoc
-- Bai dang da duyet
-- Publish result an toan
+- Trạng thái mock/dry-run.
+- Các bước Crawler, Text, Trend, Visual, Video, Strategy, Content, Compliance, Manager, Publisher.
+- Báo cáo ngày.
+- Chiến lược.
+- Bài đăng đã duyệt.
+- Publish result an toàn.
 
-### Dung khong can Facebook token
+### Dùng Không Cần Facebook Token
 
-Tren giao dien co o **Dan bai doi thu** kem 2 o rieng cho **Image notes** va **Video notes**. Ban co the copy 3-5 bai public cua doi thu, mo ta hinh anh, va dan transcript/ghi chu video vao de cac agent doc nhu mot goi du lieu canh tranh.
+Trên giao diện có ô **Dán bài đối thủ** kèm 2 ô riêng cho **Image notes** và **Video notes**. Bạn có thể copy 3-5 bài public của đối thủ, mô tả hình ảnh và dán transcript/ghi chú video vào để các agent đọc như một gói dữ liệu cạnh tranh.
 
 ```txt
-Nha khoa doi thu A
-Noi dung bai post ve tay trang rang, uu dai, CTA...
+Nha khoa đối thủ A
+Nội dung bài post về tẩy trắng răng, ưu đãi, CTA...
 
-Nha khoa doi thu B
-Noi dung bai post ve nieng rang trong suot...
+Nha khoa đối thủ B
+Nội dung bài post về niềng răng trong suốt...
 ```
 
-Khi cac o nay co noi dung, workflow se dung du lieu nhap tay thay cho Facebook API/mock.
+Khi các ô này có nội dung, workflow sẽ dùng dữ liệu nhập tay thay cho Facebook API/mock.
 
 ## Specialist Agents
 
-Workflow hien chia ro cac vai:
+Workflow hiện chia rõ các vai:
 
-- Text Insight Agent: doc caption/bai viet, tach hook, pain point, offer va CTA.
-- Visual Insight Agent: doc mo ta anh/frame, rut ra bo cuc, text overlay va tin hieu niem tin.
-- Video Insight Agent: doc transcript/shot notes, tach hook 3 giay dau, nhip ke va CTA.
-- Trend Agent: tong hop trend Facebook de de len tuong tac.
-- Strategy Agent: chon huong dung nhat cho SmileUp voi rang su tham my va implant.
-- Copywriting Agent: viet bai Facebook bang giong marketing nha khoa co the dang ngay.
-- Compliance Agent: kiem tra claim nha khoa, tranh cam ket tuyet doi va yeu cau co luu y tham kham.
+- Text Insight Agent: đọc caption/bài viết, tách hook, pain point, offer và CTA.
+- Visual Insight Agent: đọc mô tả ảnh/frame, rút ra bố cục, text overlay và tín hiệu niềm tin.
+- Video Insight Agent: đọc transcript/shot notes, tách hook 3 giây đầu, nhịp kể và CTA.
+- Trend Agent: tổng hợp trend Facebook để dễ lên tương tác.
+- Strategy Agent: chọn hướng đúng nhất cho SmileUp với răng sứ thẩm mỹ và Implant.
+- Copywriting Agent: viết bài Facebook bằng giọng marketing nha khoa có thể đăng ngay.
+- Compliance Agent: kiểm tra claim nha khoa, tránh cam kết tuyệt đối và yêu cầu có lưu ý thăm khám.
 
-## Trend va hinh anh
+## Trend Và Hình Ảnh
 
-Workflow hien co them:
+Workflow hiện có thêm:
 
-- Tu dong quet Meta Ad Library voi keyword mac dinh `nha khoa rang su rang dep cay implant` de lay ad copy, page name va media preview cong khai.
-- Tren giao dien co the sua keyword quet; neu de trong se dung keyword mac dinh trong `.env`.
-- Ads duoc xep hang theo diem ket hop: do giong keyword va ngay bat dau chay moi nhat.
-- Phan tich trend Facebook tu bai doi thu ban dan vao.
-- Uu tien noi dung cho rang su tham my, phuc hinh rang su va cay ghep implant.
-- Tao visual creative brief an toan cho anh goc cua SmileUp, anh co license, anh AI tao moi, hoac blueprint tu ad match cao nhat.
-- Tao `content_plan` gom nhieu bien the bai viet: implant, rang su, trust/minh bach, reels/short-form.
-- Moi bien the co `differentiation` de lam ro SmileUp khac gi so voi ads doi thu.
-- Sinh anh PNG branded trong `web/generated/creatives/`, dung anh nen phong kham va logo SmileUp. Neu chon mode top-match, he thong lay bai viet va media cua ad match cao nhat de Gemini rut blueprint bo cuc, sau do tao anh SmileUp moi va overlay logo local. Thu muc nay bi ignore vi la output hang ngay.
+- Tự động quét Meta Ad Library với keyword mặc định `nha khoa răng sứ răng đẹp cấy implant` để lấy ad copy, page name và media preview công khai.
+- Trên giao diện có thể sửa keyword quét; nếu để trống sẽ dùng keyword mặc định trong `.env`.
+- Ads được xếp hạng theo điểm kết hợp: độ giống keyword và ngày bắt đầu chạy mới nhất.
+- Phân tích trend Facebook từ bài đối thủ bạn dán vào.
+- Ưu tiên nội dung cho răng sứ thẩm mỹ, phục hình răng sứ và cấy ghép Implant.
+- Tạo visual creative brief an toàn cho ảnh gốc của SmileUp, ảnh có license, ảnh AI tạo mới hoặc blueprint từ ad match cao nhất.
+- Tạo `content_plan` gồm nhiều biến thể bài viết: implant, răng sứ, trust/minh bạch, reels/short-form.
+- Mỗi biến thể có `differentiation` để làm rõ SmileUp khác gì so với ads đối thủ.
+- Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode top-match, hệ thống lấy bài viết và media của ad match cao nhất để Gemini rút blueprint bố cục, sau đó tạo ảnh SmileUp mới và overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
 
-Luu y: he thong khong tai su dung/rebrand anh doi thu thanh anh cua SmileUp. Mode top-match chi dung ad goc de rut blueprint khong bao ho nhu bo cuc, vung chu, mood mau; output khong duoc dung lai pixel, logo, mat nguoi, text goc hoac tai san nhan dien cua doi thu.
+Lưu ý: hệ thống không tái sử dụng/rebrand ảnh đối thủ thành ảnh của SmileUp. Mode top-match chỉ dùng ad gốc để rút blueprint không bảo hộ như bố cục, vùng chữ và mood màu; output không được dùng lại pixel, logo, mặt người, text gốc hoặc tài sản nhận diện của đối thủ.
 
-## Quet tu dong moi ngay
+## Quét tự động mỗi ngày
 
-Chay 1 lan va luu bao cao vao `reports/`:
+Chạy một lần và lưu báo cáo vào `reports/`:
 
 ```bash
 python scripts/run_daily_scan.py
 ```
 
-Tren Windows, cai lich quet moi ngay luc 08:30:
+Trên Windows, cài lịch quét mỗi ngày lúc 08:30:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\install_daily_scan_task.ps1 -Time 08:30
 ```
 
-Bien cau hinh:
+Biến cấu hình:
 
 ```env
 AD_LIBRARY_ENABLED=true
@@ -129,9 +129,9 @@ AD_LIBRARY_MAX_ADS=12
 AD_LIBRARY_CACHE_TTL_HOURS=24
 ```
 
-## Cau Hinh That
+## Cấu Hình Thật
 
-Copy `.env.example` thanh `.env`, dien cac bien:
+Copy `.env.example` thành `.env`, điền các biến:
 
 ```env
 OPENAI_API_KEY=
@@ -149,63 +149,63 @@ DRY_RUN=true
 MOCK_MODE=true
 ```
 
-CMO Jury tu dung cac key co san: co 1 model thi 1 phieu, co 2 model thi 2 phieu, co du Gemini/GPT/Claude thi tong hop 3 phieu de chon variant, creative va quyet dinh publish/revise/reject.
+CMO Jury tự dùng các key có sẵn: có 1 model thì 1 phiếu, có 2 model thì 2 phiếu, có đủ Gemini/GPT/Claude thì tổng hợp 3 phiếu để chọn variant, creative và quyết định publish/revise/reject.
 
-## CMO Prompt Chinh Thuc
+## CMO Prompt Chính Thức
 
-Prompt day du cua CMO nam tai `prompts/cmo_prompt.md` va duoc `agents/manager_agent.py` load truc tiep khi chay workflow.
+Prompt đầy đủ của CMO nằm tại `prompts/cmo_prompt.md` và được `agents/manager_agent.py` load trực tiếp khi chạy workflow.
 
-CMO duoc dinh nghia la CMO chuyen nghiep cua SmileUp Dental Clinic, co hon 10 nam kinh nghiem tang truong lead nha khoa tai Viet Nam. CMO khong chi duyet noi dung cuoi, ma dieu phoi toan bo workflow multi-agent truoc khi Publisher duoc phep dang bai.
+CMO được định nghĩa là CMO chuyên nghiệp của SmileUp Dental Clinic, có hơn 10 năm kinh nghiệm tăng trưởng lead nha khoa tại Việt Nam. CMO không chỉ duyệt nội dung cuối, mà điều phối toàn bộ workflow multi-agent trước khi Publisher được phép đăng bài.
 
-Trong tam kinh doanh:
+Trọng tâm kinh doanh:
 
-- Rang su tham my.
-- Phuc hinh rang su.
-- Cay ghep Implant.
-- Cac dich vu nen ho tro chuyen doi: tu van tham my nu cuoi, chup phim, tham kham, dieu tri benh ly nen truoc phuc hinh.
+- Răng sứ thẩm mỹ.
+- Phục hình răng sứ.
+- Cấy ghép Implant.
+- Các dịch vụ nền hỗ trợ chuyển đổi: tư vấn thẩm mỹ nụ cười, chụp phim, thăm khám, điều trị bệnh lý nền trước phục hình.
 
-Nguyen tac dieu phoi:
+Nguyên tắc điều phối:
 
-- Muc tieu kinh doanh truoc: tao lich tu van chat luong, khong chi tang like.
-- Khach hang that truoc: noi dung phai dung noi lo, dung boi canh, dung kha nang chi tra va dung hanh vi ra quyet dinh.
-- Compliance truoc publish: khong hy sinh an toan y khoa de lay tuong tac.
-- Khac biet thuong hieu truoc chieu tro: SmileUp la phong kham tu van ca nhan hoa, minh bach chi dinh va an toan y khoa.
-- Viral phai phuc vu booking: viral nhung khong tao inbox, lich tu van hoac niem tin thi khong dat.
+- Mục tiêu kinh doanh trước: tạo lịch tư vấn chất lượng, không chỉ tăng like.
+- Khách hàng thật trước: nội dung phải đúng nỗi lo, đúng bối cảnh, đúng khả năng chi trả và đúng hành vi ra quyết định.
+- Compliance trước publish: không hy sinh an toàn y khoa để lấy tương tác.
+- Khác biệt thương hiệu trước chiêu trò: SmileUp là phòng khám tư vấn cá nhân hóa, minh bạch chỉ định và an toàn y khoa.
+- Viral phải phục vụ booking: viral nhưng không tạo inbox, lịch tư vấn hoặc niềm tin thì không đạt.
 
-CMO phai tong hop dau vao tu cac agent: Crawler, Text Insight, Trend, Visual Insight, Video Insight, Strategy, Content Creator, Compliance va Publisher. Publisher chi duoc dang khi CMO tra ve ro rang `APPROVE_TO_PUBLISH`.
+CMO phải tổng hợp đầu vào từ các agent: Crawler, Text Insight, Trend, Visual Insight, Video Insight, Strategy, Content Creator, Compliance và Publisher. Publisher chỉ được đăng khi CMO trả về rõ ràng `APPROVE_TO_PUBLISH`.
 
-Bo loc publish:
+Bộ lọc publish:
 
-- `APPROVE_TO_PUBLISH`: duoc dang.
-- `REVISE_REQUIRED`: phai sua truoc khi dang.
-- `REJECT`: loai bo campaign/copy.
+- `APPROVE_TO_PUBLISH`: được đăng.
+- `REVISE_REQUIRED`: phải sửa trước khi đăng.
+- `REJECT`: loại bỏ campaign/copy.
 
-Khong bao gio approve neu co claim tuyet doi nhu "dep 100%", "khong dau 100%", "ben tron doi", "an nhai nhu rang that 100%", "lam mot lan dung ca doi", "khong bien chung", "cam ket thanh cong"; co body-shaming; co chi dinh dieu tri khi chua tham kham; co before-after gay hieu nham; thieu disclaimer ket qua phu thuoc tinh trang rang mieng va can bac si tham kham.
+Không bao giờ approve nếu có claim tuyệt đối như "đẹp 100%", "không đau 100%", "bền trọn đời", "ăn nhai như răng thật 100%", "làm một lần dùng cả đời", "không biến chứng", "cam kết thành công"; có body-shaming; có chỉ định điều trị khi chưa thăm khám; có before-after gây hiểu nhầm; thiếu disclaimer rằng kết quả phụ thuộc tình trạng răng miệng và cần bác sĩ thăm khám.
 
 Scorecard CMO theo thang 100:
 
-- Business Fit: 20 diem.
-- Lead Intent: 20 diem.
-- Differentiation: 15 diem.
-- Viral Potential: 15 diem.
-- Customer Truth: 10 diem.
-- Creative Fit: 10 diem.
-- Compliance & Medical Safety: 10 diem.
+- Business Fit: 20 điểm.
+- Lead Intent: 20 điểm.
+- Differentiation: 15 điểm.
+- Viral Potential: 15 điểm.
+- Customer Truth: 10 điểm.
+- Creative Fit: 10 điểm.
+- Compliance & Medical Safety: 10 điểm.
 
-Nguong quyet dinh:
+Ngưỡng quyết định:
 
-- Tu 85 diem tro len va compliance approved: co the `APPROVE_TO_PUBLISH`.
-- 70-84 diem: `REVISE_REQUIRED`.
-- Duoi 70 diem: `REJECT` hoac yeu cau Strategy Agent tao huong moi.
-- Bat ky diem compliance nao duoi muc an toan: revise/reject du tong diem cao.
+- Từ 85 điểm trở lên và compliance approved: có thể `APPROVE_TO_PUBLISH`.
+- 70-84 điểm: `REVISE_REQUIRED`.
+- Dưới 70 điểm: `REJECT` hoặc yêu cầu Strategy Agent tạo hướng mới.
+- Bất kỳ điểm compliance nào dưới mức an toàn: revise/reject dù tổng điểm cao.
 
-Output CMO bat buoc gom 11 phan: Executive Decision, Campaign Selected, Why This Campaign Wins, Scorecard, Compliance Gate, Required Revisions, Final Approved Copy, Creative Direction, Publisher Instruction, CRM/Handoff Notes va JSON Decision Object.
+Output CMO bắt buộc gồm 11 phần: Executive Decision, Campaign Selected, Why This Campaign Wins, Scorecard, Compliance Gate, Required Revisions, Final Approved Copy, Creative Direction, Publisher Instruction, CRM/Handoff Notes và JSON Decision Object.
 
-Mac dinh `DRY_RUN=true`, nen publisher khong dang bai that. Chi khi tat mock/dry-run va co token hop le thi adapter Facebook moi goi Graph API.
+Mặc định `DRY_RUN=true`, nên publisher không đăng bài thật. Chỉ khi tắt mock/dry-run và có token hợp lệ thì adapter Facebook mới gọi Graph API.
 
-## Gioi Han
+## Giới Hạn
 
-- Offline mode dung fixture va rule-based agents de demo.
-- Noi dung y te van can nguoi that duyet truoc khi dang.
-- Facebook crawling/publishing can Graph API va quyen hop le.
-- Khong thu thap PII; crawler chi dung aggregate engagement.
+- Offline mode dùng fixture và rule-based agents để demo.
+- Nội dung y tế vẫn cần người thật duyệt trước khi đăng.
+- Facebook crawling/publishing cần Graph API và quyền hợp lệ.
+- Không thu thập PII; crawler chỉ dùng aggregate engagement.

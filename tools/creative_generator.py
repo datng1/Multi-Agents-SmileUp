@@ -99,10 +99,10 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
     _draw_logo(canvas)
 
     service = (variant.get("service_line") or "SmileUp Dental").upper()
-    angle = variant.get("angle") or "Tu van ca nhan hoa"
+    angle = variant.get("angle") or "Tư vấn cá nhân hóa"
     title = variant.get("title") or "SmileUp Dental Clinic"
-    differentiation = variant.get("differentiation") or "Khac biet bang tu van dung chi dinh, minh bach va an toan."
-    cta = variant.get("call_to_action") or "Inbox SmileUp de dat lich tu van."
+    differentiation = variant.get("differentiation") or "Khác biệt bằng tư vấn đúng chỉ định, minh bạch và an toàn."
+    cta = variant.get("call_to_action") or "Inbox SmileUp để đặt lịch tư vấn."
 
     draw.rounded_rectangle((62, 168, 420, 218), radius=25, fill=(224, 248, 244, 255), outline=(15, 118, 110, 80), width=2)
     draw.text((84, 178), service[:30], fill=(15, 94, 88), font=small_font)

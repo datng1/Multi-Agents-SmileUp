@@ -65,7 +65,7 @@ def _variant_from_draft(draft: DraftContent, service_line: str) -> ContentVarian
     return {
         "service_line": service_line,
         "angle": draft.get("trend_angle", ""),
-        "differentiation": "SmileUp khac biet bang tu van ca nhan hoa, minh bach chi dinh va khong chay dua bang claim qua da.",
+        "differentiation": "SmileUp khác biệt bằng tư vấn cá nhân hóa, minh bạch chỉ định và không chạy đua bằng claim quá đà.",
         "marketing_analysis": draft.get("marketing_analysis", ""),
         "trend_angle": draft.get("trend_angle", ""),
         "post_structure": draft.get("post_structure", ""),
@@ -82,71 +82,71 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
     return [
         {
             "service_line": "implant",
-            "angle": "Mat rang lau nam va an nhai kho khan",
-            "differentiation": "Khac voi ads gia soc, SmileUp dan bang tu van dung chi dinh, phim chup va phac do ca nhan hoa.",
-            "marketing_analysis": "Nhom khach hang mat rang so dau, so chi phi phat sinh va so cay sai chi dinh. Bai can tao niem tin bang quy trinh tham kham ro rang.",
-            "trend_angle": "Cau hoi goi dung noi dau: mat rang lau nam co dang lam ban ngai an nhai?",
-            "post_structure": "Hook -> dau hieu -> giai phap implant SmileUp -> luu y tham kham -> CTA",
-            "title": "Mat rang lau nam: dung de viec an nhai tro thanh noi lo moi ngay",
+            "angle": "Mất răng lâu năm và ăn nhai khó khăn",
+            "differentiation": "Khác với ads giá sốc, SmileUp dẫn bằng tư vấn đúng chỉ định, phim chụp và phác đồ cá nhân hóa.",
+            "marketing_analysis": "Nhóm khách hàng mất răng thường sợ đau, sợ chi phí phát sinh và sợ cấy sai chỉ định. Bài cần tạo niềm tin bằng quy trình thăm khám rõ ràng.",
+            "trend_angle": "Câu hỏi gợi đúng nỗi đau: mất răng lâu năm có đang làm bạn ngại ăn nhai?",
+            "post_structure": "Hook -> dấu hiệu -> giải pháp implant SmileUp -> lưu ý thăm khám -> CTA",
+            "title": "Mất răng lâu năm: đừng để việc ăn nhai trở thành nỗi lo mỗi ngày",
             "body": (
-                "Mat 1 rang hay nhieu rang khong chi lam ban ngai cuoi, ma con co the anh huong den kha nang an nhai va cac rang ben canh.\n\n"
-                "Tai SmileUp, tu van implant bat dau bang kiem tra tinh trang rang, xuong ham va suc khoe tong quat. Bac si se giai thich ro khi nao nen cay implant, khi nao can dieu tri nen truoc, va chi phi du kien theo tung phuong an.\n\n"
-                "Diem quan trong khong phai la chon goi dat hay re, ma la chon dung chi dinh cho chinh tinh trang cua ban. Ket qua va thoi gian phuc hoi co the khac nhau tuy tung nguoi, vi vay thien kham truc tiep la buoc can co."
+                "Mất 1 răng hay nhiều răng không chỉ làm bạn ngại cười, mà còn có thể ảnh hưởng đến khả năng ăn nhai và các răng bên cạnh.\n\n"
+                "Tại SmileUp, tư vấn implant bắt đầu bằng kiểm tra tình trạng răng, xương hàm và sức khỏe tổng quát. Bác sĩ sẽ giải thích rõ khi nào nên cấy implant, khi nào cần điều trị nền trước và chi phí dự kiến theo từng phương án.\n\n"
+                "Điểm quan trọng không phải là chọn gói đắt hay rẻ, mà là chọn đúng chỉ định cho chính tình trạng của bạn. Kết quả và thời gian phục hồi có thể khác nhau tùy từng người, vì vậy thăm khám trực tiếp là bước cần có."
             ),
             "hashtags": ["#SmileUp", "#CayGhepImplant", "#TrongRangImplant", "#NhaKhoaUyTin"],
-            "call_to_action": "Inbox SmileUp de dat lich tham kham implant va nhan tu van phac do phu hop.",
-            "image_prompt": "Anh goc/AI moi: bac si SmileUp tu van implant ben man hinh phim chup, phong kham sach hien dai, logo SmileUp goc tren trai.",
+            "call_to_action": "Inbox SmileUp để đặt lịch thăm khám implant và nhận tư vấn phác đồ phù hợp.",
+            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp tư vấn implant bên màn hình phim chụp, phòng khám sạch hiện đại, logo SmileUp góc trên trái.",
         },
         {
             "service_line": "rang_su",
-            "angle": "Nu cuoi tu nhien va bao ton rang that",
-            "differentiation": "SmileUp khong noi qua ve bien doi tuc thi; tap trung tham my tu nhien va tu van phu hop men rang, khop can.",
-            "marketing_analysis": "Khach hang rang su muon dep nhung so bi gia, so mai rang nhieu va so nu cuoi kem tu nhien. Bai can nhan vao tham kham va thiet ke ca nhan hoa.",
-            "trend_angle": "Checklist: truoc khi lam rang su, ban nen hoi bac si 3 dieu nay.",
-            "post_structure": "Hook -> 3 cau hoi truoc khi lam -> SmileUp solution -> trust proof -> CTA",
-            "title": "Lam rang su dep khong nen bat dau tu mau rang, ma tu tu van dung",
+            "angle": "Nụ cười tự nhiên và bảo tồn răng thật",
+            "differentiation": "SmileUp không nói quá về biến đổi tức thì; tập trung thẩm mỹ tự nhiên và tư vấn phù hợp men răng, khớp cắn.",
+            "marketing_analysis": "Khách hàng răng sứ muốn đẹp nhưng sợ bị giả, sợ mài răng nhiều và sợ nụ cười kém tự nhiên. Bài cần nhấn vào thăm khám và thiết kế cá nhân hóa.",
+            "trend_angle": "Checklist: trước khi làm răng sứ, bạn nên hỏi bác sĩ 3 điều này.",
+            "post_structure": "Hook -> 3 câu hỏi trước khi làm -> SmileUp solution -> trust proof -> CTA",
+            "title": "Làm răng sứ đẹp không nên bắt đầu từ màu răng, mà từ tư vấn đúng",
             "body": (
-                "Mot nu cuoi dep khong chi la rang trang. Do la su hai hoa voi khuon mat, khop can va tinh trang rang that hien co.\n\n"
-                "Truoc khi quyet dinh lam rang su, hay hoi ro: rang that co can bao ton khong, dang rang nao hop voi khuon mat, va ke hoach cham soc sau phuc hinh nhu the nao.\n\n"
-                "SmileUp huong toi thiet ke nu cuoi tu nhien, minh bach vat lieu va giai thich ro tung buoc dieu tri. Ket qua tham my tuy thuoc tinh trang rang va chi dinh cua bac si."
+                "Một nụ cười đẹp không chỉ là răng trắng. Đó là sự hài hòa với khuôn mặt, khớp cắn và tình trạng răng thật hiện có.\n\n"
+                "Trước khi quyết định làm răng sứ, hãy hỏi rõ: răng thật có cần bảo tồn không, dáng răng nào hợp với khuôn mặt và kế hoạch chăm sóc sau phục hình như thế nào.\n\n"
+                "SmileUp hướng tới thiết kế nụ cười tự nhiên, minh bạch vật liệu và giải thích rõ từng bước điều trị. Kết quả thẩm mỹ tùy thuộc tình trạng răng và chỉ định của bác sĩ."
             ),
             "hashtags": ["#SmileUp", "#RangSuThamMy", "#NuCuoiTuNhien", "#NhaKhoaThamMy"],
-            "call_to_action": "Nhan tin SmileUp de duoc tu van rang su theo tinh trang rang hien tai.",
-            "image_prompt": "Anh goc/AI moi: khach hang soi guong mim cuoi tu nhien trong phong kham SmileUp, logo SmileUp goc tren trai, tone trang xanh.",
+            "call_to_action": "Nhắn tin SmileUp để được tư vấn răng sứ theo tình trạng răng hiện tại.",
+            "image_prompt": "Ảnh gốc/AI mới: khách hàng soi gương mỉm cười tự nhiên trong phòng khám SmileUp, logo SmileUp góc trên trái, tone trắng xanh.",
         },
         {
             "service_line": "trust",
-            "angle": "Minh bach chuyen mon thay vi giam gia soc",
-            "differentiation": "Khac voi ads day uu dai, SmileUp xay niem tin bang quy trinh, bac si va tu van minh bach.",
-            "marketing_analysis": f"Thi truong dang noi bat cac chu de {topics}; SmileUp nen tach minh bang thong diep CMO: dung chi dinh truoc, uu dai sau.",
-            "trend_angle": "Bai giao duc de save: vi sao cung la rang su/implant nhung moi nguoi can phac do khac nhau?",
-            "post_structure": "Hook -> insight thi truong -> quan diem SmileUp -> 3 diem minh bach -> CTA",
-            "title": "Cung la rang su hay implant, vi sao moi nguoi can mot phac do rieng?",
+            "angle": "Minh bạch chuyên môn thay vì giảm giá sốc",
+            "differentiation": "Khác với ads đẩy ưu đãi, SmileUp xây niềm tin bằng quy trình, bác sĩ và tư vấn minh bạch.",
+            "marketing_analysis": f"Thị trường đang nổi bật các chủ đề {topics}; SmileUp nên tách mình bằng thông điệp CMO: đúng chỉ định trước, ưu đãi sau.",
+            "trend_angle": "Bài giáo dục dễ save: vì sao cùng là răng sứ/implant nhưng mỗi người cần phác đồ khác nhau?",
+            "post_structure": "Hook -> insight thị trường -> quan điểm SmileUp -> 3 điểm minh bạch -> CTA",
+            "title": "Cùng là răng sứ hay implant, vì sao mỗi người cần một phác đồ riêng?",
             "body": (
-                "Tren Facebook, ban co the thay rat nhieu quang cao nha khoa voi uu dai hap dan. Nhung voi SmileUp, cau hoi dau tien khong phai la gia bao nhieu, ma la tinh trang cua ban co phu hop voi phuong an nao.\n\n"
-                "Bac si can danh gia nen rang, xuong ham, khop can, mong muon tham my va kha nang cham soc sau dieu tri. Khi cac thong tin nay ro rang, khach hang moi co the chon phuong an phu hop va an tam hon.\n\n"
-                "SmileUp theo duoi su minh bach: tu van ro, chi phi ro, luu y ro. Ket qua se phu thuoc vao tinh trang rang va chi dinh chuyen mon."
+                "Trên Facebook, bạn có thể thấy rất nhiều quảng cáo nha khoa với ưu đãi hấp dẫn. Nhưng với SmileUp, câu hỏi đầu tiên không phải là giá bao nhiêu, mà là tình trạng của bạn phù hợp với phương án nào.\n\n"
+                "Bác sĩ cần đánh giá nền răng, xương hàm, khớp cắn, mong muốn thẩm mỹ và khả năng chăm sóc sau điều trị. Khi các thông tin này rõ ràng, khách hàng mới có thể chọn phương án phù hợp và an tâm hơn.\n\n"
+                "SmileUp theo đuổi sự minh bạch: tư vấn rõ, chi phí rõ, lưu ý rõ. Kết quả sẽ phụ thuộc vào tình trạng răng và chỉ định chuyên môn."
             ),
             "hashtags": ["#SmileUp", "#TuVanNhaKhoa", "#NhaKhoaMinhBach", "#RangSuImplant"],
-            "call_to_action": "Gui tinh trang rang cua ban cho SmileUp de duoc hen lich tham kham phu hop.",
-            "image_prompt": "Anh goc/AI moi: bac si SmileUp giai thich phac do tren tablet, khong gian phong kham hien dai, logo SmileUp ro net.",
+            "call_to_action": "Gửi tình trạng răng của bạn cho SmileUp để được hẹn lịch thăm khám phù hợp.",
+            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp giải thích phác đồ trên tablet, không gian phòng khám hiện đại, logo SmileUp rõ nét.",
         },
         {
             "service_line": "reels",
-            "angle": "Short-form hook de keo binh luan",
-            "differentiation": "SmileUp dung cau hoi tu van that thay vi copy offer cua doi thu, phu hop Reels va story.",
-            "marketing_analysis": "Short-form can mot cau hoi de khach tu nhan dien van de va de lai comment/inbox.",
-            "trend_angle": "Hook dang cau hoi: neu mat 1 rang nhung van an duoc, co can di kham khong?",
-            "post_structure": "Question hook -> 3 dau hieu -> CTA comment/inbox",
-            "title": "Mat 1 rang nhung van an duoc, co can di kham khong?",
+            "angle": "Short-form hook để kéo bình luận",
+            "differentiation": "SmileUp dùng câu hỏi tư vấn thật thay vì copy offer của đối thủ, phù hợp Reels và story.",
+            "marketing_analysis": "Short-form cần một câu hỏi để khách tự nhận diện vấn đề và để lại comment/inbox.",
+            "trend_angle": "Hook dạng câu hỏi: nếu mất 1 răng nhưng vẫn ăn được, có cần đi khám không?",
+            "post_structure": "Question hook -> 3 dấu hiệu -> CTA comment/inbox",
+            "title": "Mất 1 răng nhưng vẫn ăn được, có cần đi khám không?",
             "body": (
-                "Cau tra loi ngan: nen di kiem tra som.\n\n"
-                "Vi khoang trong sau mat rang co the lam rang ben canh xoe lech, luc nhai thay doi va xuong ham tieu dan theo thoi gian.\n\n"
-                "Neu ban dang mat rang, dau khi nhai, hoac ngai cuoi vi khoang trong tren ham, hay de bac si SmileUp kiem tra truoc khi quyet dinh phuong an. Moi tinh trang se co chi dinh khac nhau."
+                "Câu trả lời ngắn: nên đi kiểm tra sớm.\n\n"
+                "Vì khoảng trống sau mất răng có thể làm răng bên cạnh xô lệch, lực nhai thay đổi và xương hàm tiêu dần theo thời gian.\n\n"
+                "Nếu bạn đang mất răng, đau khi nhai hoặc ngại cười vì khoảng trống trên hàm, hãy để bác sĩ SmileUp kiểm tra trước khi quyết định phương án. Mỗi tình trạng sẽ có chỉ định khác nhau."
             ),
             "hashtags": ["#SmileUp", "#HoiDapNhaKhoa", "#MatRang", "#Implant"],
-            "call_to_action": "Comment 'IMPLANT' hoac inbox SmileUp de duoc hen lich tu van.",
-            "image_prompt": "Anh goc/AI moi: frame reels doc, bac si SmileUp chi vao cau hoi text overlay, logo SmileUp goc tren trai, phong kham sang sach.",
+            "call_to_action": "Comment 'IMPLANT' hoặc inbox SmileUp để được hẹn lịch tư vấn.",
+            "image_prompt": "Ảnh gốc/AI mới: frame reels dọc, bác sĩ SmileUp chỉ vào câu hỏi text overlay, logo SmileUp góc trên trái, phòng khám sáng sạch.",
         },
     ]
 
@@ -161,5 +161,5 @@ def _dominant_topics(state: AgentState) -> str:
         for topic in insight.get("key_topics", []):
             counts[topic] = counts.get(topic, 0) + 1
     if not counts:
-        return "rang su tham my va implant ca nhan hoa"
+        return "răng sứ thẩm mỹ và implant cá nhân hóa"
     return ", ".join(topic.replace("_", " ") for topic, _ in sorted(counts.items(), key=lambda item: item[1], reverse=True)[:3])
