@@ -6,6 +6,7 @@ from pathlib import Path
 from textwrap import wrap
 
 from graph.state import ContentVariant
+from tools.gemini_image_reference import generate_smileup_reference_image
 
 try:
     from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
@@ -39,11 +40,22 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
     for index, variant in enumerate(variants, start=1):
         filename = f"{stamp}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
         output_path = OUTPUT_DIR / filename
-        _render_creative(variant, output_path, index, context)
+        image_mode = str(context.get("creative_image_mode") or "auto")
+        gemini_note = ""
+        if image_mode == "top_match_reference":
+            generated, blueprint, gemini_note = generate_smileup_reference_image(variant, context, output_path)
+            if blueprint:
+                context["creative_reference_blueprint"] = blueprint
+            if generated:
+                _normalize_generated_image(output_path)
+            else:
+                _render_creative(variant, output_path, index, context)
+        else:
+            _render_creative(variant, output_path, index, context)
         url_path = f"/generated/creatives/{filename}"
         variant["image_path"] = url_path
-        image_mode = str(context.get("creative_image_mode") or "auto")
         source_policy = _source_policy(image_mode)
+        reference_ad = context.get("creative_reference_ad") or {}
         assets.append(
             {
                 "service_line": variant.get("service_line", ""),
@@ -51,7 +63,10 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
                 "image_path": url_path,
                 "image_prompt": variant.get("image_prompt", ""),
                 "image_mode": image_mode,
-                "source_image_url": str(context.get("creative_upload_url") or ""),
+                "source_image_url": str(context.get("creative_upload_url") or reference_ad.get("media_url") or ""),
+                "reference_ad_url": str(reference_ad.get("ad_url") or ""),
+                "reference_page_name": str(reference_ad.get("page_name") or ""),
+                "gemini_image_note": gemini_note,
                 "source_policy": source_policy,
             }
         )
@@ -74,7 +89,7 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
     top_alpha = 184 if image_mode == "owned" else 206
     overlay_draw.rectangle((0, 0, width, height), fill=(245, 251, 250, top_alpha))
     overlay_draw.rectangle((0, 910, width, height), fill=(12, 98, 91, 228))
-    if image_mode == "layout_reference":
+    if image_mode in {"layout_reference", "top_match_reference"}:
         overlay_draw.rounded_rectangle((640, 220, 1020, 850), radius=44, fill=(255, 255, 255, 82), outline=(15, 118, 110, 72), width=4)
         overlay_draw.ellipse((700, 280, 960, 540), fill=(232, 245, 242, 120), outline=(15, 118, 110, 60), width=3)
         overlay_draw.rounded_rectangle((690, 600, 970, 790), radius=34, fill=(230, 239, 238, 115))
@@ -114,6 +129,8 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
     draw.text((920, 80), f"{index:02d}", fill=(15, 118, 110), font=title_font)
     if image_mode == "layout_reference":
         draw.text((706, 818), "NEW ORIGINAL VISUAL", fill=(15, 94, 88), font=micro_font)
+    elif image_mode == "top_match_reference":
+        draw.text((650, 818), "TOP MATCH INSPIRED - ORIGINAL", fill=(15, 94, 88), font=micro_font)
     elif image_mode == "owned":
         draw.text((706, 818), "SMILEUP PHOTO SOURCE", fill=(15, 94, 88), font=micro_font)
 
@@ -159,6 +176,8 @@ def _source_policy(image_mode: str) -> str:
         return "Uploaded SmileUp-owned/licensed photo used as the visual source."
     if image_mode == "layout_reference":
         return "Layout reference only: original ad pixels, faces, logo, and assets are not reused."
+    if image_mode == "top_match_reference":
+        return "Top-match ad reference only: Gemini creates a new SmileUp image without reusing source pixels, faces, logo, or original text."
     return "Auto-generated from SmileUp brand assets."
 
 
@@ -174,6 +193,24 @@ def _draw_logo(canvas) -> None:
     box.putalpha(mask)
     canvas.alpha_composite(box, (62, 56))
     canvas.alpha_composite(logo, (62 + (142 - logo.width) // 2, 56 + (142 - logo.height) // 2))
+
+
+def _normalize_generated_image(output_path: Path) -> None:
+    try:
+        image = Image.open(output_path).convert("RGBA")
+    except Exception:
+        return
+    image = _fit_to_canvas(image, 1080, 1350).convert("RGBA")
+    _draw_logo(image)
+    image.convert("RGB").save(output_path, quality=95)
+
+
+def _fit_to_canvas(image, width: int, height: int):
+    scale = max(width / image.width, height / image.height)
+    resized = image.resize((int(image.width * scale), int(image.height * scale)))
+    left = (resized.width - width) // 2
+    top = (resized.height - height) // 2
+    return resized.crop((left, top, left + width, top + height))
 
 
 def _font(size: int, bold: bool = False):

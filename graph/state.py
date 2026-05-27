@@ -89,6 +89,8 @@ class AgentState(TypedDict):
     creative_upload_path: str
     creative_upload_url: str
     creative_reference_note: str
+    creative_reference_ad: dict[str, Any]
+    creative_reference_blueprint: str
     cmo_objective: str
     cmo_decision: str
     cmo_feedback: str
@@ -141,6 +143,8 @@ def create_initial_state() -> AgentState:
         "creative_upload_path": "",
         "creative_upload_url": "",
         "creative_reference_note": "",
+        "creative_reference_ad": {},
+        "creative_reference_blueprint": "",
         "cmo_objective": "CMO nha khoa SmileUp: tăng lịch tư vấn răng sứ và implant bằng nội dung khác biệt, an toàn y khoa.",
         "cmo_decision": "",
         "cmo_feedback": "",

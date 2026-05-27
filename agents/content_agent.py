@@ -32,8 +32,12 @@ def run_content_agent(state: AgentState) -> AgentState:
         "creative_upload_path": state.get("creative_upload_path", ""),
         "creative_upload_url": state.get("creative_upload_url", ""),
         "creative_reference_note": state.get("creative_reference_note", ""),
+        "creative_reference_ad": state.get("creative_reference_ad", {}),
+        "creative_reference_blueprint": state.get("creative_reference_blueprint", ""),
     }
     state["creative_assets"] = generate_creative_assets(variants, creative_context)
+    if creative_context.get("creative_reference_blueprint"):
+        state["creative_reference_blueprint"] = str(creative_context.get("creative_reference_blueprint") or "")
     if state["creative_assets"]:
         state["messages"].append({"role": "content", "content": f"Generated {len(state['creative_assets'])} branded SmileUp creative images"})
     elif creative_context["creative_image_mode"] == "text_only":

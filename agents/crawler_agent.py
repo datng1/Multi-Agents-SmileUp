@@ -33,6 +33,14 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             state["ad_library_keywords"] = keywords
             state["ad_library_report"] = build_ad_library_report(ads, keywords)
             state["competitor_visual_notes"] = build_ad_visual_notes(ads)
+            reference_ad = _top_match_reference_ad(ads)
+            if reference_ad:
+                state["creative_reference_ad"] = reference_ad
+                if state.get("creative_image_mode") == "top_match_reference":
+                    state["creative_reference_note"] = (
+                        "Using the highest-match Ad Library creative as layout/content reference only. "
+                        "Output must be a new SmileUp image with no reused pixels, faces, logos, or original text."
+                    )
             state["data_source"] = "ad_library"
             state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} Ad Library insights"})
         except Exception as exc:
@@ -48,6 +56,31 @@ def run_crawler_agent(state: AgentState) -> AgentState:
     state["market_trend_summary"] = _market_summary(insights)
     state["current_step"] = "crawler"
     return state
+
+
+def _top_match_reference_ad(ads: list[dict]) -> dict:
+    if not ads:
+        return {}
+    top_ad = sorted(
+        ads,
+        key=lambda ad: (
+            float(ad.get("sort_score", 0) or 0),
+            float(ad.get("similarity", 0) or 0),
+            float(ad.get("started_timestamp", 0) or 0),
+        ),
+        reverse=True,
+    )[0]
+    media_urls = [str(url) for url in top_ad.get("media_urls", []) if str(url).strip()]
+    return {
+        "library_id": str(top_ad.get("library_id", "")),
+        "ad_url": str(top_ad.get("ad_url", "")),
+        "page_name": str(top_ad.get("page_name", "")),
+        "started_running": str(top_ad.get("started_running", "")),
+        "ad_text": str(top_ad.get("ad_text", "")),
+        "media_url": media_urls[0] if media_urls else "",
+        "similarity": float(top_ad.get("similarity", 0) or 0),
+        "sort_score": float(top_ad.get("sort_score", 0) or 0),
+    }
 
 
 def _market_summary(insights: list[dict]) -> str:

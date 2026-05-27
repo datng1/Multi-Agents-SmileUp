@@ -63,6 +63,13 @@ def run_hardness_agent(state: AgentState) -> AgentState:
         penalties += 4
         missing.append("Ảnh upload đang ở chế độ layout reference; chỉ dùng form, không dùng pixel gốc.")
 
+    if state.get("creative_image_mode") == "top_match_reference":
+        if not state.get("creative_reference_ad", {}).get("media_url"):
+            penalties += 8
+            missing.append("Top-match reference mode chưa có media URL từ Ad Library để rút blueprint ảnh.")
+        else:
+            missing.append("Top-match reference chỉ được dùng làm blueprint; không dùng lại pixel, mặt người, logo hoặc text gốc.")
+
     score = max(0, min(100, 100 - penalties))
     risk_level = _risk_level(score)
     readiness = _publish_readiness(score, missing)

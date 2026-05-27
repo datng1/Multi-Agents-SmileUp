@@ -128,12 +128,14 @@ function syncCreativeImageMode() {
   const mode = creativeImageMode.value;
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
+    top_match_reference: "Top-match Gemini",
     auto: "Auto SmileUp",
     owned: hasUpload ? "Using uploaded image" : "Upload needed",
     layout_reference: hasUpload ? "Layout reference" : "Upload needed",
     text_only: "Text only",
   };
   const hints = {
+    top_match_reference: "Lấy bài viết và media của ad match cao nhất làm blueprint, rồi Gemini tạo ảnh SmileUp mới không copy ảnh gốc.",
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
@@ -141,7 +143,7 @@ function syncCreativeImageMode() {
   };
   creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
   creativeImageHint.textContent = hints[mode] || hints.auto;
-  creativeImageStatus.classList.toggle("warning", !["auto", "text_only"].includes(mode) && !hasUpload);
+  creativeImageStatus.classList.toggle("warning", !["auto", "text_only", "top_match_reference"].includes(mode) && !hasUpload);
 }
 
 function setAgentState(activeStep) {
@@ -509,6 +511,8 @@ function renderCreatives(assets) {
             <h3>${escapeHtml(asset.title || "-")}</h3>
             <p>${escapeHtml(asset.image_prompt || "")}</p>
             ${asset.source_policy ? `<p class="source-policy">${escapeHtml(asset.source_policy)}</p>` : ""}
+            ${asset.reference_ad_url ? `<a class="creative-reference-link" href="${escapeHtml(asset.reference_ad_url)}" target="_blank" rel="noopener noreferrer">Ad tham chiếu: ${escapeHtml(asset.reference_page_name || "top match")}</a>` : ""}
+            ${asset.gemini_image_note ? `<p class="source-policy">${escapeHtml(asset.gemini_image_note)}</p>` : ""}
           </div>
         </article>
       `;

@@ -43,6 +43,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "dry_run": config.DRY_RUN,
                     "ai_provider": config.AI_PROVIDER,
                     "ai_model": _model_status_label(),
+                    "gemini_image_model": config.GEMINI_IMAGE_MODEL,
                     "cmo_jury_enabled": config.CMO_JURY_ENABLED,
                     "ad_library_enabled": config.AD_LIBRARY_ENABLED,
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
@@ -73,7 +74,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
             initial_state["competitor_visual_notes"] = visual_notes
             initial_state["competitor_video_notes"] = video_notes
-            if creative_image_mode not in {"auto", "owned", "layout_reference", "text_only"}:
+            if creative_image_mode not in {"auto", "owned", "layout_reference", "top_match_reference", "text_only"}:
                 creative_image_mode = "auto"
             initial_state["creative_image_mode"] = creative_image_mode
             if creative_image_data_url and creative_image_mode in {"owned", "layout_reference"}:
