@@ -190,9 +190,17 @@ def _model_status_label() -> str:
 def main() -> None:
     _enable_utf8_console()
     server = ThreadingHTTPServer((HOST, PORT), MarketingUIHandler)
-    print(f"Dental Marketing UI running at http://{HOST}:{PORT}")
-    print("Press Ctrl+C to stop.")
+    _safe_print(f"Dental Marketing UI running at http://{HOST}:{PORT}")
+    _safe_print("Press Ctrl+C to stop.")
     server.serve_forever()
+
+
+def _safe_print(message: str) -> None:
+    try:
+        if sys.stdout:
+            print(message)
+    except Exception:
+        return
 
 
 if __name__ == "__main__":
