@@ -63,6 +63,19 @@ Giao diện có nút "Chạy workflow" để gọi API `/api/run`, sau đó hi�
 - Bài đăng đã duyệt.
 - Publish result an toàn.
 
+## Auto Deploy
+
+Repo có GitHub Actions workflow tại `.github/workflows/deploy.yml`. Mỗi lần push lên `main`, workflow sẽ đóng gói source, upload lên server, giữ nguyên `.env` production, cài dependencies và restart service `smileup-cmo`.
+
+Secrets cần cấu hình trong GitHub repository:
+
+```text
+SERVER_HOST=160.187.1.30
+SERVER_USER=root
+SERVER_PASSWORD=your_server_password
+SERVER_PORT=22
+```
+
 ### Dùng Không Cần Facebook Token
 
 Trên giao diện có ô **Dán bài đối thủ** kèm 2 ô riêng cho **Image notes** và **Video notes**. Bạn có thể copy 3-5 bài public của đối thủ, mô tả hình ảnh và dán transcript/ghi chú video vào để các agent đọc như một gói dữ liệu cạnh tranh.
