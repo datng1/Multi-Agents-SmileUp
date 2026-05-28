@@ -1,7 +1,11 @@
 from typing import Annotated, Any, Literal, Optional, TypedDict
 
 def add_messages(left: list[Any], right: list[Any]) -> list[Any]:
-    return (left or []) + (right or [])
+    existing = left or []
+    incoming = right or []
+    if len(incoming) >= len(existing) and incoming[: len(existing)] == existing:
+        return incoming
+    return existing + incoming
 
 
 ApprovalStatus = Literal["pending", "approved", "rejected", "needs_revision"]
