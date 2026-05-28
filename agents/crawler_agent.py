@@ -21,7 +21,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         insights = state.get("competitor_insights", [])
         logger.info("Crawler Agent using manual competitor input")
         state["messages"].append({"role": "crawler", "content": f"Used {len(insights)} manual competitor posts plus media notes"})
-    elif config.AD_LIBRARY_ENABLED:
+    elif config.AD_LIBRARY_ENABLED and not config.MOCK_MODE:
         try:
             keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
             ads = collect_ad_library_ads(

@@ -1,10 +1,7 @@
 from typing import Annotated, Any, Literal, Optional, TypedDict
 
-try:
-    from langgraph.graph.message import add_messages
-except Exception:
-    def add_messages(left: list[Any], right: list[Any]) -> list[Any]:
-        return (left or []) + (right or [])
+def add_messages(left: list[Any], right: list[Any]) -> list[Any]:
+    return (left or []) + (right or [])
 
 
 ApprovalStatus = Literal["pending", "approved", "rejected", "needs_revision"]
