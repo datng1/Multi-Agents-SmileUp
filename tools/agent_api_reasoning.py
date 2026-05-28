@@ -25,6 +25,9 @@ def reason_with_agent_api(
     prompt = _build_prompt(agent_name, role, task, context, max_context_chars)
     errors: list[str] = []
 
+    if not config.AGENT_API_REASONING_ENABLED:
+        return fallback, "local-bounded"
+
     if config.GEMINI_API_KEY:
         try:
             return _clean_report(generate_text_with_gemini(prompt), fallback), "Gemini"
