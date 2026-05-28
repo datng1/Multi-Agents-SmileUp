@@ -96,7 +96,17 @@ jobs:
           systemctl daemon-reload
           systemctl restart "$SERVICE_NAME"
           systemctl is-active --quiet "$SERVICE_NAME"
-          curl -fsS http://127.0.0.1:8765/api/status >/tmp/smileup-status.json
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/api/status >/tmp/smileup-status.json; then
+              break
+            fi
+            if [ "$attempt" = "30" ]; then
+              systemctl --no-pager --full status "$SERVICE_NAME" || true
+              journalctl -u "$SERVICE_NAME" --no-pager -n 80 || true
+              exit 1
+            fi
+            sleep 1
+          done
           cat /tmp/smileup-status.json
 
           rm -rf "$STAGE" "$PRESERVE" "$RELEASE" /tmp/smileup-status.json
