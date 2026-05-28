@@ -1,6 +1,7 @@
 import json
 import re
 import time
+import unicodedata
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ from tools.summarizer import extract_topics, summarize_text
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_PATH = ROOT / "data" / "ad_library_cache.json"
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 HIGH_MATCH_THRESHOLD = 0.95
 
 
@@ -295,6 +296,32 @@ def _normalize_vietnamese(value: str) -> str:
     )
     normalized = value.casefold().translate(replacements)
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s,.;|/]+", " ", normalized)).strip()
+
+
+def _normalize_vietnamese(value: str) -> str:
+    normalized = value.casefold().replace("đ", "d").replace("Đ", "d")
+    normalized = unicodedata.normalize("NFD", normalized)
+    normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s,.;|/]+", " ", normalized)).strip()
+
+
+def _dental_score(text: str) -> int:
+    normalized = _normalize_vietnamese(text)
+    terms = (
+        "nha khoa",
+        "rang",
+        "rang su",
+        "implant",
+        "nieng",
+        "boc",
+        "trong rang",
+        "cay ghep",
+        "mat rang",
+        "nu cuoi",
+        "phuc hinh",
+        "tham my",
+    )
+    return sum(normalized.count(term) for term in terms)
 
 
 def _started_timestamp(started: str) -> float:
