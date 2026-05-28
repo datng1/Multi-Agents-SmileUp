@@ -7,6 +7,7 @@ from tools.ad_library_scraper import (
     filter_high_match_ads,
 )
 from tools.facebook_crawler import crawl_facebook_posts
+from tools.offline_fixtures import fallback_ad_library_ads
 from utils import config
 from utils.logger import get_logger
 
@@ -49,12 +50,31 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             state["data_source"] = "ad_library"
             state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} Ad Library insights; {len(high_match_ads)} ads match >=95%"})
         except Exception as exc:
-            logger.warning("Ad Library scan failed, falling back to Facebook/mock crawler: %s", exc)
-            insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
-            state["ad_library_report"] = f"Ad Library Agent lỗi: {exc}"
-            state["messages"].append({"role": "crawler", "content": f"Ad Library failed, collected {len(insights)} fallback insights"})
+            logger.warning("Ad Library scan failed, using controlled fallback ads: %s", exc)
+            keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
+            ads = fallback_ad_library_ads(keywords)
+            high_match_ads = filter_high_match_ads(ads, threshold=0.95)
+            strategy_ads = high_match_ads or ads
+            insights = ads_to_competitor_insights(strategy_ads)
+            state["ad_library_ads"] = ads
+            state["high_match_ads"] = high_match_ads
+            state["high_match_threshold"] = 0.95
+            state["ad_library_keywords"] = keywords
+            state["ad_library_report"] = (
+                "Ad Library Agent: live scan tam thoi khong kha dung tren server, "
+                "he thong dung fallback benchmark noi bo de workflow khong bi dung. "
+                "Can chay lai scan khi Chrome/Ad Library san sang.\n\n"
+                + build_ad_library_report(ads, keywords, high_match_ads=high_match_ads, threshold=0.95)
+            )
+            state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
+            state["data_source"] = "ad_library_fallback"
+            state["messages"].append({"role": "crawler", "content": f"Ad Library failed safely, used {len(insights)} fallback benchmark insights"})
     else:
-        insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
+        try:
+            insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
+        except Exception as exc:
+            logger.warning("Facebook fallback crawler failed, using controlled fallback ads: %s", exc)
+            insights = ads_to_competitor_insights(fallback_ad_library_ads(config.AD_LIBRARY_KEYWORDS))
         state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} insights"})
 
     state["competitor_insights"] = insights

@@ -106,7 +106,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 }
             )
         except Exception as exc:
-            self._send_json({"ok": False, "error": str(exc), "logs": log_buffer.getvalue().strip()}, status=500)
+            self._send_json({"ok": False, "error": _sanitize_error(str(exc)), "logs": log_buffer.getvalue().strip()}, status=500)
 
     def _serve_static(self, path: Path) -> None:
         resolved = path.resolve()
@@ -201,6 +201,12 @@ def _safe_print(message: str) -> None:
             print(message)
     except Exception:
         return
+
+
+def _sanitize_error(message: str) -> str:
+    sanitized = re.sub(r"(access_token=)[^&\s]+", r"\1[redacted]", message)
+    sanitized = re.sub(r"(Authorization:\s*Bearer\s+)[^\s]+", r"\1[redacted]", sanitized, flags=re.IGNORECASE)
+    return sanitized
 
 
 if __name__ == "__main__":

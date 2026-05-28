@@ -102,6 +102,7 @@ const agentOrder = [
 
 const sourceLabels = {
   ad_library: "Auto Ad Library",
+  ad_library_fallback: "Auto fallback",
   manual: "Manual override",
   facebook: "Facebook Graph API",
   mock: "Demo data",

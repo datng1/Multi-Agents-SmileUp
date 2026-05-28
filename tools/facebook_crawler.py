@@ -23,7 +23,10 @@ def crawl_facebook_posts(page_ids: list[str] | None = None, limit: int = 5) -> l
     insights: list[CompetitorInsight] = []
     for page_id in page_ids:
         time.sleep(config.settings.facebook_request_delay_seconds)
-        posts = _request_posts(page_id, limit=limit)
+        try:
+            posts = _request_posts(page_id, limit=limit)
+        except Exception:
+            continue
         for post in posts:
             insights.append(summarize_post({"page_id": page_id, **post}))
     return insights or mock_insights()
