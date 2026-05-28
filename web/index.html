@@ -96,33 +96,29 @@
             <div class="panel-header compact">
               <div>
                 <span class="label">Creative image source</span>
-                <h2>Chọn cách tạo ảnh cho bài đăng</h2>
+                <h2>Tạm dừng gen ảnh</h2>
               </div>
-              <span id="creativeImageStatus" class="meta-chip">Auto SmileUp</span>
+              <span id="creativeImageStatus" class="meta-chip">Text only</span>
             </div>
             <div class="creative-source-grid">
-              <label class="creative-upload-tile" for="creativeImageInput">
-                <input id="creativeImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+              <label class="creative-upload-tile disabled" for="creativeImageInput" aria-disabled="true">
+                <input id="creativeImageInput" type="file" accept="image/png,image/jpeg,image/webp" disabled />
                 <span class="upload-icon">+</span>
                 <span>
-                  <strong>Tải ảnh lên</strong>
-                  <small>PNG, JPG, WEBP tối đa 8 MB</small>
+                  <strong>Tạm khóa upload ảnh</strong>
+                  <small>Workflow hiện chỉ sinh bài viết</small>
                 </span>
               </label>
               <div class="creative-mode-box">
                 <label>
                   <span class="label">Image mode</span>
-                  <select id="creativeImageMode" class="mode-select">
-                    <option value="top_match_reference">Lấy form ads match cao nhất bằng Gemini</option>
-                    <option value="auto">Tự tạo ảnh SmileUp</option>
-                    <option value="owned">Dùng ảnh SmileUp / ảnh có quyền</option>
-                    <option value="layout_reference">Chỉ lấy form/layout từ ảnh tham chiếu</option>
-                    <option value="text_only">Chỉ gen bài viết, không gen ảnh</option>
+                  <select id="creativeImageMode" class="mode-select" disabled>
+                    <option value="text_only" selected>Chỉ gen bài viết, không gen ảnh</option>
                   </select>
                 </label>
-                <p id="creativeImageHint">Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.</p>
+                <p id="creativeImageHint">Tạm thời tắt toàn bộ sinh ảnh. Workflow chỉ tạo chiến lược, bài ads và bài chăm sóc page.</p>
               </div>
-              <div id="creativeImagePreview" class="creative-image-preview empty">Chưa có ảnh upload</div>
+              <div id="creativeImagePreview" class="creative-image-preview empty">Text only</div>
             </div>
           </section>
         </div>
@@ -375,7 +371,7 @@
             <div><span class="label">Branded creatives</span><h2>Ảnh gợi ý kèm logo SmileUp</h2></div>
             <span id="creativeCount" class="meta-chip">0 ảnh</span>
           </div>
-          <div id="creativeGrid" class="creative-grid empty-state">Chưa có ảnh creative.</div>
+          <div id="creativeGrid" class="creative-grid empty-state">Đang tạm tắt gen ảnh; workflow chỉ sinh bài viết.</div>
         </section>
 
         <section class="panel panel-wide">

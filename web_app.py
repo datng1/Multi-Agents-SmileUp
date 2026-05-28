@@ -67,7 +67,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
             video_notes = str(request_payload.get("manual_video_notes", "")).strip()
             ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
-            creative_image_mode = str(request_payload.get("creative_image_mode", "auto")).strip() or "auto"
+            creative_image_mode = "text_only"
             creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
             creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
             initial_state = create_initial_state()
@@ -75,8 +75,6 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
             initial_state["competitor_visual_notes"] = visual_notes
             initial_state["competitor_video_notes"] = video_notes
-            if creative_image_mode not in {"auto", "owned", "layout_reference", "top_match_reference", "text_only"}:
-                creative_image_mode = "auto"
             initial_state["creative_image_mode"] = creative_image_mode
             if creative_image_data_url and creative_image_mode in {"owned", "layout_reference"}:
                 upload_path, upload_url = _save_uploaded_creative(creative_image_data_url, creative_image_name)

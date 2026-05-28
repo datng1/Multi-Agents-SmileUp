@@ -126,7 +126,8 @@ function syncSourceMode() {
 }
 
 function syncCreativeImageMode() {
-  const mode = creativeImageMode.value;
+  const mode = "text_only";
+  creativeImageMode.value = "text_only";
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
     top_match_reference: "Top-match Gemini",
@@ -144,7 +145,7 @@ function syncCreativeImageMode() {
   };
   creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
   creativeImageHint.textContent = hints[mode] || hints.auto;
-  creativeImageStatus.classList.toggle("warning", !["auto", "text_only", "top_match_reference"].includes(mode) && !hasUpload);
+  creativeImageStatus.classList.remove("warning");
 }
 
 function setAgentState(activeStep) {
@@ -275,7 +276,7 @@ async function runWorkflow() {
         manual_visual_notes: activeSourceMode === "manual" ? visualInput.value.trim() : "",
         manual_video_notes: activeSourceMode === "manual" ? videoInput.value.trim() : "",
         ad_library_keywords: keywordValue.value.trim(),
-        creative_image_mode: creativeImageMode.value,
+        creative_image_mode: "text_only",
         creative_image_name: uploadedCreativeImage?.name || "",
         creative_image_data_url: uploadedCreativeImage?.dataUrl || "",
       }),
@@ -582,7 +583,7 @@ function renderCreatives(assets) {
   creativeCount.textContent = `${assets.length} ảnh`;
   if (!assets.length) {
     creativeGrid.className = "creative-grid empty-state";
-    creativeGrid.textContent = "Chưa có ảnh creative.";
+    creativeGrid.textContent = "Đang tạm tắt gen ảnh; workflow chỉ sinh bài viết.";
     return;
   }
 
@@ -820,6 +821,10 @@ clearManualButton.addEventListener("click", () => {
   manualInput.focus();
 });
 creativeImageInput.addEventListener("change", () => {
+  creativeImageInput.value = "";
+  uploadedCreativeImage = null;
+  syncCreativeImageMode();
+  return;
   const file = creativeImageInput.files?.[0];
   if (!file) {
     uploadedCreativeImage = null;
