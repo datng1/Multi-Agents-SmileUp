@@ -8,6 +8,7 @@ import requests
 
 from graph.state import AgentState
 from tools.gemini_client import GeminiUnavailable, generate_text_with_gemini_and_model
+from tools.openai_client import generate_text_with_openai
 from utils import config
 
 
@@ -114,25 +115,12 @@ def _call_gemini(prompt: str) -> tuple[str, str]:
 
 
 def _call_openai(prompt: str) -> tuple[str, str]:
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {config.OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": config.OPENAI_MODEL,
-            "messages": [
-                {"role": "system", "content": "Bạn là CMO marketing nha khoa cấp cao. Chỉ trả JSON."},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.2,
-        },
+    return generate_text_with_openai(
+        prompt,
+        system="Bạn là CMO marketing nha khoa cấp cao. Chỉ trả JSON.",
+        temperature=0.2,
         timeout=40,
     )
-    response.raise_for_status()
-    payload = response.json()
-    return payload["choices"][0]["message"]["content"], config.OPENAI_MODEL
 
 
 def _call_claude(prompt: str) -> tuple[str, str]:

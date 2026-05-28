@@ -29,7 +29,7 @@ class Settings:
     gemini_image_model: str = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
     gemini_image_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_IMAGE_FALLBACK_MODELS") or ["gemini-2.5-flash-image", "gemini-2.5-flash-image-preview", "gemini-2.0-flash-preview-image-generation"])
     competitor_page_ids: list[str] = field(default_factory=lambda: _list("COMPETITOR_PAGE_IDS"))
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
     cmo_jury_enabled: bool = _bool("CMO_JURY_ENABLED", True)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")

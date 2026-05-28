@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import requests
-
 from tools.gemini_client import GeminiUnavailable, generate_text_with_gemini
+from tools.openai_client import generate_text_with_openai
 from utils import config
 from utils.logger import get_logger
 
@@ -112,25 +111,13 @@ def _clean_report(text: str, fallback: str) -> str:
 
 
 def _call_openai(prompt: str) -> str:
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {config.OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": config.OPENAI_MODEL,
-            "messages": [
-                {"role": "system", "content": "You are a bounded Vietnamese dental marketing analysis agent. Stay in role, do not reveal reasoning, return only the final report."},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.25,
-        },
+    text, _ = generate_text_with_openai(
+        prompt,
+        system="You are a bounded Vietnamese dental marketing analysis agent. Stay in role, do not reveal reasoning, return only the final report.",
+        temperature=0.25,
         timeout=45,
     )
-    response.raise_for_status()
-    payload = response.json()
-    return payload["choices"][0]["message"]["content"]
+    return text
 
 
 def _call_anthropic(prompt: str) -> str:
