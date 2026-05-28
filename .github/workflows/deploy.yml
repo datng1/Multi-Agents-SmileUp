@@ -23,20 +23,7 @@ jobs:
       - name: Build release archive
         run: |
           set -euo pipefail
-          tar \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='.env' \
-            --exclude='.venv' \
-            --exclude='venv' \
-            --exclude='__pycache__' \
-            --exclude='*.pyc' \
-            --exclude='*.log' \
-            --exclude='data' \
-            --exclude='reports' \
-            --exclude='web/generated' \
-            --exclude='smileup-release.tar.gz' \
-            -czf smileup-release.tar.gz .
+          git archive --format=tar.gz --output=smileup-release.tar.gz HEAD
 
       - name: Validate deploy secrets
         env:
