@@ -49,7 +49,8 @@ jobs:
           sudo apt-get install -y sshpass
 
           SSH_OPTS="-p ${SERVER_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-          sshpass -p "$SERVER_PASSWORD" scp $SSH_OPTS smileup-release.tar.gz "${SERVER_USER}@${SERVER_HOST}:/tmp/smileup-release.tar.gz"
+          SCP_OPTS="-P ${SERVER_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          sshpass -p "$SERVER_PASSWORD" scp $SCP_OPTS smileup-release.tar.gz "${SERVER_USER}@${SERVER_HOST}:/tmp/smileup-release.tar.gz"
 
           sshpass -p "$SERVER_PASSWORD" ssh $SSH_OPTS "${SERVER_USER}@${SERVER_HOST}" 'bash -s' <<'REMOTE_DEPLOY'
           set -euo pipefail
