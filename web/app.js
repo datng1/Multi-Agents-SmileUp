@@ -438,13 +438,7 @@ function renderCmoDecision(result) {
   cmoFeedback.textContent = result.cmo_feedback || result.manager_feedback || "Chưa có feedback.";
   hardnessReport.textContent = result.hardness_report || "Hardness Agent chưa có đánh giá.";
   cmoJurySummary.textContent = result.cmo_jury_summary || "CMO Jury chưa có phiếu model.";
-  cmoBrief.textContent = [
-    result.monthly_strategy || "",
-    result.cmo_campaign_brief || "",
-  ]
-    .filter(Boolean)
-    .join("\n\n")
-    || "CMO sẽ tổng kết chiến lược tháng, agent reports, variant và creative được chọn ở đây.";
+  cmoBrief.textContent = result.monthly_strategy || result.strategic_direction || "CMO sẽ tổng kết chiến lược tháng ở đây.";
 
   const scorecard = Array.isArray(result.cmo_scorecard) ? result.cmo_scorecard : [];
   if (!scorecard.length) {

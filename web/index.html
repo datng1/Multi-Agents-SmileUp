@@ -274,9 +274,17 @@
               <p id="cmoFeedback">Chưa có feedback.</p>
             </div>
           </div>
-          <pre id="hardnessReport" class="cmo-brief">Hardness Agent sẽ đánh giá độ chắc dữ liệu ở đây.</pre>
-          <pre id="cmoJurySummary" class="cmo-brief">CMO Jury sẽ hiện các phiếu Gemini/GPT/Claude ở đây.</pre>
-          <pre id="cmoBrief" class="cmo-brief">CMO brief sẽ hiện ở đây sau khi chạy workflow.</pre>
+          <div class="monthly-strategy-box">
+            <div class="panel-header compact">
+              <div>
+                <span class="label">Monthly strategy</span>
+                <h2>Chiến lược tháng</h2>
+              </div>
+            </div>
+            <pre id="cmoBrief" class="cmo-brief">Chiến lược tháng sẽ hiện ở đây sau khi chạy workflow.</pre>
+          </div>
+          <pre id="hardnessReport" class="cmo-brief hidden-report">Hardness Agent sẽ đánh giá độ chắc dữ liệu ở đây.</pre>
+          <pre id="cmoJurySummary" class="cmo-brief hidden-report">CMO Jury sẽ hiện các phiếu Gemini/GPT/Claude ở đây.</pre>
           <div id="cmoScorecard" class="cmo-scorecard empty-state">Chưa có scorecard.</div>
         </section>
 
@@ -366,7 +374,7 @@
           <div id="contentPlanList" class="content-plan-list empty-state">Chưa có campaign variants.</div>
         </section>
 
-        <section class="panel panel-wide branded-creatives-panel">
+        <section class="panel panel-wide branded-creatives-panel hidden-panel" aria-hidden="true">
           <div class="panel-header">
             <div><span class="label">Branded creatives</span><h2>Ảnh gợi ý kèm logo SmileUp</h2></div>
             <span id="creativeCount" class="meta-chip">0 ảnh</span>

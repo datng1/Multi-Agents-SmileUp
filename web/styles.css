@@ -816,6 +816,23 @@ h2 {
   line-height: 1.45;
 }
 
+.monthly-strategy-box {
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 8px;
+  background: #f8fffd;
+}
+
+.monthly-strategy-box .cmo-brief {
+  margin-bottom: 0;
+  background: #ffffff;
+}
+
+.hidden-report {
+  display: none;
+}
+
 .source-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
