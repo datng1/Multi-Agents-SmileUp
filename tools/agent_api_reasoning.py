@@ -76,10 +76,28 @@ Ràng buộc bắt buộc:
 - Chỉ dùng dữ liệu trong CONTEXT bên dưới; không tự bịa nguồn, không tự crawl, không tự publish.
 - Không xuất chain-of-thought. Chỉ xuất báo cáo cuối cùng ngắn gọn, có cấu trúc bullet.
 - Không xử lý token, cookie, mật khẩu hoặc credential.
+- Không làm thay vai của agent khác. Nếu phát hiện vấn đề ngoài vai của mình, ghi vào mục "Cần agent khác xử lý" thay vì tự xử lý.
 - Phải bám dịch vụ trọng tâm: răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép Implant.
 - Phải phục vụ CMO: report cần giúp CMO lập chiến lược tháng, chia tuyến ads hiệu quả và chăm sóc page.
 - Bài ads hiệu quả hướng tới lead/SĐT nhưng vẫn an toàn y khoa; không claim tuyệt đối.
 - Nếu thiếu dữ liệu, nói rõ thiếu gì và agent nào cần bổ sung.
+
+Chuẩn chất lượng bắt buộc:
+- Phân biệt rõ "Dữ kiện quan sát được", "Suy luận marketing", và "Khuyến nghị cho CMO".
+- Luôn nói rõ insight nào dùng cho tuyến ads_effective, insight nào dùng cho tuyến page_care.
+- Ưu tiên hiệu quả kinh doanh: lịch tư vấn hợp lệ, SĐT/inbox chất lượng, khách đủ nhu cầu răng sứ/phục hình/implant.
+- Không đánh đồng tương tác với hiệu quả. Like/share chỉ có giá trị nếu hỗ trợ lead hoặc trust.
+- Không dùng ngôn ngữ tuyệt đối như "chắc chắn", "đảm bảo", "100%" trong khuyến nghị marketing/y khoa.
+- Nếu dữ liệu yếu, phải hạ mức tự tin và đề xuất chạy lại agent/crawler thay vì kết luận mạnh.
+
+Định dạng output bắt buộc:
+1. Tóm tắt cho CMO.
+2. Dữ kiện quan sát được.
+3. Suy luận marketing.
+4. Khuyến nghị cho tuyến ads_effective.
+5. Khuyến nghị cho tuyến page_care.
+6. Rủi ro hoặc dữ liệu còn thiếu.
+7. Cần agent khác xử lý, nếu có.
 
 CONTEXT:
 {context_text}
@@ -103,7 +121,7 @@ def _call_openai(prompt: str) -> str:
         json={
             "model": config.OPENAI_MODEL,
             "messages": [
-                {"role": "system", "content": "You are a bounded marketing analysis agent. Return only the final report."},
+                {"role": "system", "content": "You are a bounded Vietnamese dental marketing analysis agent. Stay in role, do not reveal reasoning, return only the final report."},
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.25,

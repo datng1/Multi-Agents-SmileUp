@@ -95,6 +95,8 @@ Các agent phân tích chính được phép dùng LLM API để suy nghĩ theo 
 - Mỗi agent chỉ được đọc dữ liệu trong `AgentState`, không tự crawl thêm, không publish, không xử lý token/cookie.
 - Nếu API lỗi hoặc thiếu key, agent tự fallback về heuristic local để workflow vẫn chạy được.
 - Content Agent và CMO/Jury vẫn dùng model để viết, chấm điểm và ra quyết định; CMO là người chốt cuối trước Publisher.
+- Prompt chung của agent bắt buộc tách `Dữ kiện quan sát được`, `Suy luận marketing`, `Khuyến nghị cho ads_effective`, `Khuyến nghị cho page_care`, rủi ro và dữ liệu còn thiếu để tránh agent hiểu sai nhiệm vụ.
+- "Hiệu quả" được hiểu là tăng xác suất lead đúng nhu cầu và lịch tư vấn hợp lệ, không phải hứa hẹn kết quả y khoa tuyệt đối.
 
 ## Trend Và Hình Ảnh
 
