@@ -4,6 +4,7 @@ from tools.ad_library_scraper import (
     build_ad_library_report,
     build_ad_visual_notes,
     collect_ad_library_ads,
+    filter_high_match_ads,
 )
 from tools.facebook_crawler import crawl_facebook_posts
 from utils import config
@@ -28,12 +29,16 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                 max_ads=config.AD_LIBRARY_MAX_ADS,
                 cache_ttl_hours=config.AD_LIBRARY_CACHE_TTL_HOURS,
             )
-            insights = ads_to_competitor_insights(ads)
+            high_match_ads = filter_high_match_ads(ads, threshold=0.95)
+            strategy_ads = high_match_ads or ads
+            insights = ads_to_competitor_insights(strategy_ads)
             state["ad_library_ads"] = ads
+            state["high_match_ads"] = high_match_ads
+            state["high_match_threshold"] = 0.95
             state["ad_library_keywords"] = keywords
-            state["ad_library_report"] = build_ad_library_report(ads, keywords)
-            state["competitor_visual_notes"] = build_ad_visual_notes(ads)
-            reference_ad = _top_match_reference_ad(ads)
+            state["ad_library_report"] = build_ad_library_report(ads, keywords, high_match_ads=high_match_ads, threshold=0.95)
+            state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
+            reference_ad = _top_match_reference_ad(strategy_ads)
             if reference_ad:
                 state["creative_reference_ad"] = reference_ad
                 if state.get("creative_image_mode") == "top_match_reference":
@@ -42,7 +47,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                         "Output must be a new SmileUp image with no reused pixels, faces, logos, or original text."
                     )
             state["data_source"] = "ad_library"
-            state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} Ad Library insights"})
+            state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} Ad Library insights; {len(high_match_ads)} ads match >=95%"})
         except Exception as exc:
             logger.warning("Ad Library scan failed, falling back to Facebook/mock crawler: %s", exc)
             insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)

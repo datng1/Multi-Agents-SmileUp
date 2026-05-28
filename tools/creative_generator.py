@@ -58,6 +58,7 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
         reference_ad = context.get("creative_reference_ad") or {}
         assets.append(
             {
+                "campaign_track": variant.get("campaign_track", ""),
                 "service_line": variant.get("service_line", ""),
                 "title": variant.get("title", ""),
                 "image_path": url_path,

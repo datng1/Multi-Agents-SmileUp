@@ -85,7 +85,7 @@ Workflow hiện chia rõ các vai:
 - Visual Insight Agent: đọc mô tả ảnh/frame, rút ra bố cục, text overlay và tín hiệu niềm tin.
 - Video Insight Agent: đọc transcript/shot notes, tách hook 3 giây đầu, nhịp kể và CTA.
 - Trend Agent: tổng hợp trend Facebook để dễ lên tương tác.
-- Strategy Agent: chọn hướng đúng nhất cho SmileUp với răng sứ thẩm mỹ và Implant.
+- Strategy Agent: lập chiến lược tháng cho SmileUp với răng sứ thẩm mỹ, phục hình sứ và Implant.
 - Copywriting Agent: viết bài Facebook bằng giọng marketing nha khoa có thể đăng ngay.
 - Compliance Agent: kiểm tra claim nha khoa, tránh cam kết tuyệt đối và yêu cầu có lưu ý thăm khám.
 
@@ -96,11 +96,14 @@ Workflow hiện có thêm:
 - Tự động quét Meta Ad Library với keyword mặc định `nha khoa răng sứ răng đẹp cấy implant` để lấy ad copy, page name và media preview công khai.
 - Trên giao diện có thể sửa keyword quét; nếu để trống sẽ dùng keyword mặc định trong `.env`.
 - Ads được xếp hạng theo điểm kết hợp: độ giống keyword và ngày bắt đầu chạy mới nhất.
+- Tuyến bài ads hiệu quả chỉ ưu tiên các ads có keyword match từ 95% trở lên; nếu chưa đủ nguồn 95%, hệ thống vẫn báo rõ và dùng phần còn lại làm tín hiệu phụ.
 - Phân tích trend Facebook từ bài đối thủ bạn dán vào.
 - Ưu tiên nội dung cho răng sứ thẩm mỹ, phục hình răng sứ và cấy ghép Implant.
 - Tạo visual creative brief an toàn cho ảnh gốc của SmileUp, ảnh có license, ảnh AI tạo mới hoặc blueprint từ ad match cao nhất.
-- Tạo `content_plan` gồm nhiều biến thể bài viết: implant, răng sứ, trust/minh bạch, reels/short-form.
-- Mỗi biến thể có `differentiation` để làm rõ SmileUp khác gì so với ads đối thủ.
+- Tạo `content_plan` theo 2 tuyến chính:
+  - `ads_effective`: bài ads chuyển đổi, viết để khách hàng để lại SĐT/inbox ngay nhưng vẫn an toàn y khoa.
+  - `page_care`: bài chăm sóc page, nuôi niềm tin, tăng bình luận/lưu/chia sẻ và làm nền cho chuyển đổi.
+- Mỗi biến thể có `campaign_track`, `monthly_role` và `differentiation` để làm rõ vai trò trong chiến lược tháng và SmileUp khác gì so với ads đối thủ.
 - Mỗi lượt chạy có `run_seed` riêng để CMO Campaign Plan đổi hook/góc kể/CTA; trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
 - Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode top-match, hệ thống lấy bài viết và media của ad match cao nhất để Gemini rút blueprint bố cục, sau đó tạo ảnh SmileUp mới và overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
 

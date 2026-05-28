@@ -170,18 +170,35 @@ Chỉ trả về JSON thuần, không markdown:
 
 def _build_campaign_prompt(state: AgentState) -> str:
     base = _build_prompt(state)
+    high_match_ads = json.dumps(state.get("high_match_ads", []), ensure_ascii=False, indent=2)
+    monthly_strategy = state.get("monthly_strategy") or state.get("strategic_direction") or "Chưa có chiến lược tháng."
     return f"""
 {base}
 
-NHIỆM VỤ MỞ RỘNG CHO CMO:
-Thay vì chỉ tạo 1 bài, hãy tạo 4 bài đăng Facebook khác nhau cho SmileUp, mỗi bài gắn với một trụ cột chiến dịch riêng:
-1. Cấy ghép implant: tập trung ăn nhai, mất răng lâu năm, cần thăm khám đúng chỉ định.
-2. Răng sứ thẩm mỹ: tập trung nụ cười tự nhiên, tự tin, bảo tồn răng thật khi có thể.
-3. Minh bạch chuyên môn: tập trung bác sĩ tư vấn, phim chụp/kiểm tra, không chạy đua giá rẻ.
-4. Reels/short post để bắt trend: hook ngắn, câu hỏi gợi comment, dùng cho Facebook/Reels caption.
+NHIỆM VỤ MỚI CỦA CMO:
+CMO không chỉ viết bài lẻ. CMO phải lập chiến lược tháng và chia content plan thành đúng 2 tuyến:
+1. ads_effective: bài ads hiệu quả, dựa trên các ads có keyword match từ 95% trở lên, mục tiêu khiến khách hàng để lại SĐT/inbox ngay để được gọi tư vấn.
+2. page_care: bài chăm sóc page, nuôi niềm tin và tăng tương tác bằng checklist, hỏi đáp, tình huống đời thường, save/share/comment; không bán gắt.
 
 RUN SEED: {state.get('run_seed', '')}
-Mỗi lượt chạy phải tạo campaign plan mới theo seed này: đổi hook, góc kể chuyện, lead magnet, cấu trúc mở bài và CTA mềm. Không trả lại cùng một bộ tiêu đề/caption cứng nếu insight đầu vào giống lần trước.
+Mỗi lượt chạy phải thay đổi hook, góc kể, lead magnet, cấu trúc mở bài và CTA theo seed này. Không trả lại cùng một bộ tiêu đề/caption nếu insight đầu vào giống lần trước.
+
+Chiến lược tháng hiện tại:
+{monthly_strategy}
+
+Ads đủ điều kiện keyword match >=95%:
+{high_match_ads}
+
+Yêu cầu cho tuyến ads_effective:
+- Tạo ít nhất 3 bài ads, ưu tiên răng sứ thẩm mỹ, phục hình răng sứ và cấy ghép Implant.
+- Mỗi bài phải có CTA xin SĐT/inbox số điện thoại để SmileUp gọi lại tư vấn.
+- Copy phải đủ lực bán hàng: hook rõ, nỗi đau thật, lợi ích cụ thể, lý do tin tưởng, bước tiếp theo rất dễ làm.
+- Vẫn an toàn y khoa: không cam kết 100%, không nói không đau tuyệt đối, không chỉ định điều trị khi chưa thăm khám, có lưu ý kết quả phụ thuộc tình trạng răng miệng.
+
+Yêu cầu cho tuyến page_care:
+- Tạo ít nhất 2 bài chăm sóc page.
+- Mục tiêu là nuôi page, tăng bình luận/lưu/chia sẻ, giúp khách thấy SmileUp minh bạch và đáng tin.
+- CTA mềm: bình luận câu hỏi, lưu bài, chia sẻ tình huống, inbox nếu muốn được tư vấn thêm; không ép SĐT như bài ads.
 
 Mỗi bài phải khác biệt hơn các ads đầu vào bằng cách:
 - Không dựa vào giảm giá sốc làm lợi thế chính.
@@ -193,11 +210,14 @@ Chỉ trả về JSON thuần theo schema:
 {{
   "variants": [
     {{
-      "service_line": "implant | rang_su | trust | reels",
+      "campaign_track": "ads_effective | page_care",
+      "monthly_role": "vai trò của bài trong chiến lược tháng",
+      "source_ads_count": 0,
+      "service_line": "implant | rang_su | phuc_hinh_su | trust | reels",
       "angle": "góc nội dung",
       "differentiation": "SmileUp khác biệt hơn ads đối thủ ở điểm nào",
       "marketing_analysis": "phân tích ngắn cho bài này",
-      "trend_angle": "trend angle rieng",
+      "trend_angle": "trend angle riêng",
       "post_structure": "Hook -> Pain point -> SmileUp solution -> Trust proof -> CTA",
       "title": "string",
       "body": "caption có thể đăng ngay",
@@ -247,6 +267,9 @@ def _parse_content_plan(text: str) -> list[ContentVariant]:
         body = _dedupe_title_from_body(title, str(raw.get("body", "")).strip())
         variants.append(
             {
+                "campaign_track": str(raw.get("campaign_track", "")).strip(),
+                "monthly_role": str(raw.get("monthly_role", "")).strip(),
+                "source_ads_count": _safe_int(raw.get("source_ads_count", 0)),
                 "service_line": str(raw.get("service_line", "")).strip(),
                 "angle": str(raw.get("angle", "")).strip(),
                 "differentiation": str(raw.get("differentiation", "")).strip(),
@@ -262,7 +285,7 @@ def _parse_content_plan(text: str) -> list[ContentVariant]:
         )
     if not variants:
         raise ValueError("Gemini returned no content variants")
-    return variants[:4]
+    return variants[:6]
 
 
 def _dedupe_title_from_body(title: str, body: str) -> str:
@@ -280,3 +303,10 @@ def _dedupe_title_from_body(title: str, body: str) -> str:
 
 def _normalize_for_compare(value: str) -> str:
     return " ".join(value.casefold().split())
+
+
+def _safe_int(value) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0

@@ -161,6 +161,8 @@ def _build_jury_prompt(state: AgentState, scorecard: list[dict[str, Any]]) -> st
     compact_variants = [
         {
             "index": index,
+            "campaign_track": variant.get("campaign_track", ""),
+            "monthly_role": variant.get("monthly_role", ""),
             "service_line": variant.get("service_line", ""),
             "title": variant.get("title", ""),
             "body": variant.get("body", "")[:1200],

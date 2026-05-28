@@ -12,6 +12,7 @@ from tools.summarizer import extract_topics, summarize_text
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_PATH = ROOT / "data" / "ad_library_cache.json"
 CACHE_VERSION = 3
+HIGH_MATCH_THRESHOLD = 0.95
 
 
 @dataclass
@@ -63,10 +64,29 @@ def ads_to_competitor_insights(ads: list[dict]) -> list[dict]:
     return insights
 
 
-def build_ad_library_report(ads: list[dict], keywords: str) -> str:
+def filter_high_match_ads(ads: list[dict], threshold: float = HIGH_MATCH_THRESHOLD) -> list[dict]:
+    high_match = [ad for ad in ads if float(ad.get("similarity", 0) or 0) >= threshold]
+    return sorted(
+        high_match,
+        key=lambda ad: (
+            float(ad.get("similarity", 0) or 0),
+            float(ad.get("started_timestamp", 0) or 0),
+            float(ad.get("sort_score", 0) or 0),
+        ),
+        reverse=True,
+    )
+
+
+def build_ad_library_report(
+    ads: list[dict],
+    keywords: str,
+    high_match_ads: list[dict] | None = None,
+    threshold: float = HIGH_MATCH_THRESHOLD,
+) -> str:
     if not ads:
         return f"Ad Library Agent: Không tìm được quảng cáo phù hợp cho keyword '{keywords}'."
 
+    high_match_ads = high_match_ads if high_match_ads is not None else filter_high_match_ads(ads, threshold)
     pages = []
     for ad in ads:
         page = str(ad.get("page_name") or "").strip()
@@ -81,7 +101,8 @@ def build_ad_library_report(ads: list[dict], keywords: str) -> str:
         "Ad Library Agent:\n"
         f"- Keyword quét: {keywords}.\n"
         f"- Số quảng cáo lấy vào workflow: {len(ads)}.\n"
-        "- Thuật toán chọn: ưu tiên ads có độ giống keyword cao và ngày chạy mới nhất.\n"
+        f"- Ads đủ điều kiện cho tuyến bài ads hiệu quả: {len(high_match_ads)} ads có keyword match từ {round(threshold * 100)}% trở lên.\n"
+        "- Thuật toán chọn: ưu tiên ads có độ giống keyword cao trước, sau đó đến ngày chạy mới nhất.\n"
         f"- Page nổi bật: {', '.join(pages[:8])}.\n"
         f"- Mẫu hook/copy: {sample or 'Chưa có copy đủ rõ.'}\n"
         "- Nguồn này phản ánh quảng cáo trong Meta Ad Library, không phải toàn bộ bài organic của Page."

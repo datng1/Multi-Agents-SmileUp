@@ -383,7 +383,8 @@ function renderInsights(insights) {
 }
 
 function renderReferencedAds(ads) {
-  referencedAdsCount.textContent = `${ads.length} ads`;
+  const highMatchCount = ads.filter((ad) => Number(ad.similarity || 0) >= 0.95).length;
+  referencedAdsCount.textContent = `${highMatchCount} ads >=95% · ${ads.length} tổng`;
   if (!ads.length) {
     referencedAdsList.className = "referenced-ads-list empty-state";
     referencedAdsList.textContent = "Chưa có ads tham chiếu.";
@@ -436,7 +437,13 @@ function renderCmoDecision(result) {
   cmoFeedback.textContent = result.cmo_feedback || result.manager_feedback || "Chưa có feedback.";
   hardnessReport.textContent = result.hardness_report || "Hardness Agent chưa có đánh giá.";
   cmoJurySummary.textContent = result.cmo_jury_summary || "CMO Jury chưa có phiếu model.";
-  cmoBrief.textContent = result.cmo_campaign_brief || "CMO brief sẽ hiện ở đây sau khi chạy workflow.";
+  cmoBrief.textContent = [
+    result.monthly_strategy || "",
+    result.cmo_campaign_brief || "",
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    || "CMO sẽ tổng kết chiến lược tháng, agent reports, variant và creative được chọn ở đây.";
 
   const scorecard = Array.isArray(result.cmo_scorecard) ? result.cmo_scorecard : [];
   if (!scorecard.length) {
@@ -451,7 +458,7 @@ function renderCmoDecision(result) {
       return `
         <article class="cmo-score-card ${isPicked ? "picked" : ""}">
           <div>
-            <strong>${String(Number(item.index) + 1).padStart(2, "0")} · ${escapeHtml(item.service_line || "post")}</strong>
+            <strong>${String(Number(item.index) + 1).padStart(2, "0")} · ${escapeHtml(item.campaign_track || "post")} · ${escapeHtml(item.service_line || "post")}</strong>
             <span>${escapeHtml(isPicked ? "CMO pick" : `${Number(item.score || 0)} điểm`)}</span>
           </div>
           <h3>${escapeHtml(item.title || "-")}</h3>
@@ -464,37 +471,75 @@ function renderCmoDecision(result) {
 
 function renderContentPlan(variants) {
   currentContentPlan = Array.isArray(variants) ? variants : [];
-  contentPlanCount.textContent = `${variants.length} biến thể`;
-  if (!variants.length) {
+  const adsCount = currentContentPlan.filter((variant) => (variant.campaign_track || "ads_effective") === "ads_effective").length;
+  const careCount = currentContentPlan.filter((variant) => variant.campaign_track === "page_care").length;
+  contentPlanCount.textContent = `${adsCount} ads · ${careCount} chăm sóc`;
+  if (!currentContentPlan.length) {
     contentPlanList.className = "content-plan-list empty-state";
     contentPlanList.textContent = "Chưa có campaign variants.";
     return;
   }
 
   contentPlanList.className = "content-plan-list";
-  contentPlanList.innerHTML = variants
-    .map((variant, index) => {
-      const tags = (variant.hashtags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
+  const groups = [
+    {
+      key: "ads_effective",
+      title: "Tuyến 1: Bài ads hiệu quả",
+      note: "Dựa trên ads match >=95%, mục tiêu lấy SĐT/inbox để đội ngũ SmileUp gọi lại.",
+    },
+    {
+      key: "page_care",
+      title: "Tuyến 2: Chăm sóc page",
+      note: "Nuôi niềm tin, tăng comment/save/share và tạo nền cho các bài ads chuyển đổi.",
+    },
+  ];
+  contentPlanList.innerHTML = groups
+    .map((group) => {
+      const items = currentContentPlan
+        .map((variant, index) => ({ variant, index }))
+        .filter((item) => (item.variant.campaign_track || "ads_effective") === group.key);
+      if (!items.length) {
+        return "";
+      }
       return `
-        <article class="variant-card">
-          <div class="variant-topline">
-            <span>${String(index + 1).padStart(2, "0")} · ${escapeHtml(variant.service_line || "post")}</span>
-            <strong>${escapeHtml(variant.angle || "")}</strong>
+        <section class="content-track-group ${group.key}">
+          <div class="track-heading">
+            <div>
+              <span class="track-pill ${group.key}">${escapeHtml(group.title)}</span>
+              <p>${escapeHtml(group.note)}</p>
+            </div>
+            <strong>${items.length} bài</strong>
           </div>
-          <h3>${escapeHtml(variant.title || "-")}</h3>
-          <p>${escapeHtml(variant.differentiation || "")}</p>
-          <details>
-            <summary>Xem caption</summary>
-            <pre>${escapeHtml(variant.body || "")}</pre>
-          </details>
-          <div class="variant-actions">
-            <button class="secondary-button use-variant-button" type="button" data-variant-index="${index}">Dùng làm bài viết</button>
+          <div class="track-card-grid">
+            ${items.map(({ variant, index }) => renderContentVariantCard(variant, index)).join("")}
           </div>
-          <div class="topic-list">${tags}</div>
-        </article>
+        </section>
       `;
     })
     .join("");
+}
+
+function renderContentVariantCard(variant, index) {
+  const tags = (variant.hashtags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
+  const role = variant.monthly_role || (variant.campaign_track === "page_care" ? "Chăm sóc page" : "Ads lấy SĐT");
+  return `
+    <article class="variant-card">
+      <div class="variant-topline">
+        <span>${String(index + 1).padStart(2, "0")} · ${escapeHtml(variant.service_line || "post")} · ${escapeHtml(role)}</span>
+        <strong>${escapeHtml(variant.angle || "")}</strong>
+      </div>
+      <h3>${escapeHtml(variant.title || "-")}</h3>
+      <p>${escapeHtml(variant.differentiation || "")}</p>
+      <details>
+        <summary>Xem caption</summary>
+        <pre>${escapeHtml(variant.body || "")}</pre>
+      </details>
+      <div class="variant-actions">
+        <button class="secondary-button use-variant-button" type="button" data-variant-index="${index}">Dùng làm bài viết</button>
+      </div>
+      <div class="topic-list">${tags}</div>
+    </article>
+  `;
 }
 
 function useVariantAsFinal(index) {
@@ -527,8 +572,9 @@ function useVariantAsFinal(index) {
 }
 
 function markUsedVariant(index) {
-  contentPlanList.querySelectorAll(".variant-card").forEach((card, cardIndex) => {
-    card.classList.toggle("used", cardIndex === index);
+  contentPlanList.querySelectorAll(".use-variant-button").forEach((button) => {
+    const card = button.closest(".variant-card");
+    card?.classList.toggle("used", Number(button.dataset.variantIndex) === index);
   });
 }
 

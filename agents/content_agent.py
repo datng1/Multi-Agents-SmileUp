@@ -63,6 +63,9 @@ def _draft_from_variant(variant: ContentVariant) -> DraftContent:
 
 def _variant_from_draft(draft: DraftContent, service_line: str) -> ContentVariant:
     return {
+        "campaign_track": "ads_effective",
+        "monthly_role": "Bài ads hiệu quả lấy SĐT",
+        "source_ads_count": 0,
         "service_line": service_line,
         "angle": draft.get("trend_angle", ""),
         "differentiation": "SmileUp khác biệt bằng tư vấn cá nhân hóa, minh bạch chỉ định và không chạy đua bằng claim quá đà.",
@@ -79,46 +82,75 @@ def _variant_from_draft(draft: DraftContent, service_line: str) -> ContentVarian
 
 def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
     topics = _dominant_topics(state)
+    source_ads_count = len(state.get("high_match_ads", []))
     plan: list[ContentVariant] = [
         {
+            "campaign_track": "ads_effective",
+            "monthly_role": "Tuyến ads hiệu quả: lấy SĐT và lịch tư vấn",
+            "source_ads_count": source_ads_count,
             "service_line": "implant",
-            "angle": "Mất răng lâu năm và ăn nhai khó khăn",
-            "differentiation": "Khác với ads giá sốc, SmileUp dẫn bằng tư vấn đúng chỉ định, phim chụp và phác đồ cá nhân hóa.",
-            "marketing_analysis": "Nhóm khách hàng mất răng thường sợ đau, sợ chi phí phát sinh và sợ cấy sai chỉ định. Bài cần tạo niềm tin bằng quy trình thăm khám rõ ràng.",
-            "trend_angle": "Câu hỏi gợi đúng nỗi đau: mất răng lâu năm có đang làm bạn ngại ăn nhai?",
+            "angle": "Ads chuyển đổi cho khách mất răng, sợ đau và sợ phát sinh chi phí",
+            "differentiation": "Thay vì chạy theo ưu đãi sốc, SmileUp xin SĐT để tư vấn cá nhân hóa sau khi hỏi đúng tình trạng mất răng.",
+            "marketing_analysis": "Nhóm khách mất răng thường để lại thông tin khi họ thấy được rủi ro trì hoãn, hiểu quy trình thăm khám và biết mình sẽ được gọi tư vấn riêng chứ không bị ép chốt.",
+            "trend_angle": "Hook trực diện: mất răng càng lâu càng nên kiểm tra sớm trước khi chọn phương án.",
             "post_structure": "Hook -> dấu hiệu -> giải pháp implant SmileUp -> lưu ý thăm khám -> CTA",
-            "title": "Mất răng lâu năm: đừng để việc ăn nhai trở thành nỗi lo mỗi ngày",
+            "title": "Mất răng lâu năm? Để lại SĐT để SmileUp tư vấn hướng xử lý phù hợp",
             "body": (
-                "Mất 1 răng hay nhiều răng không chỉ làm bạn ngại cười, mà còn có thể ảnh hưởng đến khả năng ăn nhai và các răng bên cạnh.\n\n"
-                "Tại SmileUp, tư vấn implant bắt đầu bằng kiểm tra tình trạng răng, xương hàm và sức khỏe tổng quát. Bác sĩ sẽ giải thích rõ khi nào nên cấy implant, khi nào cần điều trị nền trước và chi phí dự kiến theo từng phương án.\n\n"
-                "Điểm quan trọng không phải là chọn gói đắt hay rẻ, mà là chọn đúng chỉ định cho chính tình trạng của bạn. Kết quả và thời gian phục hồi có thể khác nhau tùy từng người, vì vậy thăm khám trực tiếp là bước cần có."
+                "Mất 1 răng hay nhiều răng đều có thể làm lực nhai thay đổi, răng bên cạnh xô lệch và khiến bạn ngại ăn những món mình thích.\n\n"
+                "Tại SmileUp, bác sĩ không tư vấn implant theo một công thức chung. Bạn sẽ được hỏi tình trạng mất răng, thời gian mất răng, cảm giác khi ăn nhai và các bệnh lý nền nếu có trước khi hẹn thăm khám.\n\n"
+                "Nếu bạn đang phân vân có nên cấy implant không, hãy để lại SĐT. SmileUp sẽ gọi lại, hỏi nhanh tình trạng của bạn và gợi ý bước kiểm tra phù hợp. Kết quả và chỉ định điều trị phụ thuộc tình trạng răng miệng, cần bác sĩ thăm khám trực tiếp."
             ),
             "hashtags": ["#SmileUp", "#CayGhepImplant", "#TrongRangImplant", "#NhaKhoaUyTin"],
-            "call_to_action": "Inbox SmileUp để đặt lịch thăm khám implant và nhận tư vấn phác đồ phù hợp.",
+            "call_to_action": "Để lại SĐT hoặc inbox SmileUp, đội ngũ tư vấn sẽ gọi lại để hỏi tình trạng và hẹn lịch thăm khám phù hợp.",
             "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp tư vấn implant bên màn hình phim chụp, phòng khám sạch hiện đại, logo SmileUp góc trên trái.",
         },
         {
+            "campaign_track": "ads_effective",
+            "monthly_role": "Tuyến ads hiệu quả: lấy SĐT và lịch tư vấn",
+            "source_ads_count": source_ads_count,
             "service_line": "rang_su",
-            "angle": "Nụ cười tự nhiên và bảo tồn răng thật",
-            "differentiation": "SmileUp không nói quá về biến đổi tức thì; tập trung thẩm mỹ tự nhiên và tư vấn phù hợp men răng, khớp cắn.",
-            "marketing_analysis": "Khách hàng răng sứ muốn đẹp nhưng sợ bị giả, sợ mài răng nhiều và sợ nụ cười kém tự nhiên. Bài cần nhấn vào thăm khám và thiết kế cá nhân hóa.",
-            "trend_angle": "Checklist: trước khi làm răng sứ, bạn nên hỏi bác sĩ 3 điều này.",
+            "angle": "Ads chuyển đổi cho khách muốn làm răng sứ nhưng sợ bị mài nhiều",
+            "differentiation": "SmileUp không bán nụ cười cấp tốc; nhấn vào kiểm tra nền răng, dáng răng tự nhiên và bảo tồn mô răng thật khi phù hợp.",
+            "marketing_analysis": "Khách hàng răng sứ để lại SĐT khi họ cảm thấy được bảo vệ khỏi quyết định sai: không bị làm quá tay, biết cần hỏi gì và được tư vấn theo khuôn mặt/tình trạng răng.",
+            "trend_angle": "Checklist ngắn: trước khi làm răng sứ, hỏi bác sĩ 3 điều để tránh hối tiếc.",
             "post_structure": "Hook -> 3 câu hỏi trước khi làm -> SmileUp solution -> trust proof -> CTA",
-            "title": "Làm răng sứ đẹp không nên bắt đầu từ màu răng, mà từ tư vấn đúng",
+            "title": "Muốn làm răng sứ tự nhiên? Đừng chọn màu răng trước khi được tư vấn",
             "body": (
-                "Một nụ cười đẹp không chỉ là răng trắng. Đó là sự hài hòa với khuôn mặt, khớp cắn và tình trạng răng thật hiện có.\n\n"
-                "Trước khi quyết định làm răng sứ, hãy hỏi rõ: răng thật có cần bảo tồn không, dáng răng nào hợp với khuôn mặt và kế hoạch chăm sóc sau phục hình như thế nào.\n\n"
-                "SmileUp hướng tới thiết kế nụ cười tự nhiên, minh bạch vật liệu và giải thích rõ từng bước điều trị. Kết quả thẩm mỹ tùy thuộc tình trạng răng và chỉ định của bác sĩ."
+                "Răng sứ đẹp không chỉ là trắng hơn. Điều quan trọng là dáng răng có hợp khuôn mặt không, nền răng thật có cần bảo tồn không và khớp cắn có được kiểm tra kỹ không.\n\n"
+                "Tại SmileUp, tư vấn răng sứ bắt đầu từ tình trạng răng hiện tại, mong muốn thẩm mỹ và kế hoạch chăm sóc sau phục hình. Không phải ai cũng cần bọc sứ, và không phải trường hợp nào cũng nên làm ngay.\n\n"
+                "Bạn muốn biết trường hợp của mình nên bắt đầu từ đâu? Để lại SĐT, SmileUp sẽ gọi lại để hỏi tình trạng và hướng dẫn bước thăm khám phù hợp. Kết quả thẩm mỹ phụ thuộc tình trạng răng miệng và chỉ định của bác sĩ."
             ),
             "hashtags": ["#SmileUp", "#RangSuThamMy", "#NuCuoiTuNhien", "#NhaKhoaThamMy"],
-            "call_to_action": "Nhắn tin SmileUp để được tư vấn răng sứ theo tình trạng răng hiện tại.",
+            "call_to_action": "Để lại SĐT để SmileUp gọi lại tư vấn răng sứ theo tình trạng răng hiện tại.",
             "image_prompt": "Ảnh gốc/AI mới: khách hàng soi gương mỉm cười tự nhiên trong phòng khám SmileUp, logo SmileUp góc trên trái, tone trắng xanh.",
         },
         {
+            "campaign_track": "ads_effective",
+            "monthly_role": "Tuyến ads hiệu quả: lấy SĐT và lịch tư vấn",
+            "source_ads_count": source_ads_count,
+            "service_line": "phuc_hinh_su",
+            "angle": "Ads chuyển đổi cho khách răng yếu, răng vỡ hoặc phục hình lại",
+            "differentiation": "SmileUp nhấn vào kiểm tra nền răng và kế hoạch phục hình rõ ràng, không hứa làm nhanh cho mọi trường hợp.",
+            "marketing_analysis": "Nhóm khách đã vỡ răng, răng yếu hoặc từng làm răng trước đó thường cần một lý do đủ chắc để gửi số điện thoại: họ muốn biết còn giữ được răng thật không và chi phí có phát sinh không.",
+            "trend_angle": "Góc cảnh báo mềm: răng vỡ/mẻ không nên tự chọn phương án khi chưa kiểm tra nền răng.",
+            "post_structure": "Hook -> tình huống răng yếu/vỡ -> thăm khám SmileUp -> phương án cá nhân hóa -> CTA SĐT",
+            "title": "Răng yếu, răng vỡ: để lại SĐT để SmileUp tư vấn bước kiểm tra đầu tiên",
+            "body": (
+                "Răng vỡ, mẻ lớn hoặc đã từng phục hình nhưng ăn nhai không thoải mái là những trường hợp không nên tự chọn phương án chỉ qua quảng cáo.\n\n"
+                "Tại SmileUp, bác sĩ cần kiểm tra nền răng, khớp cắn và mức độ còn lại của mô răng thật trước khi tư vấn phục hình sứ, răng sứ hay phương án khác phù hợp hơn.\n\n"
+                "Bạn có thể để lại SĐT, SmileUp sẽ gọi lại để hỏi tình trạng hiện tại và hẹn lịch thăm khám nếu cần. Kết quả và phương án điều trị phụ thuộc tình trạng răng miệng thực tế sau khi bác sĩ kiểm tra."
+            ),
+            "hashtags": ["#SmileUp", "#PhucHinhRangSu", "#RangSu", "#TuVanNhaKhoa"],
+            "call_to_action": "Để lại SĐT để SmileUp gọi lại tư vấn bước kiểm tra phù hợp cho tình trạng răng yếu/vỡ.",
+            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp trao đổi với khách hàng về phục hình răng sứ trên màn hình tư vấn, logo SmileUp góc trái, phòng khám hiện đại.",
+        },
+        {
+            "campaign_track": "page_care",
+            "monthly_role": "Tuyến chăm sóc page: nuôi niềm tin và tăng tương tác",
             "service_line": "trust",
             "angle": "Minh bạch chuyên môn thay vì giảm giá sốc",
-            "differentiation": "Khác với ads đẩy ưu đãi, SmileUp xây niềm tin bằng quy trình, bác sĩ và tư vấn minh bạch.",
-            "marketing_analysis": f"Thị trường đang nổi bật các chủ đề {topics}; SmileUp nên tách mình bằng thông điệp CMO: đúng chỉ định trước, ưu đãi sau.",
+            "differentiation": "Tuyến chăm sóc page giúp SmileUp được nhớ như phòng khám tư vấn kỹ, không chỉ là nơi đăng ưu đãi.",
+            "marketing_analysis": f"Thị trường đang nổi bật các chủ đề {topics}; bài nuôi page nên giúp khách lưu lại và bình luận tình trạng của họ.",
             "trend_angle": "Bài giáo dục dễ save: vì sao cùng là răng sứ/implant nhưng mỗi người cần phác đồ khác nhau?",
             "post_structure": "Hook -> insight thị trường -> quan điểm SmileUp -> 3 điểm minh bạch -> CTA",
             "title": "Cùng là răng sứ hay implant, vì sao mỗi người cần một phác đồ riêng?",
@@ -128,14 +160,16 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
                 "SmileUp theo đuổi sự minh bạch: tư vấn rõ, chi phí rõ, lưu ý rõ. Kết quả sẽ phụ thuộc vào tình trạng răng và chỉ định chuyên môn."
             ),
             "hashtags": ["#SmileUp", "#TuVanNhaKhoa", "#NhaKhoaMinhBach", "#RangSuImplant"],
-            "call_to_action": "Gửi tình trạng răng của bạn cho SmileUp để được hẹn lịch thăm khám phù hợp.",
+            "call_to_action": "Bạn đang phân vân răng sứ hay implant? Bình luận câu hỏi của bạn để SmileUp gợi ý điều nên kiểm tra trước.",
             "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp giải thích phác đồ trên tablet, không gian phòng khám hiện đại, logo SmileUp rõ nét.",
         },
         {
+            "campaign_track": "page_care",
+            "monthly_role": "Tuyến chăm sóc page: nuôi niềm tin và tăng tương tác",
             "service_line": "reels",
             "angle": "Short-form hook để kéo bình luận",
-            "differentiation": "SmileUp dùng câu hỏi tư vấn thật thay vì copy offer của đối thủ, phù hợp Reels và story.",
-            "marketing_analysis": "Short-form cần một câu hỏi để khách tự nhận diện vấn đề và để lại comment/inbox.",
+            "differentiation": "Bài chăm sóc page dùng câu hỏi đời thường để kéo bình luận chất lượng, không ép khách để SĐT.",
+            "marketing_analysis": "Short-form cần một câu hỏi để khách tự nhận diện vấn đề, bình luận và lưu lại trước khi chuyển đổi ở bài ads.",
             "trend_angle": "Hook dạng câu hỏi: nếu mất 1 răng nhưng vẫn ăn được, có cần đi khám không?",
             "post_structure": "Question hook -> 3 dấu hiệu -> CTA comment/inbox",
             "title": "Mất 1 răng nhưng vẫn ăn được, có cần đi khám không?",
@@ -145,7 +179,7 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
                 "Nếu bạn đang mất răng, đau khi nhai hoặc ngại cười vì khoảng trống trên hàm, hãy để bác sĩ SmileUp kiểm tra trước khi quyết định phương án. Mỗi tình trạng sẽ có chỉ định khác nhau."
             ),
             "hashtags": ["#SmileUp", "#HoiDapNhaKhoa", "#MatRang", "#Implant"],
-            "call_to_action": "Comment 'IMPLANT' hoặc inbox SmileUp để được hẹn lịch tư vấn.",
+            "call_to_action": "Comment tình trạng răng của bạn hoặc lưu bài này để nhớ kiểm tra khi có thời gian.",
             "image_prompt": "Ảnh gốc/AI mới: frame reels dọc, bác sĩ SmileUp chỉ vào câu hỏi text overlay, logo SmileUp góc trên trái, phòng khám sáng sạch.",
         },
     ]
@@ -155,34 +189,38 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
 def _vary_offline_plan(plan: list[ContentVariant], run_seed: str) -> list[ContentVariant]:
     seed_value = sum(ord(char) for char in str(run_seed)) if run_seed else 0
     variation_index = seed_value % 3
-    rotations = seed_value % len(plan) if plan else 0
-    if rotations:
-        plan = plan[rotations:] + plan[:rotations]
-
     hooks = [
         {
-            "implant": "Mất răng lâu năm: đừng để việc ăn nhai trở thành nỗi lo mỗi ngày",
-            "rang_su": "Làm răng sứ đẹp không nên bắt đầu từ màu răng, mà từ tư vấn đúng",
+            "implant": "Mất răng lâu năm? Để lại SĐT để SmileUp tư vấn hướng xử lý phù hợp",
+            "rang_su": "Muốn làm răng sứ tự nhiên? Đừng chọn màu răng trước khi được tư vấn",
+            "phuc_hinh_su": "Răng yếu, răng vỡ: để lại SĐT để SmileUp tư vấn bước kiểm tra đầu tiên",
             "trust": "Cùng là răng sứ hay implant, vì sao mỗi người cần một phác đồ riêng?",
             "reels": "Mất 1 răng nhưng vẫn ăn được, có cần đi khám không?",
         },
         {
-            "implant": "Trước khi cấy implant, hãy hỏi bác sĩ 4 điều này",
-            "rang_su": "Răng sứ đẹp tự nhiên bắt đầu từ việc giữ lại phần răng thật có thể giữ",
+            "implant": "Trước khi cấy implant, hãy để SmileUp gọi lại hỏi đúng tình trạng của bạn",
+            "rang_su": "Sợ làm răng sứ bị giả? Để lại SĐT để được tư vấn dáng răng phù hợp",
+            "phuc_hinh_su": "Răng từng làm rồi vẫn khó chịu? Nhắn SĐT để SmileUp hỏi đúng vấn đề",
             "trust": "Đừng chọn nha khoa chỉ vì ưu đãi: hãy hỏi rõ phác đồ trước",
             "reels": "Một khoảng trống mất răng có thể kéo theo điều gì?",
         },
         {
-            "implant": "Mất răng không chỉ là chuyện thẩm mỹ, mà còn là chuyện ăn nhai",
-            "rang_su": "Muốn làm răng sứ, điều đầu tiên không phải chọn màu trắng nhất",
+            "implant": "Mất răng không chỉ là chuyện thẩm mỹ: inbox SĐT để được tư vấn bước kiểm tra",
+            "rang_su": "Muốn làm răng sứ, điều đầu tiên là biết răng thật còn bảo tồn được bao nhiêu",
+            "phuc_hinh_su": "Răng vỡ/mẻ lớn nên phục hình thế nào? Để lại SĐT để được tư vấn bước đầu",
             "trust": "Một kế hoạch nha khoa tốt phải nói rõ cả giới hạn và rủi ro",
             "reels": "Nếu đang phân vân răng sứ hay implant, bắt đầu từ đâu?",
         },
     ]
-    ctas = [
-        "Inbox SmileUp để được tư vấn cá nhân hóa theo tình trạng răng hiện tại.",
-        "Gửi tình trạng răng của bạn để SmileUp hẹn lịch thăm khám phù hợp.",
-        "Đặt lịch thăm khám tại SmileUp để bác sĩ tư vấn trực tiếp trước khi quyết định.",
+    ads_ctas = [
+        "Để lại SĐT hoặc inbox SmileUp, đội ngũ tư vấn sẽ gọi lại để hỏi tình trạng và hẹn lịch thăm khám phù hợp.",
+        "Nhắn SĐT cho SmileUp để được gọi lại tư vấn bước kiểm tra phù hợp trước khi quyết định.",
+        "Gửi số điện thoại và tình trạng răng hiện tại, SmileUp sẽ liên hệ tư vấn cá nhân hóa cho bạn.",
+    ]
+    care_ctas = [
+        "Bình luận câu hỏi của bạn để SmileUp gợi ý điều nên kiểm tra trước.",
+        "Lưu bài này lại nếu bạn đang cân nhắc răng sứ hoặc implant trong thời gian tới.",
+        "Bạn từng lo điều gì nhất khi đi nha khoa? Comment để SmileUp giải đáp ở bài sau.",
     ]
     trend_notes = [
         "Checklist dễ lưu: các câu hỏi cần hỏi bác sĩ trước khi quyết định.",
@@ -196,6 +234,7 @@ def _vary_offline_plan(plan: list[ContentVariant], run_seed: str) -> list[Conten
         updated = dict(variant)
         updated["title"] = hooks[variation_index].get(service, variant.get("title", ""))
         updated["trend_angle"] = trend_notes[(variation_index + index) % len(trend_notes)]
+        ctas = ads_ctas if updated.get("campaign_track") == "ads_effective" else care_ctas
         updated["call_to_action"] = ctas[(variation_index + index) % len(ctas)]
         updated["angle"] = f"{variant.get('angle', '')} · variation {variation_index + 1}".strip(" ·")
         varied.append(updated)

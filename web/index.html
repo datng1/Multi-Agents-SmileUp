@@ -16,8 +16,8 @@
           </span>
           <div>
             <p class="eyebrow">SmileUp Dental Clinic</p>
-            <h1>Marketing Intelligence Console</h1>
-            <p class="top-note">Quét quảng cáo nha khoa, phân tích bằng 10 agents, tạo chiến lược, bài viết và creative cho răng sứ, implant.</p>
+            <h1>CMO Command Center</h1>
+            <p class="top-note">CMO lập chiến lược tháng, điều phối agent con, tách tuyến ads lấy SĐT và tuyến chăm sóc page cho SmileUp.</p>
           </div>
         </div>
         <div class="top-actions">
@@ -51,7 +51,7 @@
               </div>
             </div>
             <div class="auto-note-grid">
-              <div><span class="label">Ranking</span><strong>Giống keyword + mới nhất</strong></div>
+              <div><span class="label">Ranking</span><strong>Match >=95% + mới nhất</strong></div>
               <div><span class="label">Default</span><strong>Dùng keyword nha khoa nếu để trống</strong></div>
               <div><span class="label">Schedule</span><strong>Daily scan qua Task Scheduler</strong></div>
             </div>
@@ -162,18 +162,25 @@
         </div>
         <div>
           <span class="label">Output</span>
-          <strong>Posts + creatives</strong>
+          <strong>Monthly strategy + posts</strong>
         </div>
       </section>
 
       <section class="flow-rail" aria-label="Workflow summary">
-        <div><span>01</span><strong>Scan</strong><p>Quét keyword, lấy ads mới và match cao.</p></div>
-        <div><span>02</span><strong>CMO review</strong><p>Chọn chiến lược, variant và creative an toàn.</p></div>
-        <div><span>03</span><strong>Final edit</strong><p>Sửa caption, ảnh và xem preview như Facebook.</p></div>
-        <div><span>04</span><strong>Publish</strong><p>Xuất payload hoặc link bài đã đăng.</p></div>
+        <div><span>01</span><strong>Thu thập tín hiệu</strong><p>Quét ads match cao, mới nhất và dữ liệu nhập tay.</p></div>
+        <div><span>02</span><strong>Agent phân tích</strong><p>Text, trend, visual, video, compliance đọc theo nhiệm vụ riêng.</p></div>
+        <div><span>03</span><strong>CMO quyết định</strong><p>Tổng kết agent con, chốt chiến lược tháng và tuyến bài.</p></div>
+        <div><span>04</span><strong>Final review</strong><p>Sửa caption, ảnh và xem preview như Facebook trước khi đăng.</p></div>
       </section>
 
       <section class="workflow-panel" aria-label="Agent workflow">
+        <div class="workflow-header">
+          <div>
+            <span class="label">Multi-agent operating model</span>
+            <h2>Agent con phân tích, CMO là người chốt cuối</h2>
+          </div>
+          <span class="meta-chip">CMO gate</span>
+        </div>
         <article class="agent-card" data-agent="crawler"><div class="agent-topline"><span class="agent-number">01</span><span class="agent-state">Idle</span></div><h2>Crawler</h2><p>Quét Ad Library hoặc nhận input tay.</p></article>
         <article class="agent-card" data-agent="text_insight"><div class="agent-topline"><span class="agent-number">02</span><span class="agent-state">Idle</span></div><h2>Text</h2><p>Đọc hook, pain point, offer và CTA.</p></article>
         <article class="agent-card" data-agent="trend_analysis"><div class="agent-topline"><span class="agent-number">03</span><span class="agent-state">Idle</span></div><h2>Trend</h2><p>Tìm góc dễ kéo tương tác Facebook.</p></article>
@@ -183,7 +190,7 @@
         <article class="agent-card" data-agent="content_creator"><div class="agent-topline"><span class="agent-number">07</span><span class="agent-state">Idle</span></div><h2>Content</h2><p>Viết bài Facebook theo giọng marketing.</p></article>
         <article class="agent-card" data-agent="compliance"><div class="agent-topline"><span class="agent-number">08</span><span class="agent-state">Idle</span></div><h2>Compliance</h2><p>Chặn claim nha khoa quá đà.</p></article>
         <article class="agent-card" data-agent="hardness"><div class="agent-topline"><span class="agent-number">09</span><span class="agent-state">Idle</span></div><h2>Hardness</h2><p>Đo độ chắc dữ liệu và readiness.</p></article>
-        <article class="agent-card" data-agent="manager_review"><div class="agent-topline"><span class="agent-number">10</span><span class="agent-state">Idle</span></div><h2>CMO</h2><p>Chọn variant, creative và quyết định publish.</p></article>
+        <article class="agent-card agent-card-cmo" data-agent="manager_review"><div class="agent-topline"><span class="agent-number">10</span><span class="agent-state">Idle</span></div><h2>CMO Lead</h2><p>Tổng kết agent con, chọn tuyến bài, creative và quyết định publish.</p></article>
         <article class="agent-card" data-agent="publisher"><div class="agent-topline"><span class="agent-number">11</span><span class="agent-state">Idle</span></div><h2>Publisher</h2><p>Xuất payload an toàn ở chế độ dry-run.</p></article>
       </section>
 
@@ -231,10 +238,27 @@
         <section class="panel panel-wide cmo-panel">
           <div class="panel-header">
             <div>
-              <span class="label">CMO Orchestrator</span>
-              <h2>Quyết định điều phối luồng</h2>
+              <span class="label">CMO Command Center</span>
+              <h2>Chiến lược tháng, quyết định và tổng kết agent con</h2>
             </div>
             <span id="cmoActionBadge" class="meta-chip">Waiting</span>
+          </div>
+          <div class="cmo-track-strip" aria-label="CMO content tracks">
+            <div>
+              <span>01</span>
+              <strong>Ads hiệu quả</strong>
+              <p>Chỉ ưu tiên ads keyword match >=95%, copy phải kéo SĐT/inbox.</p>
+            </div>
+            <div>
+              <span>02</span>
+              <strong>Chăm sóc page</strong>
+              <p>Nuôi niềm tin, tăng tương tác chất lượng, không bán gắt.</p>
+            </div>
+            <div>
+              <span>03</span>
+              <strong>Compliance gate</strong>
+              <p>CMO chỉ cho publish khi bài đủ mạnh và an toàn y khoa.</p>
+            </div>
           </div>
           <div class="cmo-grid">
             <div>
@@ -338,15 +362,15 @@
           </div>
         </section>
 
-        <section class="panel panel-wide">
+        <section class="panel panel-wide content-plan-panel">
           <div class="panel-header">
-            <div><span class="label">CMO campaign plan</span><h2>Các bài viết khác biệt hơn ads đối thủ</h2></div>
+            <div><span class="label">CMO monthly plan</span><h2>Chiến lược tháng và 2 tuyến bài</h2></div>
             <span id="contentPlanCount" class="meta-chip">0 biến thể</span>
           </div>
           <div id="contentPlanList" class="content-plan-list empty-state">Chưa có campaign variants.</div>
         </section>
 
-        <section class="panel panel-wide">
+        <section class="panel panel-wide branded-creatives-panel">
           <div class="panel-header">
             <div><span class="label">Branded creatives</span><h2>Ảnh gợi ý kèm logo SmileUp</h2></div>
             <span id="creativeCount" class="meta-chip">0 ảnh</span>

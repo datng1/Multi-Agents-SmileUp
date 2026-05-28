@@ -572,9 +572,26 @@ h2 {
 }
 
 .flow-rail div {
+  position: relative;
   min-width: 0;
   padding: 14px;
   background: rgba(255, 255, 255, 0.98);
+}
+
+.flow-rail div:nth-child(3) {
+  background: #effcf8;
+}
+
+.flow-rail div:nth-child(3)::after {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  content: "";
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
 }
 
 .flow-rail span {
@@ -605,8 +622,24 @@ h2 {
 }
 
 .workflow-panel {
-  grid-template-columns: repeat(11, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin-bottom: 14px;
+}
+
+.workflow-header {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 8px;
+  background: #f5fbfa;
+}
+
+.workflow-header h2 {
+  margin-top: 4px;
 }
 
 .agent-card {
@@ -624,6 +657,19 @@ h2 {
 
 .agent-card.done {
   border-color: #b7e2c4;
+}
+
+.agent-card-cmo {
+  border-color: rgba(15, 118, 110, 0.42);
+  background: #effcf8;
+}
+
+.agent-card-cmo h2 {
+  color: var(--accent-strong);
+}
+
+.agent-card-cmo p {
+  display: block;
 }
 
 .agent-topline {
@@ -696,6 +742,68 @@ h2 {
 .post-panel,
 .cmo-panel {
   border-color: rgba(15, 118, 110, 0.26);
+}
+
+.cmo-panel {
+  order: -10;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 252, 250, 0.98)),
+    #fff;
+}
+
+.content-plan-panel {
+  order: -9;
+}
+
+.branded-creatives-panel {
+  order: -8;
+}
+
+.post-panel {
+  order: -7;
+}
+
+.cmo-track-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cmo-track-strip div {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 8px;
+  background: #fbfefd;
+}
+
+.cmo-track-strip span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 12px;
+  font-weight: 860;
+}
+
+.cmo-track-strip strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--navy);
+  font-size: 15px;
+}
+
+.cmo-track-strip p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .source-grid {
@@ -937,6 +1045,71 @@ pre {
 }
 
 .content-plan-list {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.content-track-group {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fbfefd 0%, #f7fbfc 100%);
+}
+
+.content-track-group.ads_effective {
+  border-color: rgba(15, 118, 110, 0.32);
+}
+
+.content-track-group.page_care {
+  border-color: rgba(37, 99, 235, 0.24);
+}
+
+.track-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.track-heading p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.track-heading strong {
+  flex: 0 0 auto;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.track-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.track-pill.ads_effective {
+  color: #064e3b;
+  background: #d1fae5;
+}
+
+.track-pill.page_care {
+  color: #1e3a8a;
+  background: #dbeafe;
+}
+
+.track-card-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
@@ -1394,17 +1567,23 @@ dd {
   .source-grid,
   .dashboard-grid,
   .final-review-grid,
-  .status-strip {
+  .status-strip,
+  .cmo-track-strip {
     grid-template-columns: 1fr;
   }
 
   .agent-output-grid,
   .content-plan-list,
+  .track-card-grid,
   .referenced-ads-list,
   .creative-source-grid,
   .media-input-grid,
   .auto-note-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .flow-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1426,11 +1605,14 @@ dd {
   }
 
   .workflow-panel,
+  .flow-rail,
+  .cmo-track-strip,
   .auto-note-grid,
   .media-input-grid,
   .analysis-grid,
   .agent-output-grid,
   .content-plan-list,
+  .track-card-grid,
   .referenced-ads-list,
   .final-two-col,
   .creative-source-grid,

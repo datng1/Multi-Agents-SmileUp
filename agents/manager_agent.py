@@ -218,7 +218,7 @@ def run_manager_agent(state: AgentState) -> AgentState:
 def _ensure_cmo_defaults(state: AgentState) -> None:
     state.setdefault(
         "cmo_objective",
-        "CMO nha khoa SmileUp: tăng lịch tư vấn răng sứ và implant bằng nội dung khác biệt, an toàn y khoa.",
+        "CMO SmileUp: lập chiến lược tháng, tách tuyến ads lấy SĐT và tuyến chăm sóc page, ưu tiên răng sứ, phục hình sứ và implant.",
     )
     state.setdefault("cmo_decision", "")
     state.setdefault("cmo_feedback", "")
@@ -239,8 +239,12 @@ def _score_note(score: int, flags: list[str], word_count: int, variant: ContentV
         return "Có claim/compliance rủi ro, cần sửa trước khi publish."
     if word_count < 90:
         return "Caption còn mỏng, cần thêm insight, trust proof và lý do inbox."
-    if variant.get("service_line") in {"implant", "rang_su"}:
+    if variant.get("service_line") in {"implant", "rang_su", "phuc_hinh_su"}:
         return "Phù hợp trọng tâm kinh doanh SmileUp: răng sứ/implant."
+    if variant.get("campaign_track") == "ads_effective":
+        return "Bài ads chuyển đổi, ưu tiên CTA lấy SĐT và lịch tư vấn."
+    if variant.get("campaign_track") == "page_care":
+        return "Bài chăm sóc page, phù hợp nuôi niềm tin và tăng tương tác."
     if score >= 75:
         return "Đủ tốt để CMO cân nhắc publish."
     return "Có thể dùng làm biến thể phụ nhưng chưa phải lựa chọn chính."
@@ -260,6 +264,7 @@ def _score_variants(state: AgentState, variants: list[ContentVariant]) -> list[d
         scorecard.append(
             {
                 "index": index,
+                "campaign_track": variant.get("campaign_track", "ads_effective"),
                 "service_line": service_line or "post",
                 "title": title,
                 "score": max(0, min(100, score)),
@@ -278,17 +283,23 @@ def _category_scores(state: AgentState, variant: ContentVariant, text: str, word
         business_fit += 7
     if any(term in text for term in ("tư vấn", "tu van", "thăm khám", "tham kham", "đặt lịch", "dat lich", "inbox")):
         business_fit += 5
-    if variant.get("service_line") in {"implant", "rang_su", "trust"}:
+    if variant.get("service_line") in {"implant", "rang_su", "phuc_hinh_su", "trust"}:
+        business_fit += 2
+    if variant.get("campaign_track") == "ads_effective":
         business_fit += 2
 
     lead_intent = 4
     cta = str(variant.get("call_to_action", "")).lower()
     if any(term in cta for term in ("inbox", "đặt lịch", "dat lich", "tư vấn", "tu van", "thăm khám", "tham kham")):
         lead_intent += 8
+    if variant.get("campaign_track") == "ads_effective" and any(term in cta + text for term in ("sđt", "sdt", "số điện thoại", "so dien thoai", "gọi lại", "goi lai")):
+        lead_intent += 6
     if any(term in text for term in ("trường hợp", "truong hop", "tình trạng", "tinh trang", "phù hợp", "phu hop")):
         lead_intent += 5
     if "comment" in text or "nhắn" in text or "nhan" in text:
         lead_intent += 3
+    if variant.get("campaign_track") == "page_care":
+        lead_intent = min(20, lead_intent - 2)
 
     differentiation = 4
     diff = str(variant.get("differentiation", "")).lower()
@@ -304,6 +315,8 @@ def _category_scores(state: AgentState, variant: ContentVariant, text: str, word
         viral += 5
     if "?" in variant.get("title", "") or "?" in variant.get("body", ""):
         viral += 2
+    if variant.get("campaign_track") == "page_care":
+        viral += 3
 
     customer_truth = 2
     if any(term in text for term in ("sợ đau", "so dau", "mài răng", "mai rang", "chi phí", "chi phi", "biến chứng", "bien chung", "tư vấn quá tay", "tu van qua tay")):
@@ -504,6 +517,7 @@ def _campaign_brief(state: AgentState, selected_variant: ContentVariant | None, 
         return "CMO chưa chọn được campaign variant."
     return (
         f"Mục tiêu: {state.get('cmo_objective', '')}\n"
+        f"Tuyến bài: {selected_variant.get('campaign_track', 'post')} - {selected_variant.get('monthly_role', '')}\n"
         f"Trụ cột được chọn: {selected_variant.get('service_line', 'post')}.\n"
         f"Góc triển khai: {selected_variant.get('angle', '')}\n"
         f"Điểm khác biệt SmileUp: {selected_variant.get('differentiation', '')}\n"
@@ -599,6 +613,7 @@ def _daily_strategy(state: AgentState) -> str:
         f"{state.get('hardness_report', '')}\n\n"
         f"{state.get('cmo_jury_summary', '')}\n\n"
         f"{state.get('cmo_campaign_brief', '')}\n\n"
+        f"{state.get('monthly_strategy', '')}\n\n"
         "Thông điệp chủ đạo: SmileUp khác biệt bằng tư vấn cá nhân hóa, minh bạch chỉ định và an toàn y khoa.\n"
         "Dịch vụ trọng tâm: răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép implant.\n"
         f"Insight thị trường: {state.get('market_trend_summary', '')}\n"
@@ -609,8 +624,8 @@ def _daily_strategy(state: AgentState) -> str:
         f"{_content_plan_summary(state)}\n"
         f"{_creative_asset_summary(state)}\n"
         "3-5 hành động hôm nay:\n"
-        "- Đăng/lên lịch variant được CMO chọn trước, các variant còn lại dùng làm backup A/B test.\n"
-        "- Ghim CTA inbox/hotline và kịch bản hỏi nhanh: tình trạng răng, mong muốn, thời gian rảnh để thăm khám.\n"
+        "- Đăng/lên lịch variant ads_effective được CMO chọn trước cho mục tiêu lấy SĐT; dùng page_care để nuôi tương tác xen kẽ.\n"
+        "- Ghim CTA inbox/SĐT và kịch bản hỏi nhanh: tình trạng răng, mong muốn, thời gian rảnh để thăm khám.\n"
         "- Dùng creative gốc có logo SmileUp; không dùng ảnh/nhận diện của đối thủ.\n"
         "- Theo dõi comment trong 2 giờ đầu sau đăng và chuyển lead nóng sang inbox.\n"
         "Rủi ro cần tránh: claim tuyệt đối, before/after thiếu consent, rebrand ảnh đối thủ."
@@ -621,7 +636,7 @@ def _daily_report(state: AgentState) -> str:
     insights = state.get("competitor_insights", [])
     status = state.get("approval_status", "pending")
     return (
-        f"Tổng quan insight đối thủ: đã phân tích {len(insights)} nguồn, ưu tiên răng sứ, implant, ưu đãi, tư vấn và CTA.\n"
+        f"Tổng quan insight đối thủ: đã phân tích {len(insights)} nguồn, ưu tiên ads match >=95%, răng sứ, implant, tư vấn và CTA lấy SĐT.\n"
         f"CMO status: {status}.\n"
         f"CMO decision: {state.get('cmo_decision', '')} -> {state.get('cmo_next_action', '')}\n"
         f"CMO feedback: {state.get('cmo_feedback', '')}\n"
@@ -649,7 +664,7 @@ def _content_plan_summary(state: AgentState) -> str:
     for index, variant in enumerate(variants, start=1):
         marker = " [CMO PICK]" if index - 1 == selected else ""
         lines.append(
-            f"- {index}. {variant.get('service_line', 'post')}{marker}: {variant.get('title', '')} | Khác biệt: {variant.get('differentiation', '')}"
+            f"- {index}. {variant.get('campaign_track', 'post')} / {variant.get('service_line', 'post')}{marker}: {variant.get('title', '')} | Khác biệt: {variant.get('differentiation', '')}"
         )
     return "\n".join(lines)
 

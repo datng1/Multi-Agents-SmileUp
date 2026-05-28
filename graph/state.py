@@ -47,6 +47,9 @@ class DraftContent(TypedDict):
 
 
 class ContentVariant(TypedDict, total=False):
+    campaign_track: str
+    monthly_role: str
+    source_ads_count: int
     service_line: str
     angle: str
     differentiation: str
@@ -64,6 +67,8 @@ class ContentVariant(TypedDict, total=False):
 class AgentState(TypedDict):
     competitor_insights: list[CompetitorInsight]
     ad_library_ads: list[dict[str, Any]]
+    high_match_ads: list[dict[str, Any]]
+    high_match_threshold: float
     ad_library_report: str
     ad_library_keywords: str
     market_trend_summary: str
@@ -75,6 +80,7 @@ class AgentState(TypedDict):
     visual_insight_report: str
     video_insight_report: str
     strategic_direction: str
+    monthly_strategy: str
     compliance_report: str
     hardness_score: int
     hardness_risk_level: str
@@ -119,6 +125,8 @@ def create_initial_state() -> AgentState:
     return {
         "competitor_insights": [],
         "ad_library_ads": [],
+        "high_match_ads": [],
+        "high_match_threshold": 0.95,
         "ad_library_report": "",
         "ad_library_keywords": "",
         "market_trend_summary": "",
@@ -130,6 +138,7 @@ def create_initial_state() -> AgentState:
         "visual_insight_report": "",
         "video_insight_report": "",
         "strategic_direction": "",
+        "monthly_strategy": "",
         "compliance_report": "",
         "hardness_score": 0,
         "hardness_risk_level": "unknown",
@@ -146,7 +155,7 @@ def create_initial_state() -> AgentState:
         "creative_reference_note": "",
         "creative_reference_ad": {},
         "creative_reference_blueprint": "",
-        "cmo_objective": "CMO nha khoa SmileUp: tăng lịch tư vấn răng sứ và implant bằng nội dung khác biệt, an toàn y khoa.",
+        "cmo_objective": "CMO SmileUp: lập chiến lược tháng, tách tuyến ads lấy SĐT và tuyến chăm sóc page, ưu tiên răng sứ, phục hình sứ và implant.",
         "cmo_decision": "",
         "cmo_feedback": "",
         "cmo_next_action": "continue",
