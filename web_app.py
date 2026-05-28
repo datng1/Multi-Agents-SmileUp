@@ -5,11 +5,13 @@ import io
 import json
 import re
 import sys
+import threading
 import time
+import uuid
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote, urlparse
 
 from graph.state import create_initial_state
 from graph.workflow import build_workflow
@@ -23,6 +25,8 @@ UPLOAD_ROOT = WEB_ROOT / "generated" / "uploads"
 HOST = "127.0.0.1"
 PORT = 8765
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+JOB_LOCK = threading.Lock()
+JOBS: dict[str, dict] = {}
 
 
 def _enable_utf8_console() -> None:
@@ -33,10 +37,12 @@ def _enable_utf8_console() -> None:
 
 class MarketingUIHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
-        if self.path == "/":
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if path == "/":
             self._serve_file(WEB_ROOT / "index.html", "text/html; charset=utf-8")
             return
-        if self.path.startswith("/api/status"):
+        if path == "/api/status":
             self._send_json(
                 {
                     "mock_mode": config.MOCK_MODE,
@@ -51,8 +57,18 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 }
             )
             return
+        if path == "/api/job":
+            query = parse_qs(parsed.query)
+            job_id = (query.get("id") or [""])[0]
+            with JOB_LOCK:
+                job = dict(JOBS.get(job_id) or {})
+            if not job:
+                self._send_json({"ok": False, "error": "Job not found"}, status=404)
+                return
+            self._send_json({"ok": True, "job_id": job_id, **job})
+            return
 
-        relative = unquote(self.path.lstrip("/"))
+        relative = unquote(path.lstrip("/"))
         self._serve_static(WEB_ROOT / relative)
 
     def do_POST(self) -> None:
@@ -60,53 +76,20 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
 
-        log_buffer = io.StringIO()
         try:
             request_payload = self._read_json()
-            manual_text = str(request_payload.get("manual_competitor_posts", "")).strip()
-            visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
-            video_notes = str(request_payload.get("manual_video_notes", "")).strip()
-            ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
-            creative_image_mode = "text_only"
-            creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
-            creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
-            initial_state = create_initial_state()
-            initial_state["run_seed"] = str(time.time_ns())
-            initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
-            initial_state["competitor_visual_notes"] = visual_notes
-            initial_state["competitor_video_notes"] = video_notes
-            initial_state["creative_image_mode"] = creative_image_mode
-            if creative_image_data_url and creative_image_mode in {"owned", "layout_reference"}:
-                upload_path, upload_url = _save_uploaded_creative(creative_image_data_url, creative_image_name)
-                initial_state["creative_upload_path"] = upload_path
-                initial_state["creative_upload_url"] = upload_url
-                if creative_image_mode == "owned":
-                    initial_state["creative_reference_note"] = "Using uploaded SmileUp-owned/licensed image as creative source."
-                else:
-                    initial_state["creative_reference_note"] = "Using uploaded image as layout reference only; original pixels are not reused."
-            if manual_text:
-                manual_insights = parse_manual_competitor_posts(manual_text)
-                if manual_insights:
-                    initial_state["competitor_insights"] = manual_insights
-                    initial_state["data_source"] = "manual"
-                    initial_state["manual_posts_count"] = len(manual_insights)
-            if visual_notes or video_notes:
-                initial_state["data_source"] = "manual"
+            if request_payload.get("sync"):
+                self._send_json({"ok": True, **_run_workflow_payload(request_payload)})
+                return
 
-            started_at = time.perf_counter()
-            with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
-                result = build_workflow().invoke(initial_state)
-            duration_ms = round((time.perf_counter() - started_at) * 1000)
-            self._send_json(
-                {
-                    "ok": True,
-                    "result": result,
-                    "duration_ms": duration_ms,
-                    "logs": log_buffer.getvalue().strip(),
-                }
-            )
+            job_id = uuid.uuid4().hex
+            with JOB_LOCK:
+                JOBS[job_id] = {"status": "running", "started_at": time.time(), "logs": "Workflow queued."}
+            worker = threading.Thread(target=_run_job, args=(job_id, request_payload), daemon=True)
+            worker.start()
+            self._send_json({"ok": True, "job_id": job_id, "status": "running"})
         except Exception as exc:
-            self._send_json({"ok": False, "error": _sanitize_error(str(exc)), "logs": log_buffer.getvalue().strip()}, status=500)
+            self._send_json({"ok": False, "error": _sanitize_error(str(exc)), "logs": ""}, status=500)
 
     def _serve_static(self, path: Path) -> None:
         resolved = path.resolve()
@@ -151,6 +134,70 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args) -> None:
         return
+
+
+def _run_job(job_id: str, request_payload: dict) -> None:
+    try:
+        output = _run_workflow_payload(request_payload)
+        with JOB_LOCK:
+            JOBS[job_id].update({"status": "completed", **output, "finished_at": time.time()})
+    except Exception as exc:
+        with JOB_LOCK:
+            JOBS[job_id].update(
+                {
+                    "status": "error",
+                    "error": _sanitize_error(str(exc)),
+                    "finished_at": time.time(),
+                }
+            )
+
+
+def _run_workflow_payload(request_payload: dict) -> dict:
+    log_buffer = io.StringIO()
+    initial_state = _build_initial_state(request_payload)
+    started_at = time.perf_counter()
+    with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
+        result = build_workflow().invoke(initial_state)
+    duration_ms = round((time.perf_counter() - started_at) * 1000)
+    return {
+        "result": result,
+        "duration_ms": duration_ms,
+        "logs": log_buffer.getvalue().strip(),
+    }
+
+
+def _build_initial_state(request_payload: dict) -> dict:
+    manual_text = str(request_payload.get("manual_competitor_posts", "")).strip()
+    visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
+    video_notes = str(request_payload.get("manual_video_notes", "")).strip()
+    ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
+    creative_image_mode = "text_only"
+    creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
+    creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
+
+    initial_state = create_initial_state()
+    initial_state["run_seed"] = str(time.time_ns())
+    initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
+    initial_state["competitor_visual_notes"] = visual_notes
+    initial_state["competitor_video_notes"] = video_notes
+    initial_state["creative_image_mode"] = creative_image_mode
+    if creative_image_data_url and creative_image_mode in {"owned", "layout_reference"}:
+        upload_path, upload_url = _save_uploaded_creative(creative_image_data_url, creative_image_name)
+        initial_state["creative_upload_path"] = upload_path
+        initial_state["creative_upload_url"] = upload_url
+        if creative_image_mode == "owned":
+            initial_state["creative_reference_note"] = "Using uploaded SmileUp-owned/licensed image as creative source."
+        else:
+            initial_state["creative_reference_note"] = "Using uploaded image as layout reference only; original pixels are not reused."
+    if manual_text:
+        manual_insights = parse_manual_competitor_posts(manual_text)
+        if manual_insights:
+            initial_state["competitor_insights"] = manual_insights
+            initial_state["data_source"] = "manual"
+            initial_state["manual_posts_count"] = len(manual_insights)
+    if visual_notes or video_notes:
+        initial_state["data_source"] = "manual"
+    return initial_state
 
 
 def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str]:

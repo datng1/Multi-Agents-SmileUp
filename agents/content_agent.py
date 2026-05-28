@@ -1,6 +1,8 @@
 from graph.state import AgentState, ContentVariant, DraftContent
 from tools.creative_generator import generate_creative_assets
 from tools.gemini_client import GeminiUnavailable, generate_content_plan_with_gemini, generate_draft_with_gemini
+from tools.openai_client import generate_text_with_openai
+from utils import config
 from utils.logger import get_logger
 
 
@@ -13,8 +15,8 @@ def run_content_agent(state: AgentState) -> AgentState:
         state["revision_count"] = state.get("revision_count", 0) + 1
 
     try:
-        variants = generate_content_plan_with_gemini(state)
-        state["messages"].append({"role": "content", "content": f"Campaign plan created with Gemini ({len(variants)} variants)"})
+        variants, provider = _generate_content_plan_with_preferred_model(state)
+        state["messages"].append({"role": "content", "content": f"Campaign plan created with {provider} ({len(variants)} variants)"})
     except (GeminiUnavailable, Exception) as exc:
         logger.warning("Gemini campaign generation failed, using fallback draft/plan: %s", exc)
         try:
@@ -46,6 +48,25 @@ def run_content_agent(state: AgentState) -> AgentState:
     state["approval_status"] = "pending"
     state["current_step"] = "content_creator"
     return state
+
+
+def _generate_content_plan_with_preferred_model(state: AgentState) -> tuple[list[ContentVariant], str]:
+    if config.OPENAI_API_KEY:
+        try:
+            from tools.gemini_client import _build_campaign_prompt, _parse_content_plan
+
+            text, model = generate_text_with_openai(
+                _build_campaign_prompt(state),
+                system="You are a senior Vietnamese dental marketing CMO copywriting agent. Return only valid JSON matching the requested schema.",
+                temperature=0.35,
+                timeout=120,
+            )
+            return _parse_content_plan(text), f"GPT ({model})"
+        except Exception as exc:
+            logger.warning("GPT campaign generation failed, trying Gemini: %s", exc)
+
+    variants = generate_content_plan_with_gemini(state)
+    return variants, "Gemini"
 
 
 def _draft_from_variant(variant: ContentVariant) -> DraftContent:

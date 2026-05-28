@@ -286,8 +286,9 @@ async function runWorkflow() {
     if (!payload.ok) {
       throw new Error(payload.error || "Workflow failed");
     }
+    const completedPayload = payload.job_id ? await waitForWorkflowJob(payload.job_id) : payload;
 
-    renderResult(payload.result, payload.logs || "", payload.duration_ms);
+    renderResult(completedPayload.result, completedPayload.logs || "", completedPayload.duration_ms);
     completeAgents();
     lastRunValue.textContent = new Date().toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -304,6 +305,34 @@ async function runWorkflow() {
     runButton.disabled = false;
     runButton.querySelector(".button-icon").textContent = "▶";
   }
+}
+
+async function waitForWorkflowJob(jobId) {
+  safePayload.textContent = `Job ${jobId} đang chạy. Các agent con có thể gọi GPT/Gemini nên lượt chạy có thể mất vài phút.`;
+  let attempt = 0;
+  while (true) {
+    await sleep(3000);
+    attempt += 1;
+    const response = await fetch(`/api/job?id=${encodeURIComponent(jobId)}`, { cache: "no-store" });
+    const payload = await response.json();
+    if (!payload.ok) {
+      throw new Error(payload.error || "Workflow job failed");
+    }
+    if (payload.status === "completed") {
+      return payload;
+    }
+    if (payload.status === "error") {
+      throw new Error(payload.error || "Workflow job failed");
+    }
+    const elapsed = payload.started_at ? Math.round(Date.now() / 1000 - payload.started_at) : attempt * 3;
+    durationValue.textContent = `${elapsed}s`;
+    safePayload.textContent = `Job ${jobId} đang chạy (${elapsed}s). CMO vẫn đang tổng hợp các agent.`;
+    logOutput.textContent = payload.logs || "Workflow đang chạy...";
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function renderResult(result, logs, durationMs) {

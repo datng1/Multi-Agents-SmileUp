@@ -32,7 +32,7 @@ class Settings:
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
     cmo_jury_enabled: bool = _bool("CMO_JURY_ENABLED", True)
-    agent_api_reasoning_enabled: bool = _bool("AGENT_API_REASONING_ENABLED", False)
+    agent_api_reasoning_enabled: bool = _bool("AGENT_API_REASONING_ENABLED", True)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     dry_run: bool = _bool("DRY_RUN", True)
     mock_mode: bool = _bool("MOCK_MODE", False)
@@ -56,10 +56,10 @@ class Settings:
 
     @property
     def ai_provider(self) -> str:
-        if self.gemini_api_key:
-            return "Gemini"
         if self.openai_api_key:
             return "OpenAI"
+        if self.gemini_api_key:
+            return "Gemini"
         if self.anthropic_api_key:
             return "Anthropic"
         return "Local fallback"

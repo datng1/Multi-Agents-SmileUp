@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import requests
 from typing import Any
 
 from tools.gemini_client import GeminiUnavailable, generate_text_with_gemini
@@ -28,19 +29,19 @@ def reason_with_agent_api(
     if not config.AGENT_API_REASONING_ENABLED:
         return fallback, "local-bounded"
 
+    if config.OPENAI_API_KEY:
+        try:
+            return _clean_report(_call_openai(prompt), fallback), f"GPT ({config.OPENAI_MODEL})"
+        except Exception as exc:
+            errors.append(f"OpenAI: {exc}")
+            logger.warning("%s OpenAI reasoning failed: %s", agent_name, exc)
+
     if config.GEMINI_API_KEY:
         try:
             return _clean_report(generate_text_with_gemini(prompt), fallback), "Gemini"
         except Exception as exc:
             errors.append(f"Gemini: {exc}")
             logger.warning("%s Gemini reasoning failed: %s", agent_name, exc)
-
-    if config.OPENAI_API_KEY:
-        try:
-            return _clean_report(_call_openai(prompt), fallback), "OpenAI"
-        except Exception as exc:
-            errors.append(f"OpenAI: {exc}")
-            logger.warning("%s OpenAI reasoning failed: %s", agent_name, exc)
 
     if config.ANTHROPIC_API_KEY:
         try:
