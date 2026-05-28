@@ -1,4 +1,5 @@
 from graph.state import AgentState
+from tools.agent_api_reasoning import reason_with_agent_api
 from tools.compliance import compliance_flags
 from utils.logger import get_logger
 
@@ -80,9 +81,27 @@ def run_hardness_agent(state: AgentState) -> AgentState:
     state["hardness_missing_evidence"] = missing
     state["hardness_recommended_next_agents"] = recommendations
     state["hardness_publish_readiness"] = readiness
-    state["hardness_report"] = _report(score, risk_level, readiness, missing, recommendations)
+    fallback_report = _report(score, risk_level, readiness, missing, recommendations)
+    report, provider = reason_with_agent_api(
+        agent_name="Hardness Agent",
+        role="Đánh giá độ chắc dữ liệu, evidence depth, thiếu sót và publish readiness cho CMO.",
+        task="Kiểm tra workflow đã đủ dữ liệu chưa, tuyến ads/page care có đủ cơ sở không, có cần chạy lại agent nào trước khi CMO chốt không.",
+        context={
+            "hardness_score": score,
+            "risk_level": risk_level,
+            "publish_readiness": readiness,
+            "missing_evidence": missing,
+            "recommended_next_agents": recommendations,
+            "ad_library_report": state.get("ad_library_report", ""),
+            "monthly_strategy": state.get("monthly_strategy", ""),
+            "content_plan": state.get("content_plan", []),
+            "compliance_report": state.get("compliance_report", ""),
+        },
+        fallback=fallback_report,
+    )
+    state["hardness_report"] = report
     state["current_step"] = "hardness"
-    state["messages"].append({"role": "hardness", "content": state["hardness_report"]})
+    state["messages"].append({"role": "hardness", "content": f"{provider}: {state['hardness_report']}"})
     return state
 
 

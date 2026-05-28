@@ -89,6 +89,13 @@ Workflow hiện chia rõ các vai:
 - Copywriting Agent: viết bài Facebook bằng giọng marketing nha khoa có thể đăng ngay.
 - Compliance Agent: kiểm tra claim nha khoa, tránh cam kết tuyệt đối và yêu cầu có lưu ý thăm khám.
 
+Các agent phân tích chính được phép dùng LLM API để suy nghĩ theo vai trò riêng:
+
+- Ưu tiên theo thứ tự key đang có: Gemini, OpenAI, Anthropic.
+- Mỗi agent chỉ được đọc dữ liệu trong `AgentState`, không tự crawl thêm, không publish, không xử lý token/cookie.
+- Nếu API lỗi hoặc thiếu key, agent tự fallback về heuristic local để workflow vẫn chạy được.
+- Content Agent và CMO/Jury vẫn dùng model để viết, chấm điểm và ra quyết định; CMO là người chốt cuối trước Publisher.
+
 ## Trend Và Hình Ảnh
 
 Workflow hiện có thêm:

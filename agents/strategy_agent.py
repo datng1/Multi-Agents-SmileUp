@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from graph.state import AgentState
+from tools.agent_api_reasoning import reason_with_agent_api
 from tools.media_analyzer import build_strategic_direction
 from utils.logger import get_logger
 
@@ -10,16 +11,35 @@ logger = get_logger(__name__)
 
 def run_strategy_agent(state: AgentState) -> AgentState:
     logger.info("Strategy Agent selecting SmileUp direction")
-    state["strategic_direction"] = build_strategic_direction(
+    fallback_direction = build_strategic_direction(
         state.get("text_insight_report", ""),
         state.get("visual_insight_report", ""),
         state.get("video_insight_report", ""),
         state.get("facebook_trend_analysis", ""),
     )
-    state["monthly_strategy"] = _build_monthly_strategy(state)
-    state["strategic_direction"] = f"{state['monthly_strategy']}\n\n{state['strategic_direction']}".strip()
+    fallback_monthly = _build_monthly_strategy(state)
+    report, provider = reason_with_agent_api(
+        agent_name="Strategy Agent",
+        role="Chuyển insight từ agent con thành chiến lược tháng, funnel, phân khúc, KPI và tuyến bài.",
+        task=(
+            "Tạo chiến lược tháng cho CMO. Bắt buộc chia 2 tuyến: ads_effective lấy SĐT từ ads match >=95%, "
+            "và page_care để nuôi page/tăng tương tác."
+        ),
+        context={
+            "text_insight_report": state.get("text_insight_report", ""),
+            "facebook_trend_analysis": state.get("facebook_trend_analysis", ""),
+            "visual_insight_report": state.get("visual_insight_report", ""),
+            "video_insight_report": state.get("video_insight_report", ""),
+            "ad_library_report": state.get("ad_library_report", ""),
+            "high_match_ads": state.get("high_match_ads", []),
+            "fallback_monthly_strategy": fallback_monthly,
+        },
+        fallback=f"{fallback_monthly}\n\n{fallback_direction}",
+    )
+    state["monthly_strategy"] = report
+    state["strategic_direction"] = f"{report}\n\n{fallback_direction}".strip()
     state["current_step"] = "strategy"
-    state["messages"].append({"role": "strategy", "content": "Built monthly CMO strategy with ads-effective and page-care tracks"})
+    state["messages"].append({"role": "strategy", "content": f"Built monthly CMO strategy with {provider}"})
     return state
 
 

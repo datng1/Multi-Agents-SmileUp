@@ -1,4 +1,5 @@
 from graph.state import AgentState
+from tools.agent_api_reasoning import reason_with_agent_api
 from tools.media_analyzer import build_visual_insight_report
 from utils.logger import get_logger
 
@@ -8,10 +9,23 @@ logger = get_logger(__name__)
 
 def run_visual_insight_agent(state: AgentState) -> AgentState:
     logger.info("Visual Insight Agent analyzing image notes")
-    state["visual_insight_report"] = build_visual_insight_report(
+    fallback = build_visual_insight_report(
         state.get("competitor_visual_notes", ""),
         state.get("visual_creative_brief", ""),
     )
+    report, provider = reason_with_agent_api(
+        agent_name="Visual Insight Agent",
+        role="Đọc ghi chú ảnh/media preview, rút bố cục, text overlay, tín hiệu niềm tin và creative direction an toàn.",
+        task="Tạo report cho CMO về visual nên dùng cho tuyến ads hiệu quả và tuyến chăm sóc page. Không yêu cầu rebrand ảnh đối thủ.",
+        context={
+            "competitor_visual_notes": state.get("competitor_visual_notes", ""),
+            "visual_creative_brief": state.get("visual_creative_brief", ""),
+            "creative_image_mode": state.get("creative_image_mode", ""),
+            "creative_reference_ad": state.get("creative_reference_ad", {}),
+        },
+        fallback=fallback,
+    )
+    state["visual_insight_report"] = report
     state["current_step"] = "visual_insight"
-    state["messages"].append({"role": "visual_insight", "content": "Analyzed visual notes and safe SmileUp creative direction"})
+    state["messages"].append({"role": "visual_insight", "content": f"Analyzed visual notes with {provider}"})
     return state
