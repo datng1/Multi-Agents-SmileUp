@@ -42,6 +42,10 @@ class Settings:
     ad_library_country: str = os.getenv("AD_LIBRARY_COUNTRY", "VN")
     ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "12"))
     ad_library_cache_ttl_hours: float = float(os.getenv("AD_LIBRARY_CACHE_TTL_HOURS", "24"))
+    auth_enabled: bool = _bool("AUTH_ENABLED", False)
+    admin_username: str = os.getenv("ADMIN_USERNAME", "")
+    admin_password: str = os.getenv("ADMIN_PASSWORD", "")
+    auth_secret: str = os.getenv("AUTH_SECRET", "")
 
     @property
     def warnings(self) -> list[str]:
@@ -94,3 +98,7 @@ AD_LIBRARY_KEYWORDS = settings.ad_library_keywords
 AD_LIBRARY_COUNTRY = settings.ad_library_country
 AD_LIBRARY_MAX_ADS = settings.ad_library_max_ads
 AD_LIBRARY_CACHE_TTL_HOURS = settings.ad_library_cache_ttl_hours
+AUTH_ENABLED = settings.auth_enabled
+ADMIN_USERNAME = settings.admin_username
+ADMIN_PASSWORD = settings.admin_password
+AUTH_SECRET = settings.auth_secret
