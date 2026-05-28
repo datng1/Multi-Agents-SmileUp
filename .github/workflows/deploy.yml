@@ -35,6 +35,7 @@ jobs:
             --exclude='data' \
             --exclude='reports' \
             --exclude='web/generated' \
+            --exclude='smileup-release.tar.gz' \
             -czf smileup-release.tar.gz .
 
       - name: Validate deploy secrets
