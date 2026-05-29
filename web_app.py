@@ -43,6 +43,9 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
+        if path == "/api/health":
+            self._send_json({"ok": True, "service": "smileup-cmo"})
+            return
         if path == "/login":
             self._send_login_page()
             return
