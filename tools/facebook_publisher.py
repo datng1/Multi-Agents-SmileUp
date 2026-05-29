@@ -96,7 +96,7 @@ def publish_facebook_post(
 
 
 def get_publish_pages() -> list[dict[str, Any]]:
-    return _safe_pages(_select_pages(None))
+    return _safe_pages(list(config.FACEBOOK_PUBLISH_PAGES))
 
 
 def _publish_to_page(page: dict[str, str], message: str, schedule_time: str | None) -> dict[str, Any]:
