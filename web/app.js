@@ -49,6 +49,8 @@ const cmoJurySummary = document.querySelector("#cmoJurySummary");
 const cmoBrief = document.querySelector("#cmoBrief");
 const cmoScorecard = document.querySelector("#cmoScorecard");
 const cmoDecisionGraph = document.querySelector("#cmoDecisionGraph");
+const cmoGraphToggle = document.querySelector("#cmoGraphToggle");
+const cmoDecisionGraphWrap = document.querySelector("#cmoDecisionGraphWrap");
 const visualBrief = document.querySelector("#visualBrief");
 const marketingAnalysis = document.querySelector("#marketingAnalysis");
 const trendAngle = document.querySelector("#trendAngle");
@@ -209,6 +211,9 @@ function resetCmoPanel() {
   cmoScorecard.textContent = "Đang tạo scorecard mới.";
   cmoDecisionGraph.className = "got-graph empty-state";
   cmoDecisionGraph.textContent = "Đang dựng decision graph mới.";
+  cmoGraphToggle.setAttribute("aria-expanded", "false");
+  cmoGraphToggle.textContent = "Mở đồ thị quyết định của CMO";
+  cmoDecisionGraphWrap.classList.add("hidden-panel");
 }
 
 function resetRunOutputs() {
@@ -511,13 +516,37 @@ function renderDecisionGraph(graph, summary) {
   }
 
   const selectedPath = new Set(Array.isArray(graph?.selected_path) ? graph.selected_path : []);
+  const positions = buildMindMapPositions(nodes, selectedPath);
   cmoDecisionGraph.className = "got-graph";
+  const lineHtml = edges
+    .filter((edge) => positions.has(edge.source) && positions.has(edge.target))
+    .slice(0, 24)
+    .map((edge) => {
+      const source = positions.get(edge.source);
+      const target = positions.get(edge.target);
+      const isPathEdge = selectedPath.has(edge.source) && selectedPath.has(edge.target);
+      return `
+        <line
+          class="${isPathEdge ? "path-link" : ""}"
+          x1="${source.x}"
+          y1="${source.y}"
+          x2="${target.x}"
+          y2="${target.y}"
+        ></line>
+      `;
+    })
+    .join("");
   const nodeHtml = nodes
     .map((node) => {
       const score = typeof node.score === "number" ? `<span>${Number(node.score)}đ</span>` : "";
       const inPath = selectedPath.has(node.id);
+      const position = positions.get(node.id) || { x: 50, y: 50 };
       return `
-        <article class="got-node ${escapeHtml(node.type || "node")} ${escapeHtml(node.status || "neutral")} ${inPath ? "in-path" : ""}">
+        <article
+          class="got-node got-bubble ${escapeHtml(node.type || "node")} ${escapeHtml(node.status || "neutral")} ${inPath ? "in-path" : ""}"
+          data-node="${escapeHtml(node.id || "")}"
+          style="--x:${position.x}%; --y:${position.y}%;"
+        >
           <div>
             <strong>${escapeHtml(node.type || "node")}</strong>
             ${score}
@@ -527,15 +556,48 @@ function renderDecisionGraph(graph, summary) {
       `;
     })
     .join("");
-  const edgeHtml = edges
-    .slice(0, 16)
-    .map((edge) => `<span>${escapeHtml(edge.source)} → ${escapeHtml(edge.target)} · ${escapeHtml(edge.relation || "link")}</span>`)
-    .join("");
   cmoDecisionGraph.innerHTML = `
     <pre>${escapeHtml(summary || "Graph-of-Thought CMO đã dựng xong.")}</pre>
-    <div class="got-node-grid">${nodeHtml}</div>
-    <div class="got-edge-list">${edgeHtml}</div>
+    <div class="got-mind-map">
+      <svg class="got-link-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${lineHtml}</svg>
+      ${nodeHtml}
+    </div>
   `;
+}
+
+function buildMindMapPositions(nodes, selectedPath) {
+  const positions = new Map();
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const centerNode =
+    nodes.find((node) => node.id === "cmo_decision") ||
+    nodes.find((node) => String(node.id || "").includes("cmo")) ||
+    nodes[nodes.length - 1];
+  if (!centerNode) {
+    return positions;
+  }
+
+  positions.set(centerNode.id, { x: 50, y: 50 });
+  const pathIds = [...selectedPath].filter((id) => id !== centerNode.id && nodeIds.has(id));
+  const otherIds = nodes.map((node) => node.id).filter((id) => id !== centerNode.id && !selectedPath.has(id));
+  placeRing(positions, pathIds, 34, -165, 35, 50, 50);
+  placeRing(positions, otherIds, 42, 75, 285, 50, 50);
+  return positions;
+}
+
+function placeRing(positions, ids, radius, startDeg, endDeg, centerX, centerY) {
+  if (!ids.length) {
+    return;
+  }
+  const span = ids.length === 1 ? 0 : endDeg - startDeg;
+  ids.forEach((id, index) => {
+    const angle = (startDeg + (span * index) / Math.max(ids.length - 1, 1)) * (Math.PI / 180);
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius * 0.78;
+    positions.set(id, {
+      x: Math.max(8, Math.min(92, Number(x.toFixed(2)))),
+      y: Math.max(12, Math.min(88, Number(y.toFixed(2)))),
+    });
+  });
 }
 
 function renderContentPlan(variants) {
@@ -965,6 +1027,12 @@ contentPlanList.addEventListener("click", (event) => {
     return;
   }
   useVariantAsFinal(Number(button.dataset.variantIndex));
+});
+cmoGraphToggle.addEventListener("click", () => {
+  const isOpen = cmoGraphToggle.getAttribute("aria-expanded") === "true";
+  cmoGraphToggle.setAttribute("aria-expanded", String(!isOpen));
+  cmoGraphToggle.textContent = isOpen ? "Mở đồ thị quyết định của CMO" : "Ẩn đồ thị quyết định của CMO";
+  cmoDecisionGraphWrap.classList.toggle("hidden-panel", isOpen);
 });
 setSourceMode("auto");
 syncCreativeImageMode();

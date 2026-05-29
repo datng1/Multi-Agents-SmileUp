@@ -292,8 +292,13 @@
                 <span class="label">Graph-of-Thought</span>
                 <h2>Bản đồ quyết định CMO</h2>
               </div>
+              <button id="cmoGraphToggle" class="secondary-button graph-toggle" type="button" aria-expanded="false" aria-controls="cmoDecisionGraphWrap">
+                Mở đồ thị quyết định của CMO
+              </button>
             </div>
-            <div id="cmoDecisionGraph" class="got-graph empty-state">Chưa có decision graph.</div>
+            <div id="cmoDecisionGraphWrap" class="got-collapse hidden-panel">
+              <div id="cmoDecisionGraph" class="got-graph empty-state">Chưa có decision graph.</div>
+            </div>
           </div>
         </section>
 
