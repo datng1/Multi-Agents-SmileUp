@@ -35,6 +35,7 @@ AUTH_COOKIE_NAME = "smileup_session"
 AUTH_SESSION_SECONDS = 12 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_VERSION = 1
 WORKFLOW_CONTEXT_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
+WORKFLOW_CONTEXT_CACHE_CLEANUP_INTERVAL_SECONDS = 60 * 60
 
 
 def _enable_utf8_console() -> None:
@@ -433,7 +434,7 @@ def _read_workflow_context_cache(cache_key: str) -> dict | None:
         if not isinstance(entry, dict):
             return None
         cached_at = float(entry.get("cached_at", 0) or 0)
-        if time.time() - cached_at > WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
+        if time.time() - cached_at >= WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
             cache.get("entries", {}).pop(cache_key, None)
             _save_workflow_context_cache(cache)
             return None
@@ -443,15 +444,45 @@ def _read_workflow_context_cache(cache_key: str) -> dict | None:
         return {"cached_at": cached_at, "output": output}
 
 
+def _prune_workflow_context_cache(now: float | None = None) -> int:
+    now = time.time() if now is None else now
+    cache = _load_workflow_context_cache()
+    removed = _prune_workflow_context_cache_entries(cache, now)
+    if removed:
+        _save_workflow_context_cache(cache)
+    return removed
+
+
+def _prune_workflow_context_cache_entries(cache: dict, now: float) -> int:
+    entries = cache.setdefault("entries", {})
+    removed = 0
+    for key, entry in list(entries.items()):
+        cached_at = float((entry or {}).get("cached_at", 0) or 0)
+        if cached_at <= 0 or now - cached_at >= WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
+            entries.pop(key, None)
+            removed += 1
+    return removed
+
+
+def _start_workflow_context_cache_cleanup() -> None:
+    def cleanup_loop() -> None:
+        while True:
+            time.sleep(WORKFLOW_CONTEXT_CACHE_CLEANUP_INTERVAL_SECONDS)
+            with CACHE_LOCK:
+                _prune_workflow_context_cache()
+
+    with CACHE_LOCK:
+        _prune_workflow_context_cache()
+    worker = threading.Thread(target=cleanup_loop, daemon=True)
+    worker.start()
+
+
 def _write_workflow_context_cache(cache_key: str, output: dict) -> None:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entries = cache.setdefault("entries", {})
         now = time.time()
-        for key, entry in list(entries.items()):
-            cached_at = float((entry or {}).get("cached_at", 0) or 0)
-            if now - cached_at > WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
-                entries.pop(key, None)
+        _prune_workflow_context_cache_entries(cache, now)
         cache_output = dict(output)
         cache_output["cache_hit"] = False
         cache_output["logs"] = str(cache_output.get("logs") or "")
@@ -588,6 +619,7 @@ def _escape_html(value: str) -> str:
 
 def main() -> None:
     _enable_utf8_console()
+    _start_workflow_context_cache_cleanup()
     server = ThreadingHTTPServer((HOST, PORT), MarketingUIHandler)
     _safe_print(f"Dental Marketing UI running at http://{HOST}:{PORT}")
     _safe_print("Press Ctrl+C to stop.")
