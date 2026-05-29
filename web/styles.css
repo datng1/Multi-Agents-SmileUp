@@ -853,6 +853,95 @@ h2 {
   background: #ffffff;
 }
 
+.got-box {
+  margin-top: 12px;
+}
+
+.got-graph {
+  display: grid;
+  gap: 12px;
+}
+
+.got-graph pre {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.got-node-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.got-node {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.got-node.in-path {
+  border-color: rgba(8, 117, 104, 0.45);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.got-node.support,
+.got-node.selected {
+  background: #f1fbf7;
+}
+
+.got-node.risk {
+  background: #fff7ed;
+}
+
+.got-node div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.got-node strong {
+  color: var(--accent-strong);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.got-node span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--navy);
+  background: #eef3f4;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.got-node p {
+  margin: 0;
+  color: var(--navy);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.got-edge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.got-edge-list span {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fbfcfd;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .hidden-report {
   display: none;
 }
@@ -1615,7 +1704,8 @@ dd {
   .analysis-grid,
   .creative-grid,
   .cmo-grid,
-  .cmo-scorecard {
+  .cmo-scorecard,
+  .got-node-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1677,6 +1767,7 @@ dd {
   .creative-grid,
   .cmo-grid,
   .cmo-scorecard,
+  .got-node-grid,
   .insight-row {
     grid-template-columns: 1fr;
   }

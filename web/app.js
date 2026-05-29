@@ -48,6 +48,7 @@ const hardnessReport = document.querySelector("#hardnessReport");
 const cmoJurySummary = document.querySelector("#cmoJurySummary");
 const cmoBrief = document.querySelector("#cmoBrief");
 const cmoScorecard = document.querySelector("#cmoScorecard");
+const cmoDecisionGraph = document.querySelector("#cmoDecisionGraph");
 const visualBrief = document.querySelector("#visualBrief");
 const marketingAnalysis = document.querySelector("#marketingAnalysis");
 const trendAngle = document.querySelector("#trendAngle");
@@ -206,6 +207,8 @@ function resetCmoPanel() {
   cmoBrief.textContent = "CMO brief sẽ được tạo lại sau lượt chạy này.";
   cmoScorecard.className = "cmo-scorecard empty-state";
   cmoScorecard.textContent = "Đang tạo scorecard mới.";
+  cmoDecisionGraph.className = "got-graph empty-state";
+  cmoDecisionGraph.textContent = "Đang dựng decision graph mới.";
 }
 
 function resetRunOutputs() {
@@ -474,6 +477,7 @@ function renderCmoDecision(result) {
   if (!scorecard.length) {
     cmoScorecard.className = "cmo-scorecard empty-state";
     cmoScorecard.textContent = "Chưa có scorecard.";
+    renderDecisionGraph(result.cmo_decision_graph, result.cmo_graph_summary);
     return;
   }
   cmoScorecard.className = "cmo-scorecard";
@@ -492,6 +496,44 @@ function renderCmoDecision(result) {
       `;
     })
     .join("");
+  renderDecisionGraph(result.cmo_decision_graph, result.cmo_graph_summary);
+}
+
+function renderDecisionGraph(graph, summary) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const edges = Array.isArray(graph?.edges) ? graph.edges : [];
+  if (!nodes.length) {
+    cmoDecisionGraph.className = "got-graph empty-state";
+    cmoDecisionGraph.textContent = summary || "Chưa có decision graph.";
+    return;
+  }
+
+  const selectedPath = new Set(Array.isArray(graph?.selected_path) ? graph.selected_path : []);
+  cmoDecisionGraph.className = "got-graph";
+  const nodeHtml = nodes
+    .map((node) => {
+      const score = typeof node.score === "number" ? `<span>${Number(node.score)}đ</span>` : "";
+      const inPath = selectedPath.has(node.id);
+      return `
+        <article class="got-node ${escapeHtml(node.type || "node")} ${escapeHtml(node.status || "neutral")} ${inPath ? "in-path" : ""}">
+          <div>
+            <strong>${escapeHtml(node.type || "node")}</strong>
+            ${score}
+          </div>
+          <p>${escapeHtml(node.label || node.id || "-")}</p>
+        </article>
+      `;
+    })
+    .join("");
+  const edgeHtml = edges
+    .slice(0, 16)
+    .map((edge) => `<span>${escapeHtml(edge.source)} → ${escapeHtml(edge.target)} · ${escapeHtml(edge.relation || "link")}</span>`)
+    .join("");
+  cmoDecisionGraph.innerHTML = `
+    <pre>${escapeHtml(summary || "Graph-of-Thought CMO đã dựng xong.")}</pre>
+    <div class="got-node-grid">${nodeHtml}</div>
+    <div class="got-edge-list">${edgeHtml}</div>
+  `;
 }
 
 function renderContentPlan(variants) {

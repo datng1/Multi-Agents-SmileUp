@@ -211,6 +211,9 @@ def run_manager_agent(state: AgentState) -> AgentState:
     else:
         _decide_from_draft(state, draft, scorecard, selected_variant_index, selected_creative_index, jury_choice)
 
+    decision_graph = _build_cmo_decision_graph(state, variants, scorecard, selected_variant_index, jury_choice)
+    state["cmo_decision_graph"] = decision_graph
+    state["cmo_graph_summary"] = _decision_graph_summary(decision_graph)
     _finish_report(state)
     return state
 
@@ -229,6 +232,8 @@ def _ensure_cmo_defaults(state: AgentState) -> None:
     state.setdefault("cmo_campaign_brief", "")
     state.setdefault("cmo_model_votes", [])
     state.setdefault("cmo_jury_summary", "")
+    state.setdefault("cmo_decision_graph", {"nodes": [], "edges": [], "selected_path": []})
+    state.setdefault("cmo_graph_summary", "")
     state.setdefault("hardness_score", 0)
     state.setdefault("hardness_risk_level", "unknown")
     state.setdefault("hardness_publish_readiness", "unknown")
@@ -499,6 +504,101 @@ def _set_cmo_decision(
     state["manager_feedback"] = feedback
 
 
+def _build_cmo_decision_graph(
+    state: AgentState,
+    variants: list[ContentVariant],
+    scorecard: list[dict],
+    selected_variant_index: int,
+    jury_choice: dict | None,
+) -> dict:
+    nodes: list[dict] = []
+    edges: list[dict] = []
+
+    def add_node(node_id: str, label: str, node_type: str, score: int | None = None, status: str = "neutral") -> None:
+        nodes.append({"id": node_id, "label": label, "type": node_type, "score": score, "status": status})
+
+    def add_edge(source: str, target: str, relation: str, weight: float = 1.0) -> None:
+        edges.append({"source": source, "target": target, "relation": relation, "weight": round(weight, 3)})
+
+    high_match_count = len(state.get("high_match_ads", []) or [])
+    ads_count = len(state.get("ad_library_ads", []) or [])
+    add_node("source_ads", f"Ad Library: {ads_count} ads, {high_match_count} high-match", "evidence", min(100, high_match_count * 8), "support")
+    add_node("text_insight", "Text insight: hook, pain point, offer, CTA", "evidence", None, "support")
+    add_node("trend", "Trend: Facebook/Reels angle", "evidence", None, "support")
+    add_node("strategy", "Strategy: monthly plan + 2 content tracks", "reasoning", None, "support")
+    add_node("compliance", "Compliance gate", "gate", None, "support" if state.get("approval_status") == "approved" else "risk")
+    add_node(
+        "hardness",
+        f"Hardness: {state.get('hardness_score', 0)}/100 {state.get('hardness_publish_readiness', 'unknown')}",
+        "gate",
+        int(state.get("hardness_score", 0) or 0),
+        "support" if state.get("hardness_publish_readiness") == "ready" else "risk",
+    )
+
+    for node_id in ("text_insight", "trend", "strategy"):
+        add_edge("source_ads", node_id, "feeds", 0.8)
+    add_edge("text_insight", "strategy", "constrains", 0.7)
+    add_edge("trend", "strategy", "adds_angle", 0.5)
+
+    for item in scorecard:
+        index = int(item.get("index", -1))
+        variant_id = f"variant_{index}"
+        is_selected = index == selected_variant_index
+        score = int(item.get("score", 0) or 0)
+        status = "selected" if is_selected else "support" if score >= 85 else "risk" if item.get("flags") else "neutral"
+        add_node(
+            variant_id,
+            f"Variant #{index + 1}: {item.get('campaign_track', 'post')} / {item.get('service_line', 'post')} - {item.get('title', '')}",
+            "candidate",
+            score,
+            status,
+        )
+        add_edge("strategy", variant_id, "generates", min(1.0, score / 100))
+        add_edge("compliance", variant_id, "checks", 0.0 if item.get("flags") else 1.0)
+        add_edge("hardness", variant_id, "validates", min(1.0, max(0, int(state.get("hardness_score", 0) or 0)) / 100))
+
+    decision_status = "support" if state.get("cmo_decision") == "APPROVE_TO_PUBLISH" else "risk"
+    add_node("cmo_decision", f"CMO: {state.get('cmo_decision', 'PENDING')}", "decision", None, decision_status)
+    if selected_variant_index >= 0:
+        add_edge(f"variant_{selected_variant_index}", "cmo_decision", "selected_for_publish", 1.0)
+    if jury_choice:
+        add_node(
+            "jury",
+            f"Model jury: {jury_choice.get('decision', 'heuristic')} avg {jury_choice.get('average_score', '-')}",
+            "reasoning",
+            int(jury_choice.get("average_score", 0) or 0) if jury_choice.get("average_score") else None,
+            "support" if jury_choice.get("decision") == "APPROVE_TO_PUBLISH" else "neutral",
+        )
+        add_edge("jury", "cmo_decision", "votes", 0.8)
+
+    selected_path = ["source_ads", "text_insight", "strategy"]
+    if selected_variant_index >= 0:
+        selected_path.append(f"variant_{selected_variant_index}")
+    selected_path.extend(["compliance", "hardness", "cmo_decision"])
+    return {"nodes": nodes, "edges": edges, "selected_path": selected_path}
+
+
+def _decision_graph_summary(graph: dict) -> str:
+    nodes = graph.get("nodes", [])
+    edges = graph.get("edges", [])
+    selected_path = graph.get("selected_path", [])
+    candidate_nodes = [node for node in nodes if node.get("type") == "candidate"]
+    risk_nodes = [node for node in nodes if node.get("status") == "risk"]
+    selected_labels = []
+    by_id = {node.get("id"): node for node in nodes}
+    for node_id in selected_path:
+        label = by_id.get(node_id, {}).get("label")
+        if label:
+            selected_labels.append(str(label))
+    return (
+        "Graph-of-Thought CMO:\n"
+        f"- Nodes: {len(nodes)}; Edges: {len(edges)}; Candidates: {len(candidate_nodes)}.\n"
+        f"- Risk nodes: {len(risk_nodes)}.\n"
+        f"- Selected path: {' -> '.join(selected_labels) if selected_labels else 'none'}.\n"
+        "- Method: reuse evidence nodes, merge model votes + heuristic scorecard, then backtrack through compliance/hardness gates before publish."
+    )
+
+
 def _draft_from_variant(variant: ContentVariant) -> DraftContent:
     return {
         "marketing_analysis": variant.get("marketing_analysis", ""),
@@ -612,6 +712,7 @@ def _daily_strategy(state: AgentState) -> str:
         f"CMO feedback: {state.get('cmo_feedback', '')}\n\n"
         f"{state.get('hardness_report', '')}\n\n"
         f"{state.get('cmo_jury_summary', '')}\n\n"
+        f"{state.get('cmo_graph_summary', '')}\n\n"
         f"{state.get('cmo_campaign_brief', '')}\n\n"
         f"{state.get('monthly_strategy', '')}\n\n"
         "Thông điệp chủ đạo: SmileUp khác biệt bằng tư vấn cá nhân hóa, minh bạch chỉ định và an toàn y khoa.\n"
@@ -642,6 +743,7 @@ def _daily_report(state: AgentState) -> str:
         f"CMO feedback: {state.get('cmo_feedback', '')}\n"
         f"Hardness: {state.get('hardness_report', '').replace(chr(10), ' ')}\n"
         f"CMO Jury: {state.get('cmo_jury_summary', '').replace(chr(10), ' ')}\n"
+        f"CMO Graph: {state.get('cmo_graph_summary', '').replace(chr(10), ' ')}\n"
         f"CMO brief: {state.get('cmo_campaign_brief', '').replace(chr(10), ' ')}\n"
         f"Ad Library: {state.get('ad_library_report', '').replace(chr(10), ' ')}\n"
         f"Trend Facebook: {state.get('facebook_trend_analysis', '').replace(chr(10), ' ')}\n"
