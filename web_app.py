@@ -24,13 +24,17 @@ from utils import config
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 UPLOAD_ROOT = WEB_ROOT / "generated" / "uploads"
+WORKFLOW_CONTEXT_CACHE_PATH = ROOT / "data" / "workflow_context_cache.json"
 HOST = "127.0.0.1"
 PORT = 8765
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 JOB_LOCK = threading.Lock()
+CACHE_LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
 AUTH_COOKIE_NAME = "smileup_session"
 AUTH_SESSION_SECONDS = 12 * 60 * 60
+WORKFLOW_CONTEXT_CACHE_VERSION = 1
+WORKFLOW_CONTEXT_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 
 def _enable_utf8_console() -> None:
@@ -71,6 +75,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
                     "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
                     "ad_library_competitor_count": len(config.AD_LIBRARY_COMPETITOR_URLS),
+                    "workflow_context_cache_days": round(WORKFLOW_CONTEXT_CACHE_TTL_SECONDS / 86400),
                     "warnings": config.CONFIG_WARNINGS,
                 }
             )
@@ -352,17 +357,125 @@ def _run_job(job_id: str, request_payload: dict) -> None:
 
 
 def _run_workflow_payload(request_payload: dict) -> dict:
+    force_refresh = bool(request_payload.get("force_refresh"))
+    cache_key = _workflow_context_cache_key(request_payload)
+    if not force_refresh:
+        cached_output = _read_workflow_context_cache(cache_key)
+        if cached_output:
+            age_seconds = int(time.time() - float(cached_output.get("cached_at", 0) or 0))
+            cached_result = dict(cached_output.get("output") or {})
+            cached_logs = cached_result.get("logs") or ""
+            cache_note = f"Context cache hit: reused workflow result from {age_seconds}s ago."
+            cached_result.update(
+                {
+                    "cache_hit": True,
+                    "cache_age_seconds": age_seconds,
+                    "context_cache_key": cache_key,
+                    "duration_ms": 0,
+                    "logs": f"{cache_note}\n{cached_logs}".strip(),
+                }
+            )
+            return cached_result
+
     log_buffer = io.StringIO()
     initial_state = _build_initial_state(request_payload)
     started_at = time.perf_counter()
     with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
         result = build_workflow().invoke(initial_state)
     duration_ms = round((time.perf_counter() - started_at) * 1000)
-    return {
+    output = {
         "result": result,
         "duration_ms": duration_ms,
         "logs": log_buffer.getvalue().strip(),
+        "cache_hit": False,
+        "cache_age_seconds": 0,
+        "context_cache_key": cache_key,
     }
+    _write_workflow_context_cache(cache_key, output)
+    return output
+
+
+def _workflow_context_cache_key(request_payload: dict) -> str:
+    ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip() or config.AD_LIBRARY_KEYWORDS
+    creative_image_data_url = str(request_payload.get("creative_image_data_url", "") or "")
+    payload = {
+        "version": WORKFLOW_CONTEXT_CACHE_VERSION,
+        "mode": str(request_payload.get("mode", "auto")).strip(),
+        "ad_library_keywords": re.sub(r"\s+", " ", ad_library_keywords).strip().casefold(),
+        "manual_competitor_posts": str(request_payload.get("manual_competitor_posts", "")).strip(),
+        "manual_visual_notes": str(request_payload.get("manual_visual_notes", "")).strip(),
+        "manual_video_notes": str(request_payload.get("manual_video_notes", "")).strip(),
+        "creative_image_name": str(request_payload.get("creative_image_name", "")).strip(),
+        "creative_image_sha1": hashlib.sha1(creative_image_data_url.encode("utf-8")).hexdigest() if creative_image_data_url else "",
+        "settings": {
+            "mock_mode": config.MOCK_MODE,
+            "dry_run": config.DRY_RUN,
+            "ad_library_enabled": config.AD_LIBRARY_ENABLED,
+            "ad_library_country": config.AD_LIBRARY_COUNTRY,
+            "ad_library_max_ads": config.AD_LIBRARY_MAX_ADS,
+            "ad_library_competitor_urls": config.AD_LIBRARY_COMPETITOR_URLS,
+            "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
+            "openai_model": config.OPENAI_MODEL,
+            "gemini_model": config.GEMINI_MODEL,
+            "anthropic_model": config.ANTHROPIC_MODEL,
+            "cmo_jury_enabled": config.CMO_JURY_ENABLED,
+            "agent_api_reasoning_enabled": config.AGENT_API_REASONING_ENABLED,
+        },
+    }
+    serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _read_workflow_context_cache(cache_key: str) -> dict | None:
+    with CACHE_LOCK:
+        cache = _load_workflow_context_cache()
+        entry = (cache.get("entries") or {}).get(cache_key)
+        if not isinstance(entry, dict):
+            return None
+        cached_at = float(entry.get("cached_at", 0) or 0)
+        if time.time() - cached_at > WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
+            cache.get("entries", {}).pop(cache_key, None)
+            _save_workflow_context_cache(cache)
+            return None
+        output = entry.get("output")
+        if not isinstance(output, dict):
+            return None
+        return {"cached_at": cached_at, "output": output}
+
+
+def _write_workflow_context_cache(cache_key: str, output: dict) -> None:
+    with CACHE_LOCK:
+        cache = _load_workflow_context_cache()
+        entries = cache.setdefault("entries", {})
+        now = time.time()
+        for key, entry in list(entries.items()):
+            cached_at = float((entry or {}).get("cached_at", 0) or 0)
+            if now - cached_at > WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
+                entries.pop(key, None)
+        cache_output = dict(output)
+        cache_output["cache_hit"] = False
+        cache_output["logs"] = str(cache_output.get("logs") or "")
+        entries[cache_key] = {"cached_at": now, "output": cache_output}
+        _save_workflow_context_cache(cache)
+
+
+def _load_workflow_context_cache() -> dict:
+    if not WORKFLOW_CONTEXT_CACHE_PATH.exists():
+        return {"version": WORKFLOW_CONTEXT_CACHE_VERSION, "entries": {}}
+    try:
+        cache = json.loads(WORKFLOW_CONTEXT_CACHE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"version": WORKFLOW_CONTEXT_CACHE_VERSION, "entries": {}}
+    if cache.get("version") != WORKFLOW_CONTEXT_CACHE_VERSION:
+        return {"version": WORKFLOW_CONTEXT_CACHE_VERSION, "entries": {}}
+    if not isinstance(cache.get("entries"), dict):
+        cache["entries"] = {}
+    return cache
+
+
+def _save_workflow_context_cache(cache: dict) -> None:
+    WORKFLOW_CONTEXT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    WORKFLOW_CONTEXT_CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _build_initial_state(request_payload: dict) -> dict:

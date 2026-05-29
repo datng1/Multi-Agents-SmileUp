@@ -296,7 +296,7 @@ async function runWorkflow() {
     }
     const completedPayload = payload.job_id ? await waitForWorkflowJob(payload.job_id) : payload;
 
-    renderResult(completedPayload.result, completedPayload.logs || "", completedPayload.duration_ms);
+    renderResult(completedPayload.result, completedPayload.logs || "", completedPayload.duration_ms, completedPayload.cache_hit, completedPayload.cache_age_seconds);
     completeAgents();
     lastRunValue.textContent = new Date().toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -343,7 +343,7 @@ function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function renderResult(result, logs, durationMs) {
+function renderResult(result, logs, durationMs, cacheHit = false, cacheAgeSeconds = 0) {
   const draft = result.draft_content || {};
   const publish = result.publish_result || {};
   const insights = result.competitor_insights || [];
@@ -360,7 +360,11 @@ function renderResult(result, logs, durationMs) {
     keywordValue.value = result.ad_library_keywords;
   }
   adsValue.textContent = adCount ? `${adCount} ads` : source === "manual" ? "Manual" : "-";
-  durationValue.textContent = typeof durationMs === "number" ? `${durationMs.toLocaleString("vi-VN")} ms` : "-";
+  durationValue.textContent = cacheHit
+    ? `Tức thì · cache ${formatCacheAge(cacheAgeSeconds)}`
+    : typeof durationMs === "number"
+      ? `${durationMs.toLocaleString("vi-VN")} ms`
+      : "-";
   dailyReport.textContent = result.daily_report || "-";
   dailyStrategy.textContent = result.daily_strategy || "-";
   publishStatus.textContent = publish.publisher_status || "-";
@@ -388,6 +392,20 @@ function renderResult(result, logs, durationMs) {
   renderCreatives(creativeAssets);
   setFinalDraft(draft, creativeAssets, result.cmo_selected_creative_index);
   updateManualCount(result.manual_posts_count || countManualPosts());
+}
+
+function formatCacheAge(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds || 0));
+  if (safeSeconds < 60) {
+    return `${Math.round(safeSeconds)}s`;
+  }
+  if (safeSeconds < 3600) {
+    return `${Math.round(safeSeconds / 60)} phút`;
+  }
+  if (safeSeconds < 86400) {
+    return `${Math.round(safeSeconds / 3600)} giờ`;
+  }
+  return `${Math.round(safeSeconds / 86400)} ngày`;
 }
 
 function renderInsights(insights) {
