@@ -22,12 +22,29 @@
         </div>
         <div class="top-actions">
           <span id="connectionState" class="connection-pill">Checking</span>
+          <button id="historyButton" class="secondary-button history-button" type="button" aria-expanded="false" aria-controls="historyPanel">
+            Xem lịch sử
+          </button>
           <button id="runButton" class="primary-button" type="button" aria-label="Chạy workflow marketing">
             <span class="button-icon" aria-hidden="true">▶</span>
             Chạy phân tích
           </button>
         </div>
       </header>
+
+      <section id="historyPanel" class="history-panel hidden-panel" aria-label="Lịch sử phân tích 7 ngày" aria-live="polite">
+        <div class="panel-header compact">
+          <div>
+            <span class="label">Saving context</span>
+            <h2>Lịch sử 7 ngày gần nhất</h2>
+          </div>
+          <div class="history-actions">
+            <span id="historyCount" class="meta-chip">0 lượt</span>
+            <button id="historyCloseButton" class="secondary-button compact" type="button">Đóng</button>
+          </div>
+        </div>
+        <div id="historyList" class="history-list empty-state">Chưa có lịch sử.</div>
+      </section>
 
       <section class="control-board" aria-label="Workflow controls">
         <div class="control-main">

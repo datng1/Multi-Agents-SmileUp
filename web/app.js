@@ -1,4 +1,9 @@
 const runButton = document.querySelector("#runButton");
+const historyButton = document.querySelector("#historyButton");
+const historyPanel = document.querySelector("#historyPanel");
+const historyCloseButton = document.querySelector("#historyCloseButton");
+const historyList = document.querySelector("#historyList");
+const historyCount = document.querySelector("#historyCount");
 const modeValue = document.querySelector("#modeValue");
 const dryRunValue = document.querySelector("#dryRunValue");
 const approvalValue = document.querySelector("#approvalValue");
@@ -296,7 +301,7 @@ async function runWorkflow() {
     }
     const completedPayload = payload.job_id ? await waitForWorkflowJob(payload.job_id) : payload;
 
-    renderResult(completedPayload.result, completedPayload.logs || "", completedPayload.duration_ms, completedPayload.cache_hit, completedPayload.cache_age_seconds);
+    renderResult(completedPayload.result, completedPayload.logs || "", completedPayload.duration_ms, completedPayload.history_hit);
     completeAgents();
     lastRunValue.textContent = new Date().toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -343,7 +348,7 @@ function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function renderResult(result, logs, durationMs, cacheHit = false, cacheAgeSeconds = 0) {
+function renderResult(result, logs, durationMs, historyHit = false) {
   const draft = result.draft_content || {};
   const publish = result.publish_result || {};
   const insights = result.competitor_insights || [];
@@ -360,8 +365,8 @@ function renderResult(result, logs, durationMs, cacheHit = false, cacheAgeSecond
     keywordValue.value = result.ad_library_keywords;
   }
   adsValue.textContent = adCount ? `${adCount} ads` : source === "manual" ? "Manual" : "-";
-  durationValue.textContent = cacheHit
-    ? `Tức thì · cache ${formatCacheAge(cacheAgeSeconds)}`
+  durationValue.textContent = historyHit
+    ? "Đã mở từ lịch sử"
     : typeof durationMs === "number"
       ? `${durationMs.toLocaleString("vi-VN")} ms`
       : "-";
@@ -406,6 +411,70 @@ function formatCacheAge(seconds) {
     return `${Math.round(safeSeconds / 3600)} giờ`;
   }
   return `${Math.round(safeSeconds / 86400)} ngày`;
+}
+
+async function toggleHistoryPanel() {
+  const isOpen = historyButton.getAttribute("aria-expanded") === "true";
+  if (isOpen) {
+    closeHistoryPanel();
+    return;
+  }
+  historyButton.setAttribute("aria-expanded", "true");
+  historyPanel.classList.remove("hidden-panel");
+  await loadHistory();
+}
+
+function closeHistoryPanel() {
+  historyButton.setAttribute("aria-expanded", "false");
+  historyPanel.classList.add("hidden-panel");
+}
+
+async function loadHistory() {
+  historyList.className = "history-list empty-state";
+  historyList.textContent = "Đang tải lịch sử...";
+  const response = await fetch("/api/history", { cache: "no-store" });
+  const payload = await response.json();
+  if (!payload.ok) {
+    throw new Error(payload.error || "Không tải được lịch sử.");
+  }
+  renderHistoryList(payload.items || []);
+}
+
+function renderHistoryList(items) {
+  historyCount.textContent = `${items.length} lượt`;
+  if (!items.length) {
+    historyList.className = "history-list empty-state";
+    historyList.textContent = "Chưa có lịch sử trong 7 ngày gần nhất.";
+    return;
+  }
+  historyList.className = "history-list";
+  historyList.innerHTML = items
+    .map((item) => {
+      const created = item.created_at ? new Date(item.created_at).toLocaleString("vi-VN") : "-";
+      return `
+        <article class="history-card">
+          <div>
+            <span>${escapeHtml(created)}</span>
+            <h3>${escapeHtml(item.title || "Workflow result")}</h3>
+            <p>${escapeHtml(item.keyword || "nha khoa răng sứ răng đẹp cấy implant")}</p>
+            <small>${Number(item.ads_count || 0)} ads · ${Number(item.competitor_ads || 0)} đối thủ · ${escapeHtml(item.cmo_decision || item.approval_status || "pending")}</small>
+          </div>
+          <button class="secondary-button compact use-history-button" type="button" data-history-id="${escapeHtml(item.history_id)}">Mở lại</button>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+async function openHistoryItem(historyId) {
+  const response = await fetch(`/api/history?id=${encodeURIComponent(historyId)}`, { cache: "no-store" });
+  const payload = await response.json();
+  if (!payload.ok) {
+    throw new Error(payload.error || "Không mở được lịch sử.");
+  }
+  renderResult(payload.result, payload.logs || "", payload.duration_ms, true);
+  lastRunValue.textContent = payload.summary?.created_at ? new Date(payload.summary.created_at).toLocaleTimeString("vi-VN") : "History";
+  closeHistoryPanel();
 }
 
 function renderInsights(insights) {
@@ -951,6 +1020,23 @@ function escapeHtml(value) {
 }
 
 runButton.addEventListener("click", runWorkflow);
+historyButton.addEventListener("click", () => {
+  toggleHistoryPanel().catch((error) => {
+    historyList.className = "history-list empty-state";
+    historyList.textContent = error.message;
+  });
+});
+historyCloseButton.addEventListener("click", closeHistoryPanel);
+historyList.addEventListener("click", (event) => {
+  const button = event.target.closest(".use-history-button");
+  if (!button) {
+    return;
+  }
+  openHistoryItem(button.dataset.historyId).catch((error) => {
+    historyList.className = "history-list empty-state";
+    historyList.textContent = error.message;
+  });
+});
 autoTabButton.addEventListener("click", () => setSourceMode("auto"));
 manualTabButton.addEventListener("click", () => setSourceMode("manual"));
 keywordValue.addEventListener("keydown", (event) => {

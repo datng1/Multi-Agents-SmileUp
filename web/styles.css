@@ -152,6 +152,11 @@ h2 {
   flex: 0 0 auto;
 }
 
+.history-button {
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
 .connection-pill,
 .badge,
 .meta-chip,
@@ -215,6 +220,59 @@ h2 {
 .dashboard-grid {
   display: grid;
   gap: 14px;
+}
+
+.history-panel {
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid rgba(8, 117, 104, 0.22);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.history-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.history-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfefd;
+}
+
+.history-card span,
+.history-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 740;
+}
+
+.history-card h3 {
+  margin: 4px 0 5px;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.history-card p {
+  margin: 0 0 6px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 760;
 }
 
 .control-board {
@@ -1787,6 +1845,7 @@ dd {
 
   .agent-output-grid,
   .content-plan-list,
+  .history-list,
   .track-card-grid,
   .referenced-ads-list,
   .creative-source-grid,
@@ -1825,6 +1884,7 @@ dd {
   .analysis-grid,
   .agent-output-grid,
   .content-plan-list,
+  .history-list,
   .track-card-grid,
   .referenced-ads-list,
   .final-two-col,

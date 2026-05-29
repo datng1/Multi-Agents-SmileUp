@@ -81,6 +81,18 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 }
             )
             return
+        if path == "/api/history":
+            query = parse_qs(parsed.query)
+            history_id = (query.get("id") or [""])[0]
+            if history_id:
+                item = _get_workflow_context_history_item(history_id)
+                if not item:
+                    self._send_json({"ok": False, "error": "History item not found"}, status=404)
+                    return
+                self._send_json({"ok": True, **item})
+                return
+            self._send_json({"ok": True, "items": _list_workflow_context_history()})
+            return
         if path == "/api/job":
             query = parse_qs(parsed.query)
             job_id = (query.get("id") or [""])[0]
@@ -358,26 +370,7 @@ def _run_job(job_id: str, request_payload: dict) -> None:
 
 
 def _run_workflow_payload(request_payload: dict) -> dict:
-    force_refresh = bool(request_payload.get("force_refresh"))
-    cache_key = _workflow_context_cache_key(request_payload)
-    if not force_refresh:
-        cached_output = _read_workflow_context_cache(cache_key)
-        if cached_output:
-            age_seconds = int(time.time() - float(cached_output.get("cached_at", 0) or 0))
-            cached_result = dict(cached_output.get("output") or {})
-            cached_logs = cached_result.get("logs") or ""
-            cache_note = f"Context cache hit: reused workflow result from {age_seconds}s ago."
-            cached_result.update(
-                {
-                    "cache_hit": True,
-                    "cache_age_seconds": age_seconds,
-                    "context_cache_key": cache_key,
-                    "duration_ms": 0,
-                    "logs": f"{cache_note}\n{cached_logs}".strip(),
-                }
-            )
-            return cached_result
-
+    context_key = _workflow_context_cache_key(request_payload)
     log_buffer = io.StringIO()
     initial_state = _build_initial_state(request_payload)
     started_at = time.perf_counter()
@@ -388,11 +381,10 @@ def _run_workflow_payload(request_payload: dict) -> dict:
         "result": result,
         "duration_ms": duration_ms,
         "logs": log_buffer.getvalue().strip(),
-        "cache_hit": False,
-        "cache_age_seconds": 0,
-        "context_cache_key": cache_key,
+        "history_hit": False,
+        "context_cache_key": context_key,
     }
-    _write_workflow_context_cache(cache_key, output)
+    output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload)
     return output
 
 
@@ -427,21 +419,50 @@ def _workflow_context_cache_key(request_payload: dict) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def _read_workflow_context_cache(cache_key: str) -> dict | None:
+def _get_workflow_context_history_item(history_id: str) -> dict | None:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
-        entry = (cache.get("entries") or {}).get(cache_key)
+        entry = (cache.get("entries") or {}).get(history_id)
         if not isinstance(entry, dict):
             return None
         cached_at = float(entry.get("cached_at", 0) or 0)
         if time.time() - cached_at >= WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
-            cache.get("entries", {}).pop(cache_key, None)
+            cache.get("entries", {}).pop(history_id, None)
             _save_workflow_context_cache(cache)
             return None
         output = entry.get("output")
         if not isinstance(output, dict):
             return None
-        return {"cached_at": cached_at, "output": output}
+        return {
+            "history_id": history_id,
+            "cached_at": cached_at,
+            "summary": entry.get("summary") or {},
+            **output,
+            "history_hit": True,
+        }
+
+
+def _list_workflow_context_history() -> list[dict]:
+    with CACHE_LOCK:
+        cache = _load_workflow_context_cache()
+        removed = _prune_workflow_context_cache_entries(cache, time.time())
+        if removed:
+            _save_workflow_context_cache(cache)
+        items = []
+        for history_id, entry in (cache.get("entries") or {}).items():
+            if not isinstance(entry, dict):
+                continue
+            summary = dict(entry.get("summary") or {})
+            cached_at = float(entry.get("cached_at", 0) or 0)
+            items.append(
+                {
+                    "history_id": history_id,
+                    "cached_at": cached_at,
+                    "created_at": summary.get("created_at") or datetime.fromtimestamp(cached_at).isoformat(timespec="seconds"),
+                    **summary,
+                }
+            )
+        return sorted(items, key=lambda item: float(item.get("cached_at", 0) or 0), reverse=True)
 
 
 def _prune_workflow_context_cache(now: float | None = None) -> int:
@@ -477,17 +498,44 @@ def _start_workflow_context_cache_cleanup() -> None:
     worker.start()
 
 
-def _write_workflow_context_cache(cache_key: str, output: dict) -> None:
+def _write_workflow_context_cache(context_key: str, output: dict, request_payload: dict) -> str:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entries = cache.setdefault("entries", {})
         now = time.time()
         _prune_workflow_context_cache_entries(cache, now)
+        history_id = uuid.uuid4().hex
         cache_output = dict(output)
-        cache_output["cache_hit"] = False
+        cache_output["history_hit"] = False
         cache_output["logs"] = str(cache_output.get("logs") or "")
-        entries[cache_key] = {"cached_at": now, "output": cache_output}
+        entries[history_id] = {
+            "cached_at": now,
+            "context_key": context_key,
+            "summary": _workflow_context_history_summary(cache_output, request_payload, now),
+            "output": cache_output,
+        }
         _save_workflow_context_cache(cache)
+        return history_id
+
+
+def _workflow_context_history_summary(output: dict, request_payload: dict, cached_at: float) -> dict:
+    result = output.get("result") or {}
+    ads = result.get("ad_library_ads") or []
+    draft = result.get("draft_content") or {}
+    keyword = str(request_payload.get("ad_library_keywords", "")).strip() or result.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
+    return {
+        "created_at": datetime.fromtimestamp(cached_at).isoformat(timespec="seconds"),
+        "keyword": keyword,
+        "mode": str(request_payload.get("mode", "auto") or "auto"),
+        "data_source": result.get("data_source") or "",
+        "approval_status": result.get("approval_status") or "",
+        "cmo_decision": result.get("cmo_decision") or "",
+        "ads_count": len(ads),
+        "competitor_ads": sum(1 for ad in ads if ad.get("source_type") == "competitor_page"),
+        "keyword_ads": sum(1 for ad in ads if ad.get("source_type") == "keyword_scan"),
+        "title": draft.get("title") or result.get("cmo_next_action") or "Workflow result",
+        "duration_ms": output.get("duration_ms", 0),
+    }
 
 
 def _load_workflow_context_cache() -> dict:

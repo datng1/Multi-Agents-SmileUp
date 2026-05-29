@@ -119,7 +119,7 @@ Workflow hiện có thêm:
 - Các page đối thủ ưu tiên được cấu hình bằng link Ad Library có `view_all_page_id`; hệ thống tự parse page ID, lấy ads công khai rồi trộn với keyword scan.
 - Keyword mặc định `nha khoa răng sứ răng đẹp cấy implant` vẫn dùng cho phần 20% scan mở rộng và để tính độ match của tất cả ads.
 - Trên giao diện có thể sửa keyword quét; nếu để trống sẽ dùng keyword mặc định trong `.env`.
-- Saving context: nếu keyword, input thủ công, cấu hình 80/20 và model không đổi, workflow giữ lại context trong 7 ngày và trả kết quả tức thì. Khi đổi keyword hoặc đổi input/cấu hình, hệ thống tự tạo cache key mới và quét lại.
+- Saving context hoạt động như lịch sử 7 ngày: mỗi lần bấm chạy vẫn quét/search/model lại để bắt ads mới, sau đó lưu kết quả vào lịch sử. Nút **Xem lịch sử** cạnh nút chạy cho phép mở lại các kết quả trong 7 ngày gần nhất.
 - Ads được xếp hạng theo điểm kết hợp: độ giống keyword và ngày bắt đầu chạy mới nhất.
 - Tuyến bài ads hiệu quả chỉ ưu tiên các ads có keyword match từ 95% trở lên; nếu chưa đủ nguồn 95%, hệ thống vẫn báo rõ và dùng phần còn lại làm tín hiệu phụ.
 - Phân tích trend Facebook từ bài đối thủ bạn dán vào.
