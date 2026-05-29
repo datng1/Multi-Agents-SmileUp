@@ -290,10 +290,16 @@ h2 {
   line-height: 1.45;
 }
 
+.history-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: center;
+}
+
 .history-card .secondary-button {
   min-height: 46px;
   padding-inline: 18px;
-  align-self: center;
   white-space: nowrap;
 }
 
@@ -1911,9 +1917,14 @@ dd {
     grid-template-columns: 1fr;
   }
 
-  .history-card .secondary-button,
+  .history-card-actions,
   .ad-link-button {
     justify-self: start;
+  }
+
+  .history-card-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }
 

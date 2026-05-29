@@ -138,6 +138,25 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             self._send_json({"ok": False, "error": _sanitize_error(str(exc)), "logs": ""}, status=500)
 
+    def do_DELETE(self) -> None:
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if not self._is_authenticated():
+            self._send_json({"ok": False, "error": "Authentication required"}, status=401)
+            return
+        if path != "/api/history":
+            self.send_error(404)
+            return
+
+        history_id = (parse_qs(parsed.query).get("id") or [""])[0]
+        if not history_id:
+            self._send_json({"ok": False, "error": "Missing history id"}, status=400)
+            return
+        if not _delete_workflow_context_history_item(history_id):
+            self._send_json({"ok": False, "error": "History item not found"}, status=404)
+            return
+        self._send_json({"ok": True, "history_id": history_id})
+
     def _serve_static(self, path: Path) -> None:
         resolved = path.resolve()
         if not str(resolved).startswith(str(WEB_ROOT.resolve())) or not resolved.is_file():
@@ -463,6 +482,17 @@ def _list_workflow_context_history() -> list[dict]:
                 }
             )
         return sorted(items, key=lambda item: float(item.get("cached_at", 0) or 0), reverse=True)
+
+
+def _delete_workflow_context_history_item(history_id: str) -> bool:
+    with CACHE_LOCK:
+        cache = _load_workflow_context_cache()
+        entries = cache.setdefault("entries", {})
+        if history_id not in entries:
+            return False
+        entries.pop(history_id, None)
+        _save_workflow_context_cache(cache)
+        return True
 
 
 def _prune_workflow_context_cache(now: float | None = None) -> int:

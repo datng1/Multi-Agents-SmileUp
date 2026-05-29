@@ -1,4 +1,5 @@
 const runButton = document.querySelector("#runButton");
+const homeButton = document.querySelector("#homeButton");
 const historyButton = document.querySelector("#historyButton");
 const historyPanel = document.querySelector("#historyPanel");
 const historyCloseButton = document.querySelector("#historyCloseButton");
@@ -277,6 +278,7 @@ async function loadStatus() {
 async function runWorkflow() {
   runButton.disabled = true;
   runButton.querySelector(".button-icon").textContent = "...";
+  homeButton.classList.add("hidden-panel");
   resetAgents();
   resetRunOutputs();
   setAgentState("crawler");
@@ -459,7 +461,10 @@ function renderHistoryList(items) {
             <p>${escapeHtml(item.keyword || "nha khoa răng sứ răng đẹp cấy implant")}</p>
             <small>${Number(item.ads_count || 0)} ads · ${Number(item.competitor_ads || 0)} đối thủ · ${escapeHtml(item.cmo_decision || item.approval_status || "pending")}</small>
           </div>
-          <button class="secondary-button compact use-history-button" type="button" data-history-id="${escapeHtml(item.history_id)}">Mở lại</button>
+          <div class="history-card-actions">
+            <button class="secondary-button compact use-history-button" type="button" data-history-id="${escapeHtml(item.history_id)}">Mở lại</button>
+            <button class="secondary-button compact danger delete-history-button" type="button" data-history-id="${escapeHtml(item.history_id)}">Xóa</button>
+          </div>
         </article>
       `;
     })
@@ -474,7 +479,20 @@ async function openHistoryItem(historyId) {
   }
   renderResult(payload.result, payload.logs || "", payload.duration_ms, true);
   lastRunValue.textContent = payload.summary?.created_at ? new Date(payload.summary.created_at).toLocaleTimeString("vi-VN") : "History";
+  homeButton.classList.remove("hidden-panel");
   closeHistoryPanel();
+}
+
+async function deleteHistoryItem(historyId) {
+  if (!window.confirm("Xóa bản lịch sử này khỏi 7 ngày gần nhất?")) {
+    return;
+  }
+  const response = await fetch(`/api/history?id=${encodeURIComponent(historyId)}`, { method: "DELETE" });
+  const payload = await response.json();
+  if (!payload.ok) {
+    throw new Error(payload.error || "Không xóa được lịch sử.");
+  }
+  await loadHistory();
 }
 
 function renderInsights(insights) {
@@ -1020,6 +1038,9 @@ function escapeHtml(value) {
 }
 
 runButton.addEventListener("click", runWorkflow);
+homeButton.addEventListener("click", () => {
+  window.location.href = "/";
+});
 historyButton.addEventListener("click", () => {
   toggleHistoryPanel().catch((error) => {
     historyList.className = "history-list empty-state";
@@ -1028,6 +1049,15 @@ historyButton.addEventListener("click", () => {
 });
 historyCloseButton.addEventListener("click", closeHistoryPanel);
 historyList.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest(".delete-history-button");
+  if (deleteButton) {
+    deleteHistoryItem(deleteButton.dataset.historyId).catch((error) => {
+      historyList.className = "history-list empty-state";
+      historyList.textContent = error.message;
+    });
+    return;
+  }
+
   const button = event.target.closest(".use-history-button");
   if (!button) {
     return;
