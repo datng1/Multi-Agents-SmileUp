@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass, field
 
 try:
@@ -15,6 +16,23 @@ def _bool(name: str, default: bool = False) -> bool:
 
 def _list(name: str) -> list[str]:
     return [item.strip() for item in os.getenv(name, "").split(",") if item.strip()]
+
+
+def _multi_list(name: str, default: str = "") -> list[str]:
+    raw = os.getenv(name, default)
+    return [item.strip() for item in re.split(r"[\n,]+", raw) if item.strip()]
+
+
+DEFAULT_COMPETITOR_AD_LIBRARY_URLS = "\n".join(
+    [
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=110734571784682",
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=787928884397319",
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=112564051627698",
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=523667784157191",
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=746526788551014",
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=112901911595862",
+    ]
+)
 
 
 @dataclass(frozen=True)
@@ -42,6 +60,8 @@ class Settings:
     ad_library_country: str = os.getenv("AD_LIBRARY_COUNTRY", "VN")
     ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "12"))
     ad_library_cache_ttl_hours: float = float(os.getenv("AD_LIBRARY_CACHE_TTL_HOURS", "24"))
+    ad_library_competitor_urls: list[str] = field(default_factory=lambda: _multi_list("AD_LIBRARY_COMPETITOR_URLS", DEFAULT_COMPETITOR_AD_LIBRARY_URLS))
+    ad_library_competitor_ratio: float = float(os.getenv("AD_LIBRARY_COMPETITOR_RATIO", "0.8"))
     auth_enabled: bool = _bool("AUTH_ENABLED", False)
     admin_username: str = os.getenv("ADMIN_USERNAME", "")
     admin_password: str = os.getenv("ADMIN_PASSWORD", "")
@@ -98,6 +118,8 @@ AD_LIBRARY_KEYWORDS = settings.ad_library_keywords
 AD_LIBRARY_COUNTRY = settings.ad_library_country
 AD_LIBRARY_MAX_ADS = settings.ad_library_max_ads
 AD_LIBRARY_CACHE_TTL_HOURS = settings.ad_library_cache_ttl_hours
+AD_LIBRARY_COMPETITOR_URLS = settings.ad_library_competitor_urls
+AD_LIBRARY_COMPETITOR_RATIO = settings.ad_library_competitor_ratio
 AUTH_ENABLED = settings.auth_enabled
 ADMIN_USERNAME = settings.admin_username
 ADMIN_PASSWORD = settings.admin_password

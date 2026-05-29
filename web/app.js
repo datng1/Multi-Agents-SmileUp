@@ -433,6 +433,7 @@ function renderReferencedAds(ads) {
       const firstLine = String(ad.ad_text || "").split(/\r?\n/).find((line) => line.trim()) || "";
       const similarity = Number(ad.similarity || 0);
       const scoreLabel = similarity ? `${Math.round(similarity * 100)}% match` : "Matched";
+      const sourceLabel = ad.source_type === "competitor_page" ? "Đối thủ ưu tiên" : "Keyword scan";
       return `
         <article class="referenced-ad-card">
           <div>
@@ -440,6 +441,7 @@ function renderReferencedAds(ads) {
               <span>${escapeHtml(ad.page_name || "Meta Ad Library")}</span>
               <strong>${escapeHtml(scoreLabel)}</strong>
             </div>
+            <span class="ad-source-chip">${escapeHtml(sourceLabel)}</span>
             <h3>${escapeHtml(firstLine || "Ad Library creative")}</h3>
             <p>${escapeHtml(ad.started_running || "No start date")}</p>
           </div>

@@ -1,18 +1,20 @@
+import hashlib
 import json
+import math
 import re
 import time
 import unicodedata
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from tools.summarizer import extract_topics, summarize_text
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_PATH = ROOT / "data" / "ad_library_cache.json"
-CACHE_VERSION = 4
+CACHE_VERSION = 5
 HIGH_MATCH_THRESHOLD = 0.95
 
 
@@ -29,6 +31,9 @@ class AdLibraryAd:
     recency_score: float
     sort_score: float
     started_timestamp: float
+    source_type: str = "keyword_scan"
+    source_page_id: str = ""
+    source_weight: float = 0.2
 
 
 def collect_ad_library_ads(
@@ -37,13 +42,22 @@ def collect_ad_library_ads(
     max_ads: int = 12,
     cache_ttl_hours: float = 24,
     force_refresh: bool = False,
+    competitor_urls: list[str] | None = None,
+    competitor_ratio: float = 0.8,
 ) -> list[dict]:
-    cached = _read_cache(keywords, country, cache_ttl_hours)
+    competitor_urls = [url.strip() for url in competitor_urls or [] if url.strip()]
+    competitor_ratio = min(1.0, max(0.0, competitor_ratio))
+    cache_key = _cache_key(keywords, country, max_ads, competitor_urls, competitor_ratio)
+    cached = _read_cache(cache_key, cache_ttl_hours)
     if cached is not None and not force_refresh:
         return cached[:max_ads]
 
-    ads = _scrape_ad_library(keywords=keywords, country=country, max_ads=max_ads)
-    _write_cache(keywords, country, ads)
+    if competitor_urls:
+        ads = _collect_weighted_ads(keywords, country, max_ads, competitor_urls, competitor_ratio)
+    else:
+        ads = _scrape_ad_library(keywords=keywords, country=country, max_ads=max_ads)
+
+    _write_cache(cache_key, keywords, country, ads, competitor_urls, competitor_ratio)
     return ads[:max_ads]
 
 
@@ -83,11 +97,15 @@ def build_ad_library_report(
     keywords: str,
     high_match_ads: list[dict] | None = None,
     threshold: float = HIGH_MATCH_THRESHOLD,
+    competitor_urls: list[str] | None = None,
+    competitor_ratio: float = 0.8,
 ) -> str:
     if not ads:
         return f"Ad Library Agent: Không tìm được quảng cáo phù hợp cho keyword '{keywords}'."
 
     high_match_ads = high_match_ads if high_match_ads is not None else filter_high_match_ads(ads, threshold)
+    competitor_count = sum(1 for ad in ads if ad.get("source_type") == "competitor_page")
+    keyword_count = sum(1 for ad in ads if ad.get("source_type") == "keyword_scan")
     pages = []
     for ad in ads:
         page = str(ad.get("page_name") or "").strip()
@@ -98,15 +116,23 @@ def build_ad_library_report(
         for ad in ads[:4]
         if str(ad.get("ad_text", "")).strip()
     )
+    source_line = (
+        f"- Tỷ trọng nguồn: {competitor_count}/{len(ads)} ads từ page đối thủ ưu tiên "
+        f"(mục tiêu {round(competitor_ratio * 100)}%), {keyword_count}/{len(ads)} ads từ keyword scan mở rộng.\n"
+        if competitor_urls
+        else "- Tỷ trọng nguồn: chỉ dùng keyword scan mở rộng vì chưa cấu hình page đối thủ ưu tiên.\n"
+    )
     return (
         "Ad Library Agent:\n"
-        f"- Keyword quét: {keywords}.\n"
+        f"- Keyword quét mở rộng: {keywords}.\n"
+        f"- Page đối thủ ưu tiên: {len(competitor_urls or [])} page.\n"
         f"- Số quảng cáo lấy vào workflow: {len(ads)}.\n"
-        f"- Ads đủ điều kiện cho tuyến bài ads hiệu quả: {len(high_match_ads)} ads có keyword match từ {round(threshold * 100)}% trở lên.\n"
-        "- Thuật toán chọn: ưu tiên ads có độ giống keyword cao trước, sau đó đến ngày chạy mới nhất.\n"
+        + source_line
+        + f"- Ads đủ điều kiện cho tuyến bài ads hiệu quả: {len(high_match_ads)} ads có keyword match từ {round(threshold * 100)}% trở lên.\n"
+        "- Thuật toán chọn: ưu tiên đúng page đối thủ trước, sau đó lọc theo độ giống keyword, ngày chạy mới nhất và tín hiệu nha khoa.\n"
         f"- Page nổi bật: {', '.join(pages[:8])}.\n"
         f"- Mẫu hook/copy: {sample or 'Chưa có copy đủ rõ.'}\n"
-        "- Nguồn này phản ánh quảng cáo trong Meta Ad Library, không phải toàn bộ bài organic của Page."
+        "- Nguồn này phản ánh quảng cáo công khai trong Meta Ad Library, không phải toàn bộ bài organic của Page."
     )
 
 
@@ -121,13 +147,143 @@ def build_ad_visual_notes(ads: list[dict]) -> str:
     return "Media preview từ Ad Library:\n" + "\n".join(media_lines[:10])
 
 
+def extract_page_ids(urls: list[str]) -> list[str]:
+    page_ids: list[str] = []
+    for url in urls:
+        query = parse_qs(urlparse(url).query)
+        page_id = (query.get("view_all_page_id") or [""])[0].strip()
+        if page_id and page_id not in page_ids:
+            page_ids.append(page_id)
+    return page_ids
+
+
+def _collect_weighted_ads(
+    keywords: str,
+    country: str,
+    max_ads: int,
+    competitor_urls: list[str],
+    competitor_ratio: float,
+) -> list[dict]:
+    competitor_target = min(max_ads, max(1, math.ceil(max_ads * competitor_ratio)))
+    keyword_target = max(0, max_ads - competitor_target)
+
+    competitor_ads = (
+        _scrape_competitor_page_ads(
+            urls=competitor_urls,
+            keywords=keywords,
+            max_ads=max(competitor_target * 3, competitor_target + len(competitor_urls)),
+        )
+        if competitor_target
+        else []
+    )
+    keyword_ads = (
+        _scrape_ad_library(
+            keywords=keywords,
+            country=country,
+            max_ads=max(keyword_target * 4, keyword_target, 4),
+        )
+        if keyword_target
+        else []
+    )
+
+    competitor_ranked = _rank_ads(competitor_ads)
+    keyword_ranked = _rank_ads(keyword_ads)
+    selected = competitor_ranked[:competitor_target] + keyword_ranked[:keyword_target]
+
+    if len(selected) < max_ads:
+        selected = _dedupe_ads(selected + competitor_ranked[competitor_target:] + keyword_ranked[keyword_target:])
+
+    return _dedupe_ads(selected)[:max_ads]
+
+
 def _scrape_ad_library(keywords: str, country: str, max_ads: int) -> list[dict]:
+    url = (
+        "https://www.facebook.com/ads/library/"
+        f"?active_status=active&ad_type=all&country={quote(country)}&media_type=all"
+        f"&q={quote(keywords)}&search_type=keyword_unordered"
+    )
+    return _scrape_ad_library_url(url, keywords, max_ads, source_type="keyword_scan", source_weight=0.2)
+
+
+def _scrape_competitor_page_ads(urls: list[str], keywords: str, max_ads: int) -> list[dict]:
+    page_ids = extract_page_ids(urls)
+    if not page_ids:
+        return []
+
+    per_page_limit = max(2, math.ceil(max_ads / len(page_ids)) + 1)
+    specs = [
+        {
+            "url": _page_ad_library_url(page_id),
+            "max_ads": per_page_limit,
+            "source_type": "competitor_page",
+            "source_page_id": page_id,
+            "source_weight": 0.8,
+        }
+        for page_id in page_ids
+    ]
+    return _dedupe_ads(_scrape_ad_library_urls(specs, keywords, stop_after=max_ads))
+
+
+def _scrape_ad_library_url(
+    url: str,
+    keywords: str,
+    max_ads: int,
+    source_type: str,
+    source_page_id: str = "",
+    source_weight: float = 0.2,
+) -> list[dict]:
     try:
         from selenium import webdriver
-        from selenium.webdriver.chrome.options import Options
         from selenium.webdriver.common.by import By
     except Exception as exc:
         raise RuntimeError("selenium is required for Ad Library scraping") from exc
+
+    driver = webdriver.Chrome(options=_chrome_options())
+    try:
+        driver.get(url)
+        time.sleep(12)
+        body = driver.find_element(By.TAG_NAME, "body").text
+        media_urls = _extract_media_urls(driver)
+        ads = _parse_ad_cards(body, media_urls, keywords, source_type, source_page_id, source_weight)
+        return ads[:max_ads]
+    finally:
+        driver.quit()
+
+
+def _scrape_ad_library_urls(specs: list[dict], keywords: str, stop_after: int) -> list[dict]:
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+    except Exception as exc:
+        raise RuntimeError("selenium is required for Ad Library scraping") from exc
+
+    ads: list[dict] = []
+    driver = webdriver.Chrome(options=_chrome_options())
+    try:
+        for spec in specs:
+            driver.get(str(spec["url"]))
+            time.sleep(12)
+            body = driver.find_element(By.TAG_NAME, "body").text
+            media_urls = _extract_media_urls(driver)
+            page_ads = _parse_ad_cards(
+                body,
+                media_urls,
+                keywords,
+                str(spec.get("source_type") or "keyword_scan"),
+                str(spec.get("source_page_id") or ""),
+                float(spec.get("source_weight") or 0.2),
+            )
+            ads.extend(page_ads[: int(spec.get("max_ads") or stop_after)])
+            ads = _dedupe_ads(ads)
+            if len(ads) >= stop_after:
+                break
+        return ads[:stop_after]
+    finally:
+        driver.quit()
+
+
+def _chrome_options():
+    from selenium.webdriver.chrome.options import Options
 
     options = Options()
     options.add_argument("--headless=new")
@@ -136,31 +292,23 @@ def _scrape_ad_library(keywords: str, country: str, max_ads: int) -> list[dict]:
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-setuid-sandbox")
     options.add_argument("--window-size=1440,1800")
-    options.add_argument("--lang=en-US")
+    options.add_argument("--lang=vi-VN")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument(
         "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/125 Safari/537.36"
     )
-
-    url = (
-        "https://www.facebook.com/ads/library/"
-        f"?active_status=active&ad_type=all&country={quote(country)}&media_type=all"
-        f"&q={quote(keywords)}&search_type=keyword_unordered"
-    )
-    driver = webdriver.Chrome(options=options)
-    try:
-        driver.get(url)
-        time.sleep(12)
-        body = driver.find_element(By.TAG_NAME, "body").text
-        media_urls = _extract_media_urls(driver)
-        ads = _parse_ad_cards(body, media_urls, keywords)
-        return [asdict(ad) for ad in ads[:max_ads]]
-    finally:
-        driver.quit()
+    return options
 
 
-def _parse_ad_cards(body: str, media_urls: list[str], keywords: str) -> list[AdLibraryAd]:
+def _parse_ad_cards(
+    body: str,
+    media_urls: list[str],
+    keywords: str,
+    source_type: str = "keyword_scan",
+    source_page_id: str = "",
+    source_weight: float = 0.2,
+) -> list[dict]:
     parts = re.split(r"(?=(?:Library ID|ID thư viện)[: ]+\d+)", body)
     ads: list[AdLibraryAd] = []
     media_index = 0
@@ -176,7 +324,7 @@ def _parse_ad_cards(body: str, media_urls: list[str], keywords: str) -> list[AdL
         page_name = _page_name_from_lines(lines)
         started = _started_from_lines(lines)
         ad_text = _ad_text_from_lines(lines)
-        dedupe_key = f"{page_name}:{ad_text[:220]}"
+        dedupe_key = library_id or f"{page_name}:{ad_text[:220]}"
         if dedupe_key in seen:
             continue
         seen.add(dedupe_key)
@@ -185,7 +333,7 @@ def _parse_ad_cards(body: str, media_urls: list[str], keywords: str) -> list[AdL
         similarity = _keyword_similarity(keywords, f"{page_name}\n{ad_text}")
         started_timestamp = _started_timestamp(started)
         recency_score = _recency_score(started_timestamp)
-        sort_score = round(similarity * 0.72 + recency_score * 0.28, 4)
+        sort_score = round(similarity * 0.62 + recency_score * 0.23 + min(score / 20, 1) * 0.15, 4)
         if score <= 0 or not ad_text or similarity <= 0:
             continue
         card_media = media_urls[media_index : media_index + 2]
@@ -203,9 +351,12 @@ def _parse_ad_cards(body: str, media_urls: list[str], keywords: str) -> list[AdL
                 recency_score=recency_score,
                 sort_score=sort_score,
                 started_timestamp=started_timestamp,
+                source_type=source_type,
+                source_page_id=source_page_id,
+                source_weight=source_weight,
             )
         )
-    return sorted(ads, key=lambda ad: (ad.sort_score, ad.started_timestamp, ad.score), reverse=True)
+    return _rank_ads([asdict(ad) for ad in ads])
 
 
 def _page_name_from_lines(lines: list[str]) -> str:
@@ -221,6 +372,22 @@ def _ad_library_url(library_id: str) -> str:
     if not library_id:
         return "https://www.facebook.com/ads/library/"
     return f"https://www.facebook.com/ads/library/?id={library_id}"
+
+
+def _page_ad_library_url(page_id: str) -> str:
+    params = {
+        "active_status": "active",
+        "ad_type": "all",
+        "country": "ALL",
+        "is_targeted_country": "false",
+        "media_type": "all",
+        "search_type": "page",
+        "sort_data[mode]": "total_impressions",
+        "sort_data[direction]": "desc",
+        "source": "page-transparency-widget",
+        "view_all_page_id": page_id,
+    }
+    return "https://www.facebook.com/ads/library/?" + urlencode(params)
 
 
 def _started_from_lines(lines: list[str]) -> str:
@@ -250,13 +417,22 @@ def _ad_text_from_lines(lines: list[str]) -> str:
 
 
 def _dental_score(text: str) -> int:
-    return len(
-        re.findall(
-            r"nha\s*khoa|răng|rang|sứ|implant|niềng|bọc|trồng răng|cấy ghép|mất răng|nụ cười|phục hình",
-            text,
-            re.IGNORECASE,
-        )
+    normalized = _normalize_vietnamese(text)
+    terms = (
+        "nha khoa",
+        "rang",
+        "rang su",
+        "implant",
+        "nieng",
+        "boc",
+        "trong rang",
+        "cay ghep",
+        "mat rang",
+        "nu cuoi",
+        "phuc hinh",
+        "tham my",
     )
+    return sum(normalized.count(term) for term in terms)
 
 
 def _keyword_similarity(keywords: str, text: str) -> float:
@@ -284,44 +460,10 @@ def _keyword_terms(keywords: str) -> list[str]:
 
 
 def _normalize_vietnamese(value: str) -> str:
-    replacements = str.maketrans(
-        {
-            "à": "a", "á": "a", "ạ": "a", "ả": "a", "ã": "a", "â": "a", "ầ": "a", "ấ": "a", "ậ": "a", "ẩ": "a", "ẫ": "a", "ă": "a", "ằ": "a", "ắ": "a", "ặ": "a", "ẳ": "a", "ẵ": "a",
-            "è": "e", "é": "e", "ẹ": "e", "ẻ": "e", "ẽ": "e", "ê": "e", "ề": "e", "ế": "e", "ệ": "e", "ể": "e", "ễ": "e",
-            "ì": "i", "í": "i", "ị": "i", "ỉ": "i", "ĩ": "i",
-            "ò": "o", "ó": "o", "ọ": "o", "ỏ": "o", "õ": "o", "ô": "o", "ồ": "o", "ố": "o", "ộ": "o", "ổ": "o", "ỗ": "o", "ơ": "o", "ờ": "o", "ớ": "o", "ợ": "o", "ở": "o", "ỡ": "o",
-            "ù": "u", "ú": "u", "ụ": "u", "ủ": "u", "ũ": "u", "ư": "u", "ừ": "u", "ứ": "u", "ự": "u", "ử": "u", "ữ": "u",
-            "ỳ": "y", "ý": "y", "ỵ": "y", "ỷ": "y", "ỹ": "y", "đ": "d",
-        }
-    )
-    normalized = value.casefold().translate(replacements)
-    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s,.;|/]+", " ", normalized)).strip()
-
-
-def _normalize_vietnamese(value: str) -> str:
     normalized = value.casefold().replace("đ", "d").replace("Đ", "d")
     normalized = unicodedata.normalize("NFD", normalized)
     normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s,.;|/]+", " ", normalized)).strip()
-
-
-def _dental_score(text: str) -> int:
-    normalized = _normalize_vietnamese(text)
-    terms = (
-        "nha khoa",
-        "rang",
-        "rang su",
-        "implant",
-        "nieng",
-        "boc",
-        "trong rang",
-        "cay ghep",
-        "mat rang",
-        "nu cuoi",
-        "phuc hinh",
-        "tham my",
-    )
-    return sum(normalized.count(term) for term in terms)
 
 
 def _started_timestamp(started: str) -> float:
@@ -358,16 +500,60 @@ def _extract_media_urls(driver) -> list[str]:
     return urls
 
 
-def _read_cache(keywords: str, country: str, ttl_hours: float) -> list[dict] | None:
+def _rank_ads(ads: list[dict]) -> list[dict]:
+    return sorted(
+        ads,
+        key=lambda ad: (
+            float(ad.get("source_weight", 0) or 0),
+            float(ad.get("similarity", 0) or 0),
+            float(ad.get("started_timestamp", 0) or 0),
+            float(ad.get("sort_score", 0) or 0),
+            int(ad.get("score", 0) or 0),
+        ),
+        reverse=True,
+    )
+
+
+def _dedupe_ads(ads: list[dict]) -> list[dict]:
+    deduped: list[dict] = []
+    seen: set[str] = set()
+    for ad in ads:
+        key = str(ad.get("library_id") or "").strip()
+        if not key:
+            key = f"{ad.get('page_name', '')}:{str(ad.get('ad_text', ''))[:220]}"
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(ad)
+    return deduped
+
+
+def _cache_key(
+    keywords: str,
+    country: str,
+    max_ads: int,
+    competitor_urls: list[str],
+    competitor_ratio: float,
+) -> str:
+    payload = {
+        "version": CACHE_VERSION,
+        "keywords": keywords,
+        "country": country,
+        "max_ads": max_ads,
+        "competitor_urls": competitor_urls,
+        "competitor_ratio": competitor_ratio,
+    }
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _read_cache(cache_key: str, ttl_hours: float) -> list[dict] | None:
     if not CACHE_PATH.exists():
         return None
     try:
         payload = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
     except Exception:
         return None
-    if payload.get("keywords") != keywords or payload.get("country") != country:
-        return None
-    if payload.get("version") != CACHE_VERSION:
+    if payload.get("version") != CACHE_VERSION or payload.get("cache_key") != cache_key:
         return None
     created_at = float(payload.get("created_at", 0) or 0)
     if time.time() - created_at > ttl_hours * 3600:
@@ -376,7 +562,23 @@ def _read_cache(keywords: str, country: str, ttl_hours: float) -> list[dict] | N
     return ads if isinstance(ads, list) else None
 
 
-def _write_cache(keywords: str, country: str, ads: list[dict]) -> None:
+def _write_cache(
+    cache_key: str,
+    keywords: str,
+    country: str,
+    ads: list[dict],
+    competitor_urls: list[str],
+    competitor_ratio: float,
+) -> None:
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"version": CACHE_VERSION, "created_at": time.time(), "keywords": keywords, "country": country, "ads": ads}
+    payload = {
+        "version": CACHE_VERSION,
+        "cache_key": cache_key,
+        "created_at": time.time(),
+        "keywords": keywords,
+        "country": country,
+        "competitor_urls": competitor_urls,
+        "competitor_ratio": competitor_ratio,
+        "ads": ads,
+    }
     CACHE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

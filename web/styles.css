@@ -1067,6 +1067,19 @@ pre {
   font-size: 12px;
 }
 
+.ad-source-chip {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 9px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: #f8fbfb;
+  font-size: 12px;
+  font-weight: 760;
+}
+
 .referenced-ad-card h3 {
   margin-bottom: 7px;
   font-size: 17px;

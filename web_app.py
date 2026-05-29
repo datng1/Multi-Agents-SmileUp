@@ -69,6 +69,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "cmo_jury_enabled": config.CMO_JURY_ENABLED,
                     "ad_library_enabled": config.AD_LIBRARY_ENABLED,
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
+                    "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
+                    "ad_library_competitor_count": len(config.AD_LIBRARY_COMPETITOR_URLS),
                     "warnings": config.CONFIG_WARNINGS,
                 }
             )
@@ -375,6 +377,8 @@ def _build_initial_state(request_payload: dict) -> dict:
     initial_state = create_initial_state()
     initial_state["run_seed"] = str(time.time_ns())
     initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
+    initial_state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
+    initial_state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
     initial_state["competitor_visual_notes"] = visual_notes
     initial_state["competitor_video_notes"] = video_notes
     initial_state["creative_image_mode"] = creative_image_mode

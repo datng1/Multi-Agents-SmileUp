@@ -29,6 +29,8 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                 country=config.AD_LIBRARY_COUNTRY,
                 max_ads=config.AD_LIBRARY_MAX_ADS,
                 cache_ttl_hours=config.AD_LIBRARY_CACHE_TTL_HOURS,
+                competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
+                competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
             )
             high_match_ads = filter_high_match_ads(ads, threshold=0.95)
             strategy_ads = high_match_ads or ads
@@ -37,7 +39,16 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             state["high_match_ads"] = high_match_ads
             state["high_match_threshold"] = 0.95
             state["ad_library_keywords"] = keywords
-            state["ad_library_report"] = build_ad_library_report(ads, keywords, high_match_ads=high_match_ads, threshold=0.95)
+            state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
+            state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
+            state["ad_library_report"] = build_ad_library_report(
+                ads,
+                keywords,
+                high_match_ads=high_match_ads,
+                threshold=0.95,
+                competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
+                competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
+            )
             state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
             reference_ad = _top_match_reference_ad(strategy_ads)
             if reference_ad:
@@ -48,7 +59,17 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                         "Output must be a new SmileUp image with no reused pixels, faces, logos, or original text."
                     )
             state["data_source"] = "ad_library"
-            state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} Ad Library insights; {len(high_match_ads)} ads match >=95%"})
+            competitor_count = sum(1 for ad in ads if ad.get("source_type") == "competitor_page")
+            keyword_count = sum(1 for ad in ads if ad.get("source_type") == "keyword_scan")
+            state["messages"].append(
+                {
+                    "role": "crawler",
+                    "content": (
+                        f"Collected {len(insights)} Ad Library insights; {len(high_match_ads)} ads match >=95%; "
+                        f"source mix {competitor_count} competitor ads / {keyword_count} keyword ads"
+                    ),
+                }
+            )
         except Exception as exc:
             logger.warning("Ad Library scan failed, using controlled fallback ads: %s", exc)
             keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
@@ -60,11 +81,20 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             state["high_match_ads"] = high_match_ads
             state["high_match_threshold"] = 0.95
             state["ad_library_keywords"] = keywords
+            state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
+            state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
             state["ad_library_report"] = (
                 "Ad Library Agent: live scan tam thoi khong kha dung tren server, "
                 "he thong dung fallback benchmark noi bo de workflow khong bi dung. "
                 "Can chay lai scan khi Chrome/Ad Library san sang.\n\n"
-                + build_ad_library_report(ads, keywords, high_match_ads=high_match_ads, threshold=0.95)
+                + build_ad_library_report(
+                    ads,
+                    keywords,
+                    high_match_ads=high_match_ads,
+                    threshold=0.95,
+                    competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
+                    competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
+                )
             )
             state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
             state["data_source"] = "ad_library_fallback"

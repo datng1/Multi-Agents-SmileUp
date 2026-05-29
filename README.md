@@ -115,7 +115,9 @@ Các agent phân tích chính được phép dùng LLM API để suy nghĩ theo 
 
 Workflow hiện có thêm:
 
-- Tự động quét Meta Ad Library với keyword mặc định `nha khoa răng sứ răng đẹp cấy implant` để lấy ad copy, page name và media preview công khai.
+- Tự động quét Meta Ad Library theo tỷ trọng nguồn: khoảng 80% ads từ các page đối thủ ưu tiên và 20% từ keyword scan mở rộng để vẫn bắt được tín hiệu thị trường mới.
+- Các page đối thủ ưu tiên được cấu hình bằng link Ad Library có `view_all_page_id`; hệ thống tự parse page ID, lấy ads công khai rồi trộn với keyword scan.
+- Keyword mặc định `nha khoa răng sứ răng đẹp cấy implant` vẫn dùng cho phần 20% scan mở rộng và để tính độ match của tất cả ads.
 - Trên giao diện có thể sửa keyword quét; nếu để trống sẽ dùng keyword mặc định trong `.env`.
 - Ads được xếp hạng theo điểm kết hợp: độ giống keyword và ngày bắt đầu chạy mới nhất.
 - Tuyến bài ads hiệu quả chỉ ưu tiên các ads có keyword match từ 95% trở lên; nếu chưa đủ nguồn 95%, hệ thống vẫn báo rõ và dùng phần còn lại làm tín hiệu phụ.
@@ -153,6 +155,8 @@ AD_LIBRARY_KEYWORDS=nha khoa răng sứ răng đẹp cấy implant
 AD_LIBRARY_COUNTRY=VN
 AD_LIBRARY_MAX_ADS=12
 AD_LIBRARY_CACHE_TTL_HOURS=24
+AD_LIBRARY_COMPETITOR_RATIO=0.8
+AD_LIBRARY_COMPETITOR_URLS=https://www.facebook.com/ads/library/?...view_all_page_id=110734571784682,https://www.facebook.com/ads/library/?...view_all_page_id=787928884397319
 ```
 
 ## Cấu Hình Thật
