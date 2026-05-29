@@ -959,6 +959,16 @@ h2 {
   margin-top: 12px;
 }
 
+.got-map-hint {
+  padding: 9px 11px;
+  border: 1px dashed rgba(8, 117, 104, 0.28);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background: #f8fffd;
+  font-size: 13px;
+  font-weight: 720;
+}
+
 .got-graph {
   display: grid;
   gap: 12px;
@@ -1018,8 +1028,17 @@ h2 {
   min-height: 102px;
   transform: translate(-50%, -50%);
   border-radius: 999px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
   z-index: 1;
+}
+
+.got-bubble.dragging {
+  cursor: grabbing;
+  z-index: 4;
+  box-shadow: 0 22px 48px rgba(8, 117, 104, 0.22);
 }
 
 .got-node.in-path {

@@ -424,6 +424,9 @@ async function toggleHistoryPanel() {
   historyButton.setAttribute("aria-expanded", "true");
   historyPanel.classList.remove("hidden-panel");
   await loadHistory();
+  requestAnimationFrame(() => {
+    historyPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function closeHistoryPanel() {
@@ -633,6 +636,8 @@ function renderDecisionGraph(graph, summary) {
       return `
         <line
           class="${isPathEdge ? "path-link" : ""}"
+          data-source="${escapeHtml(edge.source)}"
+          data-target="${escapeHtml(edge.target)}"
           x1="${source.x}"
           y1="${source.y}"
           x2="${target.x}"
@@ -651,6 +656,7 @@ function renderDecisionGraph(graph, summary) {
           class="got-node got-bubble ${escapeHtml(node.type || "node")} ${escapeHtml(node.status || "neutral")} ${inPath ? "in-path" : ""}"
           data-node="${escapeHtml(node.id || "")}"
           style="--x:${position.x}%; --y:${position.y}%;"
+          title="Kéo bubble để chỉnh vị trí"
         >
           <div>
             <strong>${escapeHtml(node.type || "node")}</strong>
@@ -663,11 +669,13 @@ function renderDecisionGraph(graph, summary) {
     .join("");
   cmoDecisionGraph.innerHTML = `
     <pre>${escapeHtml(summary || "Graph-of-Thought CMO đã dựng xong.")}</pre>
+    <div class="got-map-hint">Kéo từng bubble để chỉnh vị trí nếu node bị chồng lên nhau.</div>
     <div class="got-mind-map">
       <svg class="got-link-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${lineHtml}</svg>
       ${nodeHtml}
     </div>
   `;
+  enableMindMapDrag(cmoDecisionGraph.querySelector(".got-mind-map"));
 }
 
 function buildMindMapPositions(nodes, selectedPath) {
@@ -684,8 +692,9 @@ function buildMindMapPositions(nodes, selectedPath) {
   positions.set(centerNode.id, { x: 50, y: 50 });
   const pathIds = [...selectedPath].filter((id) => id !== centerNode.id && nodeIds.has(id));
   const otherIds = nodes.map((node) => node.id).filter((id) => id !== centerNode.id && !selectedPath.has(id));
-  placeRing(positions, pathIds, 34, -165, 35, 50, 50);
-  placeRing(positions, otherIds, 42, 75, 285, 50, 50);
+  placeRing(positions, pathIds, Math.min(42, 28 + pathIds.length * 2.2), -170, 25, 50, 50);
+  placeRing(positions, otherIds, Math.min(46, 34 + otherIds.length * 1.4), 55, 305, 50, 50);
+  relaxMindMapPositions(positions, nodes);
   return positions;
 }
 
@@ -703,6 +712,90 @@ function placeRing(positions, ids, radius, startDeg, endDeg, centerX, centerY) {
       y: Math.max(12, Math.min(88, Number(y.toFixed(2)))),
     });
   });
+}
+
+function relaxMindMapPositions(positions, nodes) {
+  const ids = nodes.map((node) => node.id).filter((id) => positions.has(id));
+  for (let pass = 0; pass < 14; pass += 1) {
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        const a = positions.get(ids[i]);
+        const b = positions.get(ids[j]);
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const distance = Math.hypot(dx, dy) || 0.1;
+        const minDistance = 16;
+        if (distance >= minDistance) {
+          continue;
+        }
+        const push = (minDistance - distance) / 2;
+        const ux = dx / distance;
+        const uy = dy / distance;
+        a.x = Math.max(8, Math.min(92, Number((a.x - ux * push).toFixed(2))));
+        a.y = Math.max(12, Math.min(88, Number((a.y - uy * push).toFixed(2))));
+        b.x = Math.max(8, Math.min(92, Number((b.x + ux * push).toFixed(2))));
+        b.y = Math.max(12, Math.min(88, Number((b.y + uy * push).toFixed(2))));
+      }
+    }
+  }
+}
+
+function enableMindMapDrag(map) {
+  if (!map) {
+    return;
+  }
+  const nodes = [...map.querySelectorAll(".got-bubble")];
+  const nodeById = new Map(nodes.map((node) => [node.dataset.node, node]));
+
+  const updateLines = () => {
+    const mapRect = map.getBoundingClientRect();
+    map.querySelectorAll(".got-link-layer line").forEach((line) => {
+      const source = nodeById.get(line.dataset.source);
+      const target = nodeById.get(line.dataset.target);
+      if (!source || !target || !mapRect.width || !mapRect.height) {
+        return;
+      }
+      const sourceRect = source.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      line.setAttribute("x1", (((sourceRect.left + sourceRect.width / 2 - mapRect.left) / mapRect.width) * 100).toFixed(2));
+      line.setAttribute("y1", (((sourceRect.top + sourceRect.height / 2 - mapRect.top) / mapRect.height) * 100).toFixed(2));
+      line.setAttribute("x2", (((targetRect.left + targetRect.width / 2 - mapRect.left) / mapRect.width) * 100).toFixed(2));
+      line.setAttribute("y2", (((targetRect.top + targetRect.height / 2 - mapRect.top) / mapRect.height) * 100).toFixed(2));
+    });
+  };
+
+  nodes.forEach((node) => {
+    node.addEventListener("pointerdown", (event) => {
+      if (window.getComputedStyle(node).position !== "absolute") {
+        return;
+      }
+      event.preventDefault();
+      node.setPointerCapture(event.pointerId);
+      node.classList.add("dragging");
+
+      const moveNode = (moveEvent) => {
+        const mapRect = map.getBoundingClientRect();
+        const x = ((moveEvent.clientX - mapRect.left) / mapRect.width) * 100;
+        const y = ((moveEvent.clientY - mapRect.top) / mapRect.height) * 100;
+        node.style.setProperty("--x", `${Math.max(8, Math.min(92, x)).toFixed(2)}%`);
+        node.style.setProperty("--y", `${Math.max(12, Math.min(88, y)).toFixed(2)}%`);
+        updateLines();
+      };
+
+      const stopDrag = () => {
+        node.classList.remove("dragging");
+        node.removeEventListener("pointermove", moveNode);
+        node.removeEventListener("pointerup", stopDrag);
+        node.removeEventListener("pointercancel", stopDrag);
+      };
+
+      node.addEventListener("pointermove", moveNode);
+      node.addEventListener("pointerup", stopDrag);
+      node.addEventListener("pointercancel", stopDrag);
+    });
+  });
+
+  requestAnimationFrame(updateLines);
 }
 
 function renderContentPlan(variants) {
