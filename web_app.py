@@ -33,7 +33,9 @@ JOB_LOCK = threading.Lock()
 CACHE_LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
 AUTH_COOKIE_NAME = "smileup_session"
+CLIENT_SESSION_COOKIE_NAME = "smileup_client_session"
 AUTH_SESSION_SECONDS = 12 * 60 * 60
+CLIENT_SESSION_SECONDS = 30 * 24 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_VERSION = 1
 WORKFLOW_CONTEXT_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_CLEANUP_INTERVAL_SECONDS = 60 * 60
@@ -46,6 +48,15 @@ def _enable_utf8_console() -> None:
 
 
 class MarketingUIHandler(BaseHTTPRequestHandler):
+    def _current_session_id(self) -> str:
+        cookies = self._cookies()
+        session_id = cookies.get(CLIENT_SESSION_COOKIE_NAME, "")
+        if _is_safe_session_id(session_id):
+            return session_id
+        session_id = uuid.uuid4().hex
+        self._pending_session_cookie = session_id
+        return session_id
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
@@ -61,6 +72,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             else:
                 self._redirect("/login")
             return
+        session_id = self._current_session_id()
         if path == "/":
             self._serve_file(WEB_ROOT / "index.html", "text/html; charset=utf-8")
             return
@@ -87,13 +99,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             query = parse_qs(parsed.query)
             history_id = (query.get("id") or [""])[0]
             if history_id:
-                item = _get_workflow_context_history_item(history_id)
+                item = _get_workflow_context_history_item(history_id, session_id)
                 if not item:
                     self._send_json({"ok": False, "error": "History item not found"}, status=404)
                     return
                 self._send_json({"ok": True, **item})
                 return
-            self._send_json({"ok": True, "items": _list_workflow_context_history()})
+            self._send_json({"ok": True, "items": _list_workflow_context_history(session_id)})
             return
         if path == "/api/job":
             query = parse_qs(parsed.query)
@@ -101,6 +113,9 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             with JOB_LOCK:
                 job = dict(JOBS.get(job_id) or {})
             if not job:
+                self._send_json({"ok": False, "error": "Job not found"}, status=404)
+                return
+            if job.get("session_id") != session_id:
                 self._send_json({"ok": False, "error": "Job not found"}, status=404)
                 return
             self._send_json({"ok": True, "job_id": job_id, **job})
@@ -121,6 +136,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if not self._is_authenticated():
             self._send_json({"ok": False, "error": "Authentication required"}, status=401)
             return
+        session_id = self._current_session_id()
         if path == "/api/publish":
             self._handle_publish_final()
             return
@@ -131,13 +147,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         try:
             request_payload = self._read_json()
             if request_payload.get("sync"):
-                self._send_json({"ok": True, **_run_workflow_payload(request_payload)})
+                self._send_json({"ok": True, **_run_workflow_payload(request_payload, session_id)})
                 return
 
             job_id = uuid.uuid4().hex
             with JOB_LOCK:
-                JOBS[job_id] = {"status": "running", "started_at": time.time(), "logs": "Workflow queued."}
-            worker = threading.Thread(target=_run_job, args=(job_id, request_payload), daemon=True)
+                JOBS[job_id] = {"status": "running", "started_at": time.time(), "logs": "Workflow queued.", "session_id": session_id}
+            worker = threading.Thread(target=_run_job, args=(job_id, request_payload, session_id), daemon=True)
             worker.start()
             self._send_json({"ok": True, "job_id": job_id, "status": "running"})
         except Exception as exc:
@@ -173,6 +189,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if not self._is_authenticated():
             self._send_json({"ok": False, "error": "Authentication required"}, status=401)
             return
+        session_id = self._current_session_id()
         if path != "/api/history":
             self.send_error(404)
             return
@@ -181,7 +198,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if not history_id:
             self._send_json({"ok": False, "error": "Missing history id"}, status=400)
             return
-        if not _delete_workflow_context_history_item(history_id):
+        if not _delete_workflow_context_history_item(history_id, session_id):
             self._send_json({"ok": False, "error": "History item not found"}, status=404)
             return
         self._send_json({"ok": True, "history_id": history_id})
@@ -209,6 +226,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        self._send_pending_session_cookie()
         self.end_headers()
         self.wfile.write(body)
 
@@ -217,6 +235,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self._send_pending_session_cookie()
         self.end_headers()
         self.wfile.write(body)
 
@@ -227,15 +246,29 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         for name, value in (headers or {}).items():
             self.send_header(name, value)
+        self._send_pending_session_cookie()
         self.end_headers()
         self.wfile.write(body)
 
-    def _redirect(self, location: str, headers: dict[str, str] | None = None) -> None:
+    def _redirect(self, location: str, headers: dict[str, str | list[str]] | None = None) -> None:
         self.send_response(303)
         self.send_header("Location", location)
         for name, value in (headers or {}).items():
-            self.send_header(name, value)
+            values = value if isinstance(value, list) else [value]
+            for item in values:
+                self.send_header(name, item)
+        self._send_pending_session_cookie()
         self.end_headers()
+
+    def _send_pending_session_cookie(self) -> None:
+        session_id = getattr(self, "_pending_session_cookie", "")
+        if not session_id:
+            return
+        self.send_header(
+            "Set-Cookie",
+            f"{CLIENT_SESSION_COOKIE_NAME}={session_id}; Max-Age={CLIENT_SESSION_SECONDS}; Path=/; HttpOnly; SameSite=Lax",
+        )
+        self._pending_session_cookie = ""
 
     def _send_login_page(self, error: str = "", status: int = 200) -> None:
         error_html = f'<div class="error">{_escape_html(error)}</div>' if error else ""
@@ -366,18 +399,30 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         )
 
     def _clear_auth_cookie(self) -> None:
-        self._redirect("/login", {"Set-Cookie": f"{AUTH_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"})
+        self._redirect(
+            "/login",
+            {
+                "Set-Cookie": [
+                    f"{AUTH_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+                    f"{CLIENT_SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+                ]
+            },
+        )
 
     def _is_authenticated(self) -> bool:
         if not config.AUTH_ENABLED:
             return True
+        cookies = self._cookies()
+        return _verify_auth_token(cookies.get(AUTH_COOKIE_NAME, ""))
+
+    def _cookies(self) -> dict[str, str]:
         cookie_header = self.headers.get("Cookie", "")
         cookies = {}
         for part in cookie_header.split(";"):
             if "=" in part:
                 name, value = part.strip().split("=", 1)
                 cookies[name] = value
-        return _verify_auth_token(cookies.get(AUTH_COOKIE_NAME, ""))
+        return cookies
 
     def _read_json(self) -> dict:
         content_length = int(self.headers.get("Content-Length", "0") or "0")
@@ -401,9 +446,9 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         return
 
 
-def _run_job(job_id: str, request_payload: dict) -> None:
+def _run_job(job_id: str, request_payload: dict, session_id: str) -> None:
     try:
-        output = _run_workflow_payload(request_payload)
+        output = _run_workflow_payload(request_payload, session_id)
         with JOB_LOCK:
             JOBS[job_id].update({"status": "completed", **output, "finished_at": time.time()})
     except Exception as exc:
@@ -417,7 +462,7 @@ def _run_job(job_id: str, request_payload: dict) -> None:
             )
 
 
-def _run_workflow_payload(request_payload: dict) -> dict:
+def _run_workflow_payload(request_payload: dict, session_id: str) -> dict:
     context_key = _workflow_context_cache_key(request_payload)
     log_buffer = io.StringIO()
     initial_state = _build_initial_state(request_payload)
@@ -432,7 +477,7 @@ def _run_workflow_payload(request_payload: dict) -> dict:
         "history_hit": False,
         "context_cache_key": context_key,
     }
-    output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload)
+    output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload, session_id)
     return output
 
 
@@ -467,11 +512,13 @@ def _workflow_context_cache_key(request_payload: dict) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def _get_workflow_context_history_item(history_id: str) -> dict | None:
+def _get_workflow_context_history_item(history_id: str, session_id: str) -> dict | None:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entry = (cache.get("entries") or {}).get(history_id)
         if not isinstance(entry, dict):
+            return None
+        if entry.get("session_id") != session_id:
             return None
         cached_at = float(entry.get("cached_at", 0) or 0)
         if time.time() - cached_at >= WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
@@ -490,7 +537,7 @@ def _get_workflow_context_history_item(history_id: str) -> dict | None:
         }
 
 
-def _list_workflow_context_history() -> list[dict]:
+def _list_workflow_context_history(session_id: str) -> list[dict]:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         removed = _prune_workflow_context_cache_entries(cache, time.time())
@@ -499,6 +546,8 @@ def _list_workflow_context_history() -> list[dict]:
         items = []
         for history_id, entry in (cache.get("entries") or {}).items():
             if not isinstance(entry, dict):
+                continue
+            if entry.get("session_id") != session_id:
                 continue
             summary = dict(entry.get("summary") or {})
             cached_at = float(entry.get("cached_at", 0) or 0)
@@ -513,11 +562,12 @@ def _list_workflow_context_history() -> list[dict]:
         return sorted(items, key=lambda item: float(item.get("cached_at", 0) or 0), reverse=True)
 
 
-def _delete_workflow_context_history_item(history_id: str) -> bool:
+def _delete_workflow_context_history_item(history_id: str, session_id: str) -> bool:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entries = cache.setdefault("entries", {})
-        if history_id not in entries:
+        entry = entries.get(history_id)
+        if not isinstance(entry, dict) or entry.get("session_id") != session_id:
             return False
         entries.pop(history_id, None)
         _save_workflow_context_cache(cache)
@@ -557,7 +607,7 @@ def _start_workflow_context_cache_cleanup() -> None:
     worker.start()
 
 
-def _write_workflow_context_cache(context_key: str, output: dict, request_payload: dict) -> str:
+def _write_workflow_context_cache(context_key: str, output: dict, request_payload: dict, session_id: str) -> str:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entries = cache.setdefault("entries", {})
@@ -569,6 +619,7 @@ def _write_workflow_context_cache(context_key: str, output: dict, request_payloa
         cache_output["logs"] = str(cache_output.get("logs") or "")
         entries[history_id] = {
             "cached_at": now,
+            "session_id": session_id,
             "context_key": context_key,
             "summary": _workflow_context_history_summary(cache_output, request_payload, now),
             "output": cache_output,
@@ -711,6 +762,10 @@ def _verify_auth_token(token: str) -> bool:
     payload = f"{username}|{expires_at}"
     expected = hmac.new(_auth_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     return secrets.compare_digest(signature, expected)
+
+
+def _is_safe_session_id(value: str) -> bool:
+    return bool(re.fullmatch(r"[a-f0-9]{32}", str(value or "")))
 
 
 def _escape_html(value: str) -> str:
