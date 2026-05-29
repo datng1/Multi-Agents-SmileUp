@@ -114,8 +114,14 @@ def _publish_to_page(page: dict[str, str], message: str, schedule_time: str | No
             data=payload,
             timeout=15,
         )
-        response.raise_for_status()
-        result = response.json()
+        result = _parse_graph_response(response)
+        if not response.ok:
+            return {
+                "page_id": page["page_id"],
+                "page_name": page["name"],
+                "published": False,
+                "error": _graph_error_message(response, result),
+            }
         post_id = result.get("id")
         return {
             "page_id": page["page_id"],
@@ -131,6 +137,30 @@ def _publish_to_page(page: dict[str, str], message: str, schedule_time: str | No
             "published": False,
             "error": str(exc)[:220],
         }
+
+
+def _parse_graph_response(response: Any) -> dict[str, Any]:
+    try:
+        result = response.json()
+    except Exception:
+        return {}
+    return result if isinstance(result, dict) else {}
+
+
+def _graph_error_message(response: Any, result: dict[str, Any]) -> str:
+    error = result.get("error") if isinstance(result.get("error"), dict) else {}
+    message = str(error.get("message") or response.text or response.reason or "Facebook Graph API error")
+    code = error.get("code")
+    subcode = error.get("error_subcode")
+    fbtrace_id = error.get("fbtrace_id")
+    parts = [f"HTTP {response.status_code}", message]
+    if code:
+        parts.append(f"code={code}")
+    if subcode:
+        parts.append(f"subcode={subcode}")
+    if fbtrace_id:
+        parts.append(f"fbtrace_id={fbtrace_id}")
+    return " | ".join(parts)[:500]
 
 
 def _select_pages(page_ids: list[str] | None) -> list[dict[str, str]]:
