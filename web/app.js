@@ -1003,7 +1003,7 @@ function renderPublishPages(pages) {
           <input type="checkbox" value="${escapeHtml(page.page_id)}" ${index === 0 ? "checked" : ""} />
           <span>
             <strong>${escapeHtml(page.name || `Page ${index + 1}`)}</strong>
-            <small>${escapeHtml(page.page_id || "")}</small>
+            <small>${page.has_token ? "Sẵn sàng đăng" : "Thiếu token"}</small>
           </span>
         </label>
       `,
