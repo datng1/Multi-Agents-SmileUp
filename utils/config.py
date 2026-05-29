@@ -35,6 +35,15 @@ def _json_object(name: str) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def _auth_users() -> dict[str, str]:
+    users = {str(username).strip(): str(password) for username, password in _json_object("AUTH_USERS_JSON").items()}
+    admin_username = os.getenv("ADMIN_USERNAME", "").strip()
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if admin_username and admin_password and admin_username not in users:
+        users[admin_username] = admin_password
+    return {username: password for username, password in users.items() if username and password}
+
+
 def _facebook_publish_pages() -> list[dict[str, str]]:
     tokens = _json_object("FACEBOOK_PAGE_TOKENS_JSON")
     names = _json_object("FACEBOOK_PAGE_NAMES_JSON")
@@ -108,6 +117,8 @@ class Settings:
     auth_enabled: bool = _bool("AUTH_ENABLED", False)
     admin_username: str = os.getenv("ADMIN_USERNAME", "")
     admin_password: str = os.getenv("ADMIN_PASSWORD", "")
+    auth_users: dict[str, str] = field(default_factory=_auth_users)
+    auth_admin_usernames: list[str] = field(default_factory=lambda: _list("AUTH_ADMIN_USERNAMES") or ([os.getenv("ADMIN_USERNAME", "").strip()] if os.getenv("ADMIN_USERNAME", "").strip() else []))
     auth_secret: str = os.getenv("AUTH_SECRET", "")
 
     @property
@@ -165,4 +176,6 @@ AD_LIBRARY_COMPETITOR_RATIO = settings.ad_library_competitor_ratio
 AUTH_ENABLED = settings.auth_enabled
 ADMIN_USERNAME = settings.admin_username
 ADMIN_PASSWORD = settings.admin_password
+AUTH_USERS = settings.auth_users
+AUTH_ADMIN_USERNAMES = settings.auth_admin_usernames
 AUTH_SECRET = settings.auth_secret

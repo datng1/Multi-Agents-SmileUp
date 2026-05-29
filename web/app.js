@@ -468,10 +468,11 @@ function renderHistoryList(items) {
   historyList.innerHTML = items
     .map((item) => {
       const created = item.created_at ? new Date(item.created_at).toLocaleString("vi-VN") : "-";
+      const owner = item.owner_username ? ` · ${escapeHtml(item.owner_username)}` : "";
       return `
         <article class="history-card">
           <div>
-            <span>${escapeHtml(created)}</span>
+            <span>${escapeHtml(created)}${owner}</span>
             <h3>${escapeHtml(item.title || "Workflow result")}</h3>
             <p>${escapeHtml(item.keyword || "nha khoa răng sứ răng đẹp cấy implant")}</p>
             <small>${Number(item.ads_count || 0)} ads · ${Number(item.competitor_ads || 0)} đối thủ · ${escapeHtml(item.cmo_decision || item.approval_status || "pending")}</small>

@@ -48,12 +48,12 @@ def _enable_utf8_console() -> None:
 
 
 class MarketingUIHandler(BaseHTTPRequestHandler):
-    def _current_session_id(self) -> str:
+    def _current_session_id(self, username: str) -> str:
         cookies = self._cookies()
         session_id = cookies.get(CLIENT_SESSION_COOKIE_NAME, "")
-        if _is_safe_session_id(session_id):
+        if _is_safe_session_id(session_id, username):
             return session_id
-        session_id = uuid.uuid4().hex
+        session_id = f"{_session_owner_prefix(username)}_{uuid.uuid4().hex}"
         self._pending_session_cookie = session_id
         return session_id
 
@@ -72,7 +72,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             else:
                 self._redirect("/login")
             return
-        session_id = self._current_session_id()
+        username = self._current_username()
+        session_id = self._current_session_id(username)
         if path == "/":
             self._serve_file(WEB_ROOT / "index.html", "text/html; charset=utf-8")
             return
@@ -99,13 +100,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             query = parse_qs(parsed.query)
             history_id = (query.get("id") or [""])[0]
             if history_id:
-                item = _get_workflow_context_history_item(history_id, session_id)
+                item = _get_workflow_context_history_item(history_id, session_id, username)
                 if not item:
                     self._send_json({"ok": False, "error": "History item not found"}, status=404)
                     return
                 self._send_json({"ok": True, **item})
                 return
-            self._send_json({"ok": True, "items": _list_workflow_context_history(session_id)})
+            self._send_json({"ok": True, "items": _list_workflow_context_history(session_id, username)})
             return
         if path == "/api/job":
             query = parse_qs(parsed.query)
@@ -115,7 +116,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             if not job:
                 self._send_json({"ok": False, "error": "Job not found"}, status=404)
                 return
-            if job.get("session_id") != session_id:
+            if job.get("session_id") != session_id and not _is_admin_user(username):
                 self._send_json({"ok": False, "error": "Job not found"}, status=404)
                 return
             self._send_json({"ok": True, "job_id": job_id, **job})
@@ -136,7 +137,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if not self._is_authenticated():
             self._send_json({"ok": False, "error": "Authentication required"}, status=401)
             return
-        session_id = self._current_session_id()
+        username = self._current_username()
+        session_id = self._current_session_id(username)
         if path == "/api/publish":
             self._handle_publish_final()
             return
@@ -147,13 +149,19 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         try:
             request_payload = self._read_json()
             if request_payload.get("sync"):
-                self._send_json({"ok": True, **_run_workflow_payload(request_payload, session_id)})
+                self._send_json({"ok": True, **_run_workflow_payload(request_payload, session_id, username)})
                 return
 
             job_id = uuid.uuid4().hex
             with JOB_LOCK:
-                JOBS[job_id] = {"status": "running", "started_at": time.time(), "logs": "Workflow queued.", "session_id": session_id}
-            worker = threading.Thread(target=_run_job, args=(job_id, request_payload, session_id), daemon=True)
+                JOBS[job_id] = {
+                    "status": "running",
+                    "started_at": time.time(),
+                    "logs": "Workflow queued.",
+                    "session_id": session_id,
+                    "owner_username": username,
+                }
+            worker = threading.Thread(target=_run_job, args=(job_id, request_payload, session_id, username), daemon=True)
             worker.start()
             self._send_json({"ok": True, "job_id": job_id, "status": "running"})
         except Exception as exc:
@@ -189,7 +197,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if not self._is_authenticated():
             self._send_json({"ok": False, "error": "Authentication required"}, status=401)
             return
-        session_id = self._current_session_id()
+        username = self._current_username()
+        session_id = self._current_session_id(username)
         if path != "/api/history":
             self.send_error(404)
             return
@@ -198,7 +207,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if not history_id:
             self._send_json({"ok": False, "error": "Missing history id"}, status=400)
             return
-        if not _delete_workflow_context_history_item(history_id, session_id):
+        if not _delete_workflow_context_history_item(history_id, session_id, username):
             self._send_json({"ok": False, "error": "History item not found"}, status=404)
             return
         self._send_json({"ok": True, "history_id": history_id})
@@ -378,12 +387,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         payload = self._read_form_or_json()
         username = str(payload.get("username", ""))
         password = str(payload.get("password", ""))
-        valid = (
-            bool(config.ADMIN_USERNAME)
-            and bool(config.ADMIN_PASSWORD)
-            and secrets.compare_digest(username, config.ADMIN_USERNAME)
-            and secrets.compare_digest(password, config.ADMIN_PASSWORD)
-        )
+        valid = _verify_credentials(username, password)
         if not valid:
             self._send_login_page("Sai tài khoản hoặc mật khẩu.", status=401)
             return
@@ -391,10 +395,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         self._redirect(
             "/",
             {
-                "Set-Cookie": (
-                    f"{AUTH_COOKIE_NAME}={token}; Max-Age={AUTH_SESSION_SECONDS}; "
-                    "Path=/; HttpOnly; SameSite=Lax"
-                )
+                "Set-Cookie": [
+                    (
+                        f"{AUTH_COOKIE_NAME}={token}; Max-Age={AUTH_SESSION_SECONDS}; "
+                        "Path=/; HttpOnly; SameSite=Lax"
+                    ),
+                    f"{CLIENT_SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+                ]
             },
         )
 
@@ -410,10 +417,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         )
 
     def _is_authenticated(self) -> bool:
+        return bool(self._current_username())
+
+    def _current_username(self) -> str:
         if not config.AUTH_ENABLED:
-            return True
+            return config.ADMIN_USERNAME or "local"
         cookies = self._cookies()
-        return _verify_auth_token(cookies.get(AUTH_COOKIE_NAME, ""))
+        return _auth_username(cookies.get(AUTH_COOKIE_NAME, ""))
 
     def _cookies(self) -> dict[str, str]:
         cookie_header = self.headers.get("Cookie", "")
@@ -446,9 +456,9 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         return
 
 
-def _run_job(job_id: str, request_payload: dict, session_id: str) -> None:
+def _run_job(job_id: str, request_payload: dict, session_id: str, username: str) -> None:
     try:
-        output = _run_workflow_payload(request_payload, session_id)
+        output = _run_workflow_payload(request_payload, session_id, username)
         with JOB_LOCK:
             JOBS[job_id].update({"status": "completed", **output, "finished_at": time.time()})
     except Exception as exc:
@@ -462,7 +472,7 @@ def _run_job(job_id: str, request_payload: dict, session_id: str) -> None:
             )
 
 
-def _run_workflow_payload(request_payload: dict, session_id: str) -> dict:
+def _run_workflow_payload(request_payload: dict, session_id: str, username: str) -> dict:
     context_key = _workflow_context_cache_key(request_payload)
     log_buffer = io.StringIO()
     initial_state = _build_initial_state(request_payload)
@@ -477,7 +487,7 @@ def _run_workflow_payload(request_payload: dict, session_id: str) -> dict:
         "history_hit": False,
         "context_cache_key": context_key,
     }
-    output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload, session_id)
+    output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload, session_id, username)
     return output
 
 
@@ -512,13 +522,13 @@ def _workflow_context_cache_key(request_payload: dict) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def _get_workflow_context_history_item(history_id: str, session_id: str) -> dict | None:
+def _get_workflow_context_history_item(history_id: str, session_id: str, username: str) -> dict | None:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entry = (cache.get("entries") or {}).get(history_id)
         if not isinstance(entry, dict):
             return None
-        if entry.get("session_id") != session_id:
+        if not _can_access_history_entry(entry, session_id, username):
             return None
         cached_at = float(entry.get("cached_at", 0) or 0)
         if time.time() - cached_at >= WORKFLOW_CONTEXT_CACHE_TTL_SECONDS:
@@ -537,7 +547,7 @@ def _get_workflow_context_history_item(history_id: str, session_id: str) -> dict
         }
 
 
-def _list_workflow_context_history(session_id: str) -> list[dict]:
+def _list_workflow_context_history(session_id: str, username: str) -> list[dict]:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         removed = _prune_workflow_context_cache_entries(cache, time.time())
@@ -547,13 +557,14 @@ def _list_workflow_context_history(session_id: str) -> list[dict]:
         for history_id, entry in (cache.get("entries") or {}).items():
             if not isinstance(entry, dict):
                 continue
-            if entry.get("session_id") != session_id:
+            if not _can_access_history_entry(entry, session_id, username):
                 continue
             summary = dict(entry.get("summary") or {})
             cached_at = float(entry.get("cached_at", 0) or 0)
             items.append(
                 {
                     "history_id": history_id,
+                    "owner_username": entry.get("owner_username") or "",
                     "cached_at": cached_at,
                     "created_at": summary.get("created_at") or datetime.fromtimestamp(cached_at).isoformat(timespec="seconds"),
                     **summary,
@@ -562,12 +573,12 @@ def _list_workflow_context_history(session_id: str) -> list[dict]:
         return sorted(items, key=lambda item: float(item.get("cached_at", 0) or 0), reverse=True)
 
 
-def _delete_workflow_context_history_item(history_id: str, session_id: str) -> bool:
+def _delete_workflow_context_history_item(history_id: str, session_id: str, username: str) -> bool:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entries = cache.setdefault("entries", {})
         entry = entries.get(history_id)
-        if not isinstance(entry, dict) or entry.get("session_id") != session_id:
+        if not isinstance(entry, dict) or not _can_access_history_entry(entry, session_id, username):
             return False
         entries.pop(history_id, None)
         _save_workflow_context_cache(cache)
@@ -607,7 +618,7 @@ def _start_workflow_context_cache_cleanup() -> None:
     worker.start()
 
 
-def _write_workflow_context_cache(context_key: str, output: dict, request_payload: dict, session_id: str) -> str:
+def _write_workflow_context_cache(context_key: str, output: dict, request_payload: dict, session_id: str, username: str) -> str:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entries = cache.setdefault("entries", {})
@@ -620,6 +631,7 @@ def _write_workflow_context_cache(context_key: str, output: dict, request_payloa
         entries[history_id] = {
             "cached_at": now,
             "session_id": session_id,
+            "owner_username": username,
             "context_key": context_key,
             "summary": _workflow_context_history_summary(cache_output, request_payload, now),
             "output": cache_output,
@@ -743,6 +755,12 @@ def _auth_secret() -> str:
     return hashlib.sha256((config.ADMIN_PASSWORD or "smileup-local-secret").encode("utf-8")).hexdigest()
 
 
+def _verify_credentials(username: str, password: str) -> bool:
+    safe_username = str(username or "").strip()
+    expected_password = config.AUTH_USERS.get(safe_username, "")
+    return bool(expected_password) and secrets.compare_digest(str(password or ""), expected_password)
+
+
 def _make_auth_token(username: str) -> str:
     expires_at = str(int(time.time()) + AUTH_SESSION_SECONDS)
     payload = f"{username}|{expires_at}"
@@ -750,22 +768,40 @@ def _make_auth_token(username: str) -> str:
     return f"{payload}|{signature}"
 
 
-def _verify_auth_token(token: str) -> bool:
+def _auth_username(token: str) -> str:
     try:
         username, expires_at, signature = token.split("|", 2)
         if int(expires_at) < int(time.time()):
-            return False
+            return ""
     except Exception:
-        return False
-    if not config.ADMIN_USERNAME or not secrets.compare_digest(username, config.ADMIN_USERNAME):
-        return False
+        return ""
+    if username not in config.AUTH_USERS:
+        return ""
     payload = f"{username}|{expires_at}"
     expected = hmac.new(_auth_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
-    return secrets.compare_digest(signature, expected)
+    return username if secrets.compare_digest(signature, expected) else ""
 
 
-def _is_safe_session_id(value: str) -> bool:
-    return bool(re.fullmatch(r"[a-f0-9]{32}", str(value or "")))
+def _is_admin_user(username: str) -> bool:
+    return str(username or "") in set(config.AUTH_ADMIN_USERNAMES)
+
+
+def _can_access_history_entry(entry: dict, session_id: str, username: str) -> bool:
+    if _is_admin_user(username):
+        return True
+    owner = str(entry.get("owner_username") or "")
+    if owner:
+        return secrets.compare_digest(owner, username)
+    return secrets.compare_digest(str(entry.get("session_id") or ""), session_id)
+
+
+def _session_owner_prefix(username: str) -> str:
+    return hashlib.sha1(str(username or "anonymous").encode("utf-8")).hexdigest()[:12]
+
+
+def _is_safe_session_id(value: str, username: str) -> bool:
+    expected_prefix = _session_owner_prefix(username)
+    return bool(re.fullmatch(rf"{expected_prefix}_[a-f0-9]{{32}}", str(value or "")))
 
 
 def _escape_html(value: str) -> str:
