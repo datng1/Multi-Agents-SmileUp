@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from graph.state import create_initial_state
 from graph.workflow import build_workflow
+from tools.facebook_publisher import get_publish_pages, publish_facebook_post
 from tools.manual_input import parse_manual_competitor_posts
 from utils import config
 
@@ -76,6 +77,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
                     "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
                     "ad_library_competitor_count": len(config.AD_LIBRARY_COMPETITOR_URLS),
+                    "publish_pages": get_publish_pages(),
                     "workflow_context_cache_days": round(WORKFLOW_CONTEXT_CACHE_TTL_SECONDS / 86400),
                     "warnings": config.CONFIG_WARNINGS,
                 }
@@ -119,6 +121,9 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if not self._is_authenticated():
             self._send_json({"ok": False, "error": "Authentication required"}, status=401)
             return
+        if path == "/api/publish":
+            self._handle_publish_final()
+            return
         if path != "/api/run":
             self.send_error(404)
             return
@@ -137,6 +142,30 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "job_id": job_id, "status": "running"})
         except Exception as exc:
             self._send_json({"ok": False, "error": _sanitize_error(str(exc)), "logs": ""}, status=500)
+
+    def _handle_publish_final(self) -> None:
+        try:
+            payload = self._read_json()
+            draft = {
+                "title": str(payload.get("title", "")).strip(),
+                "body": str(payload.get("body", "")).strip(),
+                "call_to_action": str(payload.get("call_to_action", "")).strip(),
+                "hashtags": [str(tag).strip() for tag in payload.get("hashtags", []) if str(tag).strip()],
+            }
+            page_ids = [str(page_id).strip() for page_id in payload.get("page_ids", []) if str(page_id).strip()]
+            if not any(draft.values()):
+                self._send_json({"ok": False, "error": "Final draft is empty"}, status=400)
+                return
+            if not page_ids:
+                self._send_json({"ok": False, "error": "No publish pages selected"}, status=400)
+                return
+            approved = bool(payload.get("approved"))
+            result = publish_facebook_post(draft, approved=approved, page_ids=page_ids)
+            if not approved:
+                result["reason"] = "Publisher bị chặn: CMO chưa duyệt APPROVE_TO_PUBLISH/approved cho bản hiện tại."
+            self._send_json({"ok": True, "publish_result": result})
+        except Exception as exc:
+            self._send_json({"ok": False, "error": _sanitize_error(str(exc))}, status=500)
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)

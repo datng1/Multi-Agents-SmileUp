@@ -1714,6 +1714,69 @@ pre {
   text-decoration: underline;
 }
 
+.publish-page-box {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: var(--radius);
+  background: #f8fffd;
+}
+
+.publish-page-heading,
+.publish-page-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.publish-page-heading strong {
+  display: block;
+  margin-top: 3px;
+}
+
+.publish-page-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.publish-page-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.publish-page-option strong,
+.publish-page-option small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.publish-page-option small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.published-page-results {
+  display: grid;
+  gap: 6px;
+}
+
+.published-page-results span,
+.published-page-results a {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
 .primary-button.compact {
   min-height: 36px;
   padding: 0 14px;
@@ -1993,6 +2056,7 @@ dd {
   .flow-rail,
   .cmo-track-strip,
   .auto-note-grid,
+  .publish-page-list,
   .media-input-grid,
   .analysis-grid,
   .agent-output-grid,

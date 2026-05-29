@@ -180,10 +180,16 @@ ADMIN_PASSWORD=
 AUTH_SECRET=
 FACEBOOK_ACCESS_TOKEN=
 FACEBOOK_PAGE_ID=
+FACEBOOK_PAGE_TOKENS_JSON={"page_id_1":"page_access_token_1","page_id_2":"page_access_token_2"}
+FACEBOOK_PAGE_NAMES_JSON={"page_id_1":"SmileUp Main","page_id_2":"SmileUp Branch"}
 COMPETITOR_PAGE_IDS=page_id_1,page_id_2,page_id_3
 DRY_RUN=true
 MOCK_MODE=true
 ```
+
+`FACEBOOK_PAGE_TOKENS_JSON` cho phep cau hinh nhieu page publish. UI chi hien `page_id/name`,
+khong tra token ve frontend. Workflow khong tu dang that; sau khi CMO duyet, nguoi dung chon
+mot page hoac nhieu page o buoc Final review roi bam dang.
 
 CMO Jury tự dùng các key có sẵn: có 1 model thì 1 phiếu, có 2 model thì 2 phiếu, có đủ Gemini/GPT/Claude thì tổng hợp 3 phiếu để chọn variant, creative và quyết định publish/revise/reject.
 

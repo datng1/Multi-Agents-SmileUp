@@ -33,6 +33,12 @@ const resetFinalButton = document.querySelector("#resetFinalButton");
 const copyFinalButton = document.querySelector("#copyFinalButton");
 const publishedPostLinkBox = document.querySelector("#publishedPostLinkBox");
 const publishedPostLink = document.querySelector("#publishedPostLink");
+const publishedPageResults = document.querySelector("#publishedPageResults");
+const publishPageList = document.querySelector("#publishPageList");
+const publishPageStatus = document.querySelector("#publishPageStatus");
+const selectAllPagesButton = document.querySelector("#selectAllPagesButton");
+const publishSelectedButton = document.querySelector("#publishSelectedButton");
+const publishAllButton = document.querySelector("#publishAllButton");
 const fbPreviewText = document.querySelector("#fbPreviewText");
 const fbPreviewImage = document.querySelector("#fbPreviewImage");
 const publishStatus = document.querySelector("#publishStatus");
@@ -94,6 +100,8 @@ let uploadedCreativeImage = null;
 let originalFinalDraft = null;
 let currentCreativeAssets = [];
 let currentContentPlan = [];
+let currentResult = null;
+let publishPages = [];
 
 const agentOrder = [
   "crawler",
@@ -202,6 +210,8 @@ function resetFinalReview() {
   finalCreativeSelect.appendChild(option);
   finalCreativeSelect.value = "-1";
   updateFacebookPreview();
+  publishPageStatus.textContent = "Publisher chỉ chạy khi CMO đã duyệt và bạn bấm đăng.";
+  renderPublishedPostLink({});
 }
 
 function resetCmoPanel() {
@@ -273,6 +283,7 @@ async function loadStatus() {
   connectionState.classList.add("ready");
   syncSourceMode();
   renderWarnings(status.warnings || []);
+  renderPublishPages(status.publish_pages || []);
 }
 
 async function runWorkflow() {
@@ -351,6 +362,7 @@ function sleep(ms) {
 }
 
 function renderResult(result, logs, durationMs, historyHit = false) {
+  currentResult = result || null;
   const draft = result.draft_content || {};
   const publish = result.publish_result || {};
   const insights = result.competitor_insights || [];
@@ -941,14 +953,114 @@ function renderPublishedPostLink(publish) {
   const postIdValue = publish.published_post_id || "";
   const fallbackUrl = postIdValue && !publish.dry_run ? `https://www.facebook.com/${encodeURIComponent(postIdValue)}` : "";
   const finalUrl = postUrl || fallbackUrl;
-  if (!finalUrl || !publish.published) {
+  const pageResults = Array.isArray(publish.page_results) ? publish.page_results : [];
+  const resultLinks = pageResults
+    .map((item) => {
+      const label = `${item.published ? "Đã đăng" : item.dry_run ? "Dry-run" : "Lỗi"} · ${item.page_name || item.page_id}`;
+      if (item.published_post_url) {
+        return `<a href="${escapeHtml(item.published_post_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+      }
+      return `<span>${escapeHtml(label)}${item.error ? `: ${escapeHtml(item.error)}` : ""}</span>`;
+    })
+    .join("");
+  publishedPageResults.innerHTML = resultLinks;
+
+  if (!finalUrl && !resultLinks) {
     publishedPostLinkBox.hidden = true;
     publishedPostLink.removeAttribute("href");
     return;
   }
-  publishedPostLink.href = finalUrl;
-  publishedPostLink.textContent = "Mở bài viết vừa đăng trên Facebook";
+  if (finalUrl && publish.published) {
+    publishedPostLink.href = finalUrl;
+    publishedPostLink.textContent = "Mở bài viết vừa đăng trên Facebook";
+    publishedPostLink.hidden = false;
+  } else {
+    publishedPostLink.hidden = true;
+    publishedPostLink.removeAttribute("href");
+  }
   publishedPostLinkBox.hidden = false;
+}
+
+function renderPublishPages(pages) {
+  publishPages = Array.isArray(pages) ? pages : [];
+  if (!publishPages.length) {
+    publishPageList.className = "publish-page-list empty-state";
+    publishPageList.textContent = "Chưa cấu hình page publish.";
+    publishSelectedButton.disabled = true;
+    publishAllButton.disabled = true;
+    selectAllPagesButton.disabled = true;
+    return;
+  }
+
+  publishSelectedButton.disabled = false;
+  publishAllButton.disabled = false;
+  selectAllPagesButton.disabled = false;
+  publishPageList.className = "publish-page-list";
+  publishPageList.innerHTML = publishPages
+    .map(
+      (page, index) => `
+        <label class="publish-page-option">
+          <input type="checkbox" value="${escapeHtml(page.page_id)}" ${index === 0 ? "checked" : ""} />
+          <span>
+            <strong>${escapeHtml(page.name || `Page ${index + 1}`)}</strong>
+            <small>${escapeHtml(page.page_id || "")}</small>
+          </span>
+        </label>
+      `,
+    )
+    .join("");
+}
+
+function getSelectedPublishPageIds() {
+  return [...publishPageList.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+}
+
+function isCurrentResultApproved() {
+  return currentResult?.approval_status === "approved" && currentResult?.cmo_decision === "APPROVE_TO_PUBLISH";
+}
+
+async function publishFinalDraft(pageIds) {
+  const selectedPageIds = pageIds || getSelectedPublishPageIds();
+  if (!selectedPageIds.length) {
+    publishPageStatus.textContent = "Hãy chọn ít nhất một page trước khi đăng.";
+    return;
+  }
+  publishSelectedButton.disabled = true;
+  publishAllButton.disabled = true;
+  publishPageStatus.textContent = `Đang gửi bài đến ${selectedPageIds.length} page...`;
+  try {
+    const response = await fetch("/api/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...buildFinalDraftPayload(),
+        page_ids: selectedPageIds,
+        approved: isCurrentResultApproved(),
+      }),
+    });
+    const payload = await response.json();
+    if (!payload.ok) {
+      throw new Error(payload.error || "Không đăng được bài.");
+    }
+    const publish = payload.publish_result || {};
+    publishStatus.textContent = publish.publisher_status || "-";
+    publishMode.textContent = publish.publish_mode || "-";
+    postId.textContent = publish.published_post_id || "-";
+    safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
+    renderPublishedPostLink(publish);
+    if (publish.published) {
+      publishPageStatus.textContent = `Đã đăng thành công ${Number((publish.page_results || []).filter((item) => item.published).length || 0)} page.`;
+    } else if (publish.dry_run) {
+      publishPageStatus.textContent = `Dry-run OK cho ${Number((publish.page_results || []).length || 0)} page. Tắt DRY_RUN trên server để đăng thật.`;
+    } else {
+      publishPageStatus.textContent = publish.reason || "Publisher chưa đăng. Kiểm tra CMO approval hoặc quyền page.";
+    }
+  } catch (error) {
+    publishPageStatus.textContent = error.message;
+  } finally {
+    publishSelectedButton.disabled = !publishPages.length;
+    publishAllButton.disabled = !publishPages.length;
+  }
 }
 
 function setFinalDraft(draft, assets, preferredCreativeIndex = 0) {
@@ -1072,6 +1184,15 @@ function formatFinalFacebookMessage() {
     .map((part) => String(part || "").trim())
     .filter(Boolean)
     .join("\n\n");
+}
+
+function buildFinalDraftPayload() {
+  return {
+    title: finalTitleInput.value.trim(),
+    body: finalBodyInput.value.trim(),
+    call_to_action: finalCtaInput.value.trim(),
+    hashtags: normalizeHashtags(finalTagsInput.value),
+  };
 }
 
 function normalizeHashtags(value) {
@@ -1248,6 +1369,18 @@ resetFinalButton.addEventListener("click", () => {
   updateFacebookPreview();
 });
 copyFinalButton.addEventListener("click", copyFinalCaption);
+selectAllPagesButton.addEventListener("click", () => {
+  publishPageList.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.checked = true;
+  });
+});
+publishSelectedButton.addEventListener("click", () => publishFinalDraft());
+publishAllButton.addEventListener("click", () => {
+  publishPageList.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.checked = true;
+  });
+  publishFinalDraft(publishPages.map((page) => page.page_id));
+});
 contentPlanList.addEventListener("click", (event) => {
   const button = event.target.closest(".use-variant-button");
   if (!button) {

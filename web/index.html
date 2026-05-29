@@ -370,6 +370,21 @@
                 <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp" hidden />
               </div>
               <p id="finalImageStatus" class="final-image-status">Bạn có thể bỏ ảnh, đổi ảnh hoặc thêm ảnh mới trước khi đăng.</p>
+              <div class="publish-page-box">
+                <div class="publish-page-heading">
+                  <div>
+                    <span class="label">Facebook pages</span>
+                    <strong>Chọn page để đăng</strong>
+                  </div>
+                  <button id="selectAllPagesButton" class="secondary-button compact" type="button">Chọn tất cả</button>
+                </div>
+                <div id="publishPageList" class="publish-page-list empty-state">Đang tải danh sách page...</div>
+                <div class="publish-page-actions">
+                  <button id="publishSelectedButton" class="primary-button compact" type="button">Đăng page đã chọn</button>
+                  <button id="publishAllButton" class="secondary-button" type="button">Đăng nhiều page</button>
+                </div>
+                <p id="publishPageStatus" class="final-image-status">Publisher chỉ chạy khi CMO đã duyệt và bạn bấm đăng.</p>
+              </div>
               <div class="final-actions">
                 <button id="resetFinalButton" class="secondary-button" type="button">Khôi phục bản AI</button>
                 <button id="copyFinalButton" class="primary-button compact" type="button">Copy caption cuối</button>
@@ -377,6 +392,7 @@
               <div id="publishedPostLinkBox" class="published-link-box" hidden>
                 <span class="label">Bài đã đăng</span>
                 <a id="publishedPostLink" href="#" target="_blank" rel="noopener noreferrer">Mở bài viết trên Facebook</a>
+                <div id="publishedPageResults" class="published-page-results"></div>
               </div>
             </div>
 

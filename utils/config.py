@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from dataclasses import dataclass, field
 
 try:
@@ -23,6 +24,47 @@ def _multi_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in re.split(r"[\n,]+", raw) if item.strip()]
 
 
+def _json_object(name: str) -> dict:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except Exception:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _facebook_publish_pages() -> list[dict[str, str]]:
+    tokens = _json_object("FACEBOOK_PAGE_TOKENS_JSON")
+    names = _json_object("FACEBOOK_PAGE_NAMES_JSON")
+    pages: list[dict[str, str]] = []
+    for page_id, token in tokens.items():
+        safe_page_id = str(page_id).strip()
+        safe_token = str(token).strip()
+        if not safe_page_id or not safe_token:
+            continue
+        pages.append(
+            {
+                "page_id": safe_page_id,
+                "name": str(names.get(safe_page_id) or f"Page {safe_page_id}").strip(),
+                "access_token": safe_token,
+            }
+        )
+
+    legacy_page_id = os.getenv("FACEBOOK_PAGE_ID", "").strip()
+    legacy_token = os.getenv("FACEBOOK_ACCESS_TOKEN", "").strip()
+    if legacy_page_id and legacy_token and legacy_page_id not in {page["page_id"] for page in pages}:
+        pages.append(
+            {
+                "page_id": legacy_page_id,
+                "name": str(names.get(legacy_page_id) or f"Page {legacy_page_id}").strip(),
+                "access_token": legacy_token,
+            }
+        )
+    return pages
+
+
 DEFAULT_COMPETITOR_AD_LIBRARY_URLS = "\n".join(
     [
         "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=110734571784682",
@@ -41,6 +83,7 @@ class Settings:
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     facebook_access_token: str = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
     facebook_page_id: str = os.getenv("FACEBOOK_PAGE_ID", "")
+    facebook_publish_pages: list[dict[str, str]] = field(default_factory=_facebook_publish_pages)
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
     gemini_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_FALLBACK_MODELS") or ["gemini-3.1-pro-preview", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"])
@@ -72,10 +115,8 @@ class Settings:
         warnings: list[str] = []
         if not (self.gemini_api_key or self.openai_api_key or self.anthropic_api_key):
             warnings.append("No LLM API key configured")
-        if not self.facebook_access_token:
-            warnings.append("FACEBOOK_ACCESS_TOKEN missing")
-        if not self.facebook_page_id:
-            warnings.append("FACEBOOK_PAGE_ID missing")
+        if not self.facebook_publish_pages:
+            warnings.append("FACEBOOK publish pages missing")
         return warnings
 
     @property
@@ -109,6 +150,7 @@ AGENT_API_REASONING_ENABLED = settings.agent_api_reasoning_enabled
 AI_PROVIDER = settings.ai_provider
 FACEBOOK_ACCESS_TOKEN = settings.facebook_access_token
 FACEBOOK_PAGE_ID = settings.facebook_page_id
+FACEBOOK_PUBLISH_PAGES = settings.facebook_publish_pages
 COMPETITOR_PAGE_IDS = settings.competitor_page_ids
 DRY_RUN = settings.dry_run
 MOCK_MODE = settings.effective_mock_mode
