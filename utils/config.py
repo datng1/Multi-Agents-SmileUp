@@ -54,7 +54,7 @@ def _facebook_publish_pages() -> list[dict[str, str]]:
 
     legacy_page_id = os.getenv("FACEBOOK_PAGE_ID", "").strip()
     legacy_token = os.getenv("FACEBOOK_ACCESS_TOKEN", "").strip()
-    if legacy_page_id and legacy_token and legacy_page_id not in {page["page_id"] for page in pages}:
+    if not pages and legacy_page_id and legacy_token:
         pages.append(
             {
                 "page_id": legacy_page_id,
