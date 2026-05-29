@@ -61,7 +61,7 @@ Giao diện có nút "Chạy workflow" để gọi API `/api/run`, sau đó hi�
 - Báo cáo ngày.
 - Chiến lược.
 - Bài đăng đã duyệt.
-- Publish result an toàn.
+- Final review: chỉnh caption cuối, chọn page Facebook và bấm đăng một page hoặc nhiều page sau khi CMO duyệt.
 
 ## Auto Deploy
 
@@ -187,9 +187,46 @@ DRY_RUN=true
 MOCK_MODE=true
 ```
 
-`FACEBOOK_PAGE_TOKENS_JSON` cho phep cau hinh nhieu page publish. UI chi hien `page_id/name`,
-khong tra token ve frontend. Workflow khong tu dang that; sau khi CMO duyet, nguoi dung chon
-mot page hoac nhieu page o buoc Final review roi bam dang.
+### Đăng Facebook Nhiều Page
+
+Hệ thống hỗ trợ publish lên một hoặc nhiều Facebook Page ở bước **Final review**.
+
+Biến cấu hình:
+
+- `FACEBOOK_PAGE_TOKENS_JSON`: map `page_id -> page_access_token`. Đây là nơi đặt token thật trên server `.env`.
+- `FACEBOOK_PAGE_NAMES_JSON`: map `page_id -> tên hiển thị` để UI dễ chọn page.
+- `FACEBOOK_ACCESS_TOKEN` và `FACEBOOK_PAGE_ID`: legacy fallback cho một page cũ. Nếu đã có `FACEBOOK_PAGE_TOKENS_JSON`, hệ thống ưu tiên danh sách nhiều page.
+- `DRY_RUN=true`: chỉ test payload, không đăng thật.
+- `DRY_RUN=false` và `MOCK_MODE=false`: cho phép gọi Facebook Graph API thật.
+
+Ví dụ:
+
+```env
+FACEBOOK_PAGE_TOKENS_JSON={"1585234501698881":"page_access_token","704514452736249":"page_access_token"}
+FACEBOOK_PAGE_NAMES_JSON={"1585234501698881":"SmileUp Main","704514452736249":"SmileUp Branch 1"}
+DRY_RUN=false
+MOCK_MODE=false
+```
+
+Luồng publish:
+
+1. Người dùng chạy workflow để Crawler, Text, Trend, Strategy, Content, Compliance, Hardness và CMO xử lý.
+2. CMO chỉ mở gate publish khi `cmo_decision=APPROVE_TO_PUBLISH` và `approval_status=approved`.
+3. Người dùng chỉnh lại bản cuối trong **Final review**.
+4. UI hiển thị danh sách page từ `/api/status`, chỉ gồm `page_id`, `name`, `has_token`; token không bao giờ trả về frontend.
+5. Người dùng chọn page bằng checkbox, có thể bấm **Chọn tất cả**.
+6. Bấm **Đăng page đã chọn** để đăng các page đang tick.
+7. Bấm **Đăng nhiều page** để chọn toàn bộ page rồi publish hàng loạt.
+8. Backend gọi `/api/publish`, lấy token tương ứng từ `.env`, gọi Graph API `/{page_id}/feed`, rồi trả kết quả từng page.
+9. UI hiển thị link bài đã đăng cho từng page thành công; page lỗi sẽ hiện lỗi riêng, không làm mất kết quả các page đã đăng.
+
+An toàn vận hành:
+
+- Workflow không tự đăng thật ngay khi CMO duyệt. Publisher trong workflow chỉ chuẩn bị trạng thái; hành động đăng thật luôn cần người dùng bấm nút ở Final review.
+- Nếu CMO chưa duyệt, `/api/publish` trả trạng thái `skipped` và không gọi Graph API.
+- Không commit token vào git. Token thật chỉ đặt trong `.env` production hoặc secret manager.
+- Nếu token từng bị gửi qua chat/log, nên rotate lại trong Meta trước khi dùng lâu dài.
+- Page token cần có quyền phù hợp để đăng bài Page, ví dụ quyền quản lý/đăng bài Page theo cấu hình Meta App hiện tại.
 
 CMO Jury tự dùng các key có sẵn: có 1 model thì 1 phiếu, có 2 model thì 2 phiếu, có đủ Gemini/GPT/Claude thì tổng hợp 3 phiếu để chọn variant, creative và quyết định publish/revise/reject.
 
