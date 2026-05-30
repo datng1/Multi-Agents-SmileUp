@@ -23,6 +23,7 @@ const finalCtaInput = document.querySelector("#finalCtaInput");
 const finalTagsInput = document.querySelector("#finalTagsInput");
 const finalCreativeSelect = document.querySelector("#finalCreativeSelect");
 const finalCreativeUpload = document.querySelector("#finalCreativeUpload");
+const finalUseImageButton = document.querySelector("#finalUseImageButton");
 const finalNoImageButton = document.querySelector("#finalNoImageButton");
 const finalRemoveImageButton = document.querySelector("#finalRemoveImageButton");
 const finalAddImageButton = document.querySelector("#finalAddImageButton");
@@ -208,13 +209,7 @@ function resetFinalReview() {
   finalBodyInput.value = "";
   finalCtaInput.value = "";
   finalTagsInput.value = "";
-  finalCreativeSelect.innerHTML = "";
-
-  const option = document.createElement("option");
-  option.value = "-1";
-  option.textContent = "Không dùng ảnh cho bài này";
-  finalCreativeSelect.appendChild(option);
-  finalCreativeSelect.value = "-1";
+  renderFinalCreativeOptions(-1);
   updateFacebookPreview();
   publishPageStatus.textContent = "Publisher chỉ chạy khi CMO đã duyệt và bạn bấm đăng.";
   renderPublishedPostLink({});
@@ -1161,11 +1156,26 @@ function updateFinalImageControls() {
   const selectedIndex = Number(finalCreativeSelect.value);
   const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
   const hasSelectedImage = Boolean(selectedAsset?.image_path);
+  finalUseImageButton.disabled = !currentCreativeAssets.some((asset) => asset?.image_path);
   finalRemoveImageButton.disabled = !hasSelectedImage;
   finalNoImageButton.classList.toggle("active", selectedIndex === -1);
+  finalUseImageButton.classList.toggle("active", hasSelectedImage);
   finalImageStatus.textContent = hasSelectedImage
     ? `${selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Đang chọn ảnh xào Gemini" : "Đang chọn ảnh"}: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
-    : "Đang chọn chế độ chỉ đăng bài viết, không kèm ảnh.";
+    : currentCreativeAssets.length
+      ? "Có ảnh trong lượt chạy này. Bấm “Dùng ảnh đang có” hoặc chọn ảnh trong dropdown để xem trước."
+      : "Chưa có ảnh trong lượt chạy này. Hãy chạy workflow ở chế độ “Có ảnh xào Gemini” hoặc bấm “Thêm / đổi ảnh”.";
+}
+
+function useFirstAvailableImage() {
+  const index = currentCreativeAssets.findIndex((asset) => asset?.image_path);
+  if (index < 0) {
+    finalImageStatus.textContent = "Chưa có ảnh để dùng. Hãy chạy workflow ở chế độ có ảnh hoặc thêm ảnh thủ công.";
+    return;
+  }
+  finalImageManuallyDisabled = false;
+  finalCreativeSelect.value = String(index);
+  updateFacebookPreview();
 }
 
 function openFinalImagePicker() {
@@ -1385,6 +1395,7 @@ finalCreativeSelect.addEventListener("change", () => {
   finalImageManuallyDisabled = finalCreativeSelect.value === "-1";
   updateFacebookPreview();
 });
+finalUseImageButton.addEventListener("click", useFirstAvailableImage);
 finalNoImageButton.addEventListener("click", () => {
   finalImageManuallyDisabled = true;
   finalCreativeSelect.value = "-1";
