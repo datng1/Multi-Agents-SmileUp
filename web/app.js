@@ -24,6 +24,7 @@ const finalTagsInput = document.querySelector("#finalTagsInput");
 const finalCreativeSelect = document.querySelector("#finalCreativeSelect");
 const finalCreativeUpload = document.querySelector("#finalCreativeUpload");
 const finalNoImageButton = document.querySelector("#finalNoImageButton");
+const finalRewriteImageButton = document.querySelector("#finalRewriteImageButton");
 const finalRemoveImageButton = document.querySelector("#finalRemoveImageButton");
 const finalAddImageButton = document.querySelector("#finalAddImageButton");
 const finalAddImagePreviewButton = document.querySelector("#finalAddImagePreviewButton");
@@ -1138,7 +1139,15 @@ function updateFinalImageControls() {
   finalNoImageButton.classList.toggle("active", selectedIndex === -1);
   finalImageStatus.textContent = hasSelectedImage
     ? `Đang chọn ảnh: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
-    : "Đang chọn chế độ chỉ đăng bài viết, không kèm ảnh.";
+    : "Chưa có ảnh rewrite. Bấm “Xào ảnh ads bằng Gemini” để agent chạy lại và tạo ảnh từ ads match cao nhất.";
+}
+
+function rerunWorkflowWithImageRewrite() {
+  creativeImageMode.value = "top_match_reference";
+  syncCreativeImageMode();
+  finalImageStatus.textContent = "Đã chọn rewrite ảnh. Workflow sẽ chạy lại để Crawler lấy ads match cao nhất và Content Agent tạo ảnh mới.";
+  document.querySelector(".creative-source-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  runWorkflow();
 }
 
 function openFinalImagePicker() {
@@ -1359,6 +1368,7 @@ finalNoImageButton.addEventListener("click", () => {
   finalCreativeSelect.value = "-1";
   updateFacebookPreview();
 });
+finalRewriteImageButton.addEventListener("click", rerunWorkflowWithImageRewrite);
 finalRemoveImageButton.addEventListener("click", removeSelectedFinalImage);
 finalAddImageButton.addEventListener("click", openFinalImagePicker);
 finalAddImagePreviewButton.addEventListener("click", openFinalImagePicker);
