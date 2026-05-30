@@ -103,6 +103,7 @@ let currentCreativeAssets = [];
 let currentContentPlan = [];
 let currentResult = null;
 let publishPages = [];
+let finalImageManuallyDisabled = false;
 
 const agentOrder = [
   "crawler",
@@ -202,6 +203,7 @@ function resetFinalReview() {
   originalFinalDraft = null;
   currentCreativeAssets = [];
   currentContentPlan = [];
+  finalImageManuallyDisabled = false;
   finalTitleInput.value = "";
   finalBodyInput.value = "";
   finalCtaInput.value = "";
@@ -906,7 +908,10 @@ function useVariantAsFinal(index) {
   finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
 
   if (currentCreativeAssets[index]?.image_path) {
+    finalImageManuallyDisabled = false;
     finalCreativeSelect.value = String(index);
+  } else if (!finalImageManuallyDisabled && currentCreativeAssets[0]?.image_path) {
+    finalCreativeSelect.value = "0";
   }
 
   marketingAnalysis.textContent = variant.marketing_analysis || "Campaign này chưa có phân tích marketing riêng.";
@@ -1073,6 +1078,7 @@ async function publishFinalDraft(pageIds) {
 }
 
 function setFinalDraft(draft, assets, preferredCreativeIndex = 0) {
+  finalImageManuallyDisabled = false;
   originalFinalDraft = {
     title: draft.title || "",
     body: draft.body || "",
@@ -1115,7 +1121,11 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
     finalCreativeSelect.appendChild(option);
   });
   const safeIndex = Number(preferredCreativeIndex);
-  finalCreativeSelect.value = safeIndex >= 0 && safeIndex < currentCreativeAssets.length ? String(safeIndex) : "0";
+  finalCreativeSelect.value = finalImageManuallyDisabled
+    ? "-1"
+    : safeIndex >= 0 && safeIndex < currentCreativeAssets.length
+      ? String(safeIndex)
+      : "0";
   updateFinalImageControls();
 }
 
@@ -1125,14 +1135,24 @@ function updateFacebookPreview() {
   finalCharCount.textContent = `${message.length.toLocaleString("vi-VN")} ký tự`;
   safePayload.textContent = message || "Payload preview sẽ hiện ở đây.";
 
-  const selectedIndex = Number(finalCreativeSelect.value);
+  let selectedIndex = Number(finalCreativeSelect.value);
+  if (!finalImageManuallyDisabled && (!Number.isInteger(selectedIndex) || selectedIndex < 0) && currentCreativeAssets[0]?.image_path) {
+    selectedIndex = 0;
+    finalCreativeSelect.value = "0";
+  }
   const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
   if (selectedAsset?.image_path) {
-    fbPreviewImage.className = "fb-preview-image";
-    fbPreviewImage.innerHTML = `<img src="${escapeHtml(selectedAsset.image_path)}" alt="${escapeHtml(selectedAsset.title || "SmileUp creative")}" />`;
+    const label = selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Ảnh xào Gemini" : "Ảnh đính kèm";
+    fbPreviewImage.className = "fb-preview-image has-image";
+    fbPreviewImage.innerHTML = `
+      <img src="${escapeHtml(selectedAsset.image_path)}" alt="${escapeHtml(selectedAsset.title || "SmileUp creative")}" />
+      <span>${escapeHtml(label)}</span>
+    `;
   } else {
     fbPreviewImage.className = "fb-preview-image empty";
-    fbPreviewImage.textContent = selectedIndex === -1 ? "Bài viết này đang ở chế độ không ảnh." : "Ảnh creative sẽ hiện ở đây.";
+    fbPreviewImage.textContent = currentCreativeAssets.length
+      ? "Đã có ảnh, hãy chọn trong mục Ảnh đi kèm để xem trước."
+      : "Chưa có ảnh Gemini trong lượt chạy này.";
   }
   updateFinalImageControls();
 }
@@ -1361,8 +1381,12 @@ finalTitleInput.addEventListener("input", updateFacebookPreview);
 finalBodyInput.addEventListener("input", updateFacebookPreview);
 finalCtaInput.addEventListener("input", updateFacebookPreview);
 finalTagsInput.addEventListener("input", updateFacebookPreview);
-finalCreativeSelect.addEventListener("change", updateFacebookPreview);
+finalCreativeSelect.addEventListener("change", () => {
+  finalImageManuallyDisabled = finalCreativeSelect.value === "-1";
+  updateFacebookPreview();
+});
 finalNoImageButton.addEventListener("click", () => {
+  finalImageManuallyDisabled = true;
   finalCreativeSelect.value = "-1";
   updateFacebookPreview();
 });
@@ -1381,6 +1405,7 @@ resetFinalButton.addEventListener("click", () => {
   finalBodyInput.value = originalFinalDraft.body;
   finalCtaInput.value = originalFinalDraft.call_to_action;
   finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
+  finalImageManuallyDisabled = false;
   renderFinalCreativeOptions(currentCreativeAssets.length ? 0 : -1);
   updateFacebookPreview();
 });
