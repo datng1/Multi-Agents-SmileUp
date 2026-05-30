@@ -157,7 +157,7 @@ function syncCreativeImageMode() {
     text_only: "Text only",
   };
   const hints = {
-    top_match_reference: "Gemini nhận ảnh ads match cao nhất làm reference, giữ logic bố cục nhưng tạo ảnh SmileUp mới: mặt khác, nền khác, text khác, không dùng lại pixel gốc.",
+    top_match_reference: "Gemini quét tối đa 12 ads match/mới nhất để lấy ảnh reference đầu tiên hợp lệ, giữ logic bố cục nhưng tạo ảnh SmileUp mới: mặt khác, nền khác, text khác, không dùng lại pixel gốc.",
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",

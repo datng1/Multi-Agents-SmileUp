@@ -143,6 +143,7 @@ Dashboard áp dụng hướng “anti-slop frontend” kiểu Taste Skill cho c�
 - Một quyết định phải có một primary action rõ. Ví dụ phần ảnh có nút **Dùng ảnh xào Gemini**/**Dùng ảnh đang có**, còn **Chỉ đăng bài viết** là lựa chọn phụ có chủ đích.
 - Preview phải phản ánh payload thật: nếu chọn ảnh thì khung Facebook hiển thị ảnh ngay; nếu không có ảnh thì nêu rõ lý do và bước tiếp theo.
 - Không dùng placeholder giả cho trạng thái quan trọng. Ảnh rewrite chỉ được đưa vào final review khi Gemini thật sự trả file ảnh.
+- Khi chọn mode ảnh Gemini từ ads, hệ thống không dừng ở 1-2 ads đầu. Crawler xếp hạng ads theo nguồn đối thủ, keyword match và độ mới, quét tối đa 12 ads để lấy ảnh hợp lệ đầu tiên làm reference; nếu media đầu lỗi tải thì thử các media candidate còn lại. Ảnh cuối vẫn được post-process để gắn logo SmileUp local.
 - Copy UI phải là tiếng Việt tự nhiên, ngắn, đúng ngữ cảnh marketing nha khoa.
 - Layout ưu tiên mật độ làm việc: ít hero/card trang trí, nhiều trạng thái có ích, spacing đều, button không chen chữ.
 

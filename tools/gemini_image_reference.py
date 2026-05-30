@@ -34,8 +34,8 @@ def generate_smileup_reference_image(
         return False, "", "Gemini image skipped: GEMINI_API_KEY missing."
 
     reference_ad = context.get("creative_reference_ad") or {}
-    media_url = str(reference_ad.get("media_url") or "").strip()
-    if not media_url:
+    media_urls = _reference_media_urls(reference_ad)
+    if not media_urls:
         return False, "", "Gemini image skipped: top-match ad has no media URL."
 
     try:
@@ -45,16 +45,37 @@ def generate_smileup_reference_image(
         return False, "", f"Gemini image skipped: google-genai unavailable ({exc})."
 
     try:
-        image_bytes, mime_type = _download_reference_image(media_url)
+        image_bytes, mime_type, used_media_url = _download_first_reference_image(media_urls)
+        reference_ad["media_url"] = used_media_url
         client = genai.Client(api_key=config.GEMINI_API_KEY)
         blueprint = _describe_reference_blueprint(client, types, image_bytes, mime_type, reference_ad)
         prompt = _build_generation_prompt(variant, reference_ad, blueprint)
         generated = _generate_image(client, types, prompt, image_bytes, mime_type)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(generated)
-        return True, blueprint, "Gemini rewrote top-match ad image into a new SmileUp creative using reference-image mode."
+        return True, blueprint, "Gemini rewrote ranked Ad Library image into a new SmileUp creative using reference-image mode; SmileUp logo is overlaid locally."
     except Exception as exc:
         return False, "", f"Gemini image fallback: {exc}"
+
+
+def _reference_media_urls(reference_ad: dict[str, Any]) -> list[str]:
+    urls: list[str] = []
+    for raw_url in [reference_ad.get("media_url"), *(reference_ad.get("media_candidates") or [])]:
+        url = str(raw_url or "").strip()
+        if url and url not in urls:
+            urls.append(url)
+    return urls
+
+
+def _download_first_reference_image(media_urls: list[str]) -> tuple[bytes, str, str]:
+    errors: list[str] = []
+    for media_url in media_urls:
+        try:
+            image_bytes, mime_type = _download_reference_image(media_url)
+            return image_bytes, mime_type, media_url
+        except Exception as exc:
+            errors.append(f"{media_url[:80]}: {exc}")
+    raise GeminiImageUnavailable("no usable reference media after trying candidates: " + " | ".join(errors[-3:]))
 
 
 def _download_reference_image(media_url: str) -> tuple[bytes, str]:
