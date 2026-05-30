@@ -24,7 +24,6 @@ const finalTagsInput = document.querySelector("#finalTagsInput");
 const finalCreativeSelect = document.querySelector("#finalCreativeSelect");
 const finalCreativeUpload = document.querySelector("#finalCreativeUpload");
 const finalNoImageButton = document.querySelector("#finalNoImageButton");
-const finalRewriteImageButton = document.querySelector("#finalRewriteImageButton");
 const finalRemoveImageButton = document.querySelector("#finalRemoveImageButton");
 const finalAddImageButton = document.querySelector("#finalAddImageButton");
 const finalAddImagePreviewButton = document.querySelector("#finalAddImagePreviewButton");
@@ -149,7 +148,7 @@ function syncCreativeImageMode() {
   const mode = creativeImageMode.value || "text_only";
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
-    top_match_reference: "Top-match Gemini",
+    top_match_reference: "Có ảnh xào Gemini",
     auto: "Auto SmileUp",
     owned: hasUpload ? "Using uploaded image" : "Upload needed",
     layout_reference: hasUpload ? "Layout reference" : "Upload needed",
@@ -1097,6 +1096,11 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
   finalCreativeSelect.appendChild(noImageOption);
 
   if (!currentCreativeAssets.length) {
+    const pendingGeminiOption = document.createElement("option");
+    pendingGeminiOption.value = "gemini-pending";
+    pendingGeminiOption.disabled = true;
+    pendingGeminiOption.textContent = "Chưa có ảnh xào Gemini trong lượt chạy này";
+    finalCreativeSelect.appendChild(pendingGeminiOption);
     finalCreativeSelect.value = "-1";
     updateFinalImageControls();
     return;
@@ -1105,7 +1109,9 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
   currentCreativeAssets.forEach((asset, index) => {
     const option = document.createElement("option");
     option.value = String(index);
-    option.textContent = `${String(index + 1).padStart(2, "0")} · ${asset.service_line || asset.title || "SmileUp creative"}`;
+    const isGeminiRewrite = asset.image_mode === "top_match_reference" || asset.gemini_generated;
+    const label = isGeminiRewrite ? "Có ảnh xào Gemini" : "Ảnh SmileUp";
+    option.textContent = `${label} · ${String(index + 1).padStart(2, "0")} · ${asset.service_line || asset.title || "SmileUp creative"}`;
     finalCreativeSelect.appendChild(option);
   });
   const safeIndex = Number(preferredCreativeIndex);
@@ -1138,16 +1144,8 @@ function updateFinalImageControls() {
   finalRemoveImageButton.disabled = !hasSelectedImage;
   finalNoImageButton.classList.toggle("active", selectedIndex === -1);
   finalImageStatus.textContent = hasSelectedImage
-    ? `Đang chọn ảnh: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
-    : "Chưa có ảnh rewrite. Bấm “Xào ảnh ads bằng Gemini” để agent chạy lại và tạo ảnh từ ads match cao nhất.";
-}
-
-function rerunWorkflowWithImageRewrite() {
-  creativeImageMode.value = "top_match_reference";
-  syncCreativeImageMode();
-  finalImageStatus.textContent = "Đã chọn rewrite ảnh. Workflow sẽ chạy lại để Crawler lấy ads match cao nhất và Content Agent tạo ảnh mới.";
-  document.querySelector(".creative-source-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  runWorkflow();
+    ? `${selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Đang chọn ảnh xào Gemini" : "Đang chọn ảnh"}: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
+    : "Đang chọn chế độ chỉ đăng bài viết, không kèm ảnh.";
 }
 
 function openFinalImagePicker() {
@@ -1368,7 +1366,6 @@ finalNoImageButton.addEventListener("click", () => {
   finalCreativeSelect.value = "-1";
   updateFacebookPreview();
 });
-finalRewriteImageButton.addEventListener("click", rerunWorkflowWithImageRewrite);
 finalRemoveImageButton.addEventListener("click", removeSelectedFinalImage);
 finalAddImageButton.addEventListener("click", openFinalImagePicker);
 finalAddImagePreviewButton.addEventListener("click", openFinalImagePicker);

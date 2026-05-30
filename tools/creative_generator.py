@@ -46,10 +46,11 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
             generated, blueprint, gemini_note = generate_smileup_reference_image(variant, context, output_path)
             if blueprint:
                 context["creative_reference_blueprint"] = blueprint
+            context["creative_generation_note"] = gemini_note
             if generated:
-                _normalize_generated_image(output_path)
+                _normalize_generated_image(output_path, variant)
             else:
-                _render_creative(variant, output_path, index, context)
+                continue
         else:
             _render_creative(variant, output_path, index, context)
         url_path = f"/generated/creatives/{filename}"
@@ -68,6 +69,7 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
                 "reference_ad_url": str(reference_ad.get("ad_url") or ""),
                 "reference_page_name": str(reference_ad.get("page_name") or ""),
                 "gemini_image_note": gemini_note,
+                "gemini_generated": bool(image_mode == "top_match_reference" and gemini_note),
                 "source_policy": source_policy,
             }
         )
@@ -196,14 +198,36 @@ def _draw_logo(canvas) -> None:
     canvas.alpha_composite(logo, (62 + (142 - logo.width) // 2, 56 + (142 - logo.height) // 2))
 
 
-def _normalize_generated_image(output_path: Path) -> None:
+def _normalize_generated_image(output_path: Path, variant: ContentVariant) -> None:
     try:
         image = Image.open(output_path).convert("RGBA")
     except Exception:
         return
     image = _fit_to_canvas(image, 1080, 1350).convert("RGBA")
+    _draw_generated_text_overlay(image, variant)
     _draw_logo(image)
     image.convert("RGB").save(output_path, quality=95)
+
+
+def _draw_generated_text_overlay(canvas, variant: ContentVariant) -> None:
+    draw = ImageDraw.Draw(canvas)
+    title_font = _font(50, bold=True)
+    cta_font = _font(30, bold=True)
+    micro_font = _font(22, bold=True)
+
+    top = Image.new("RGBA", (1080, 230), (7, 92, 86, 232))
+    canvas.alpha_composite(top, (0, 0))
+    draw.text((224, 46), "SMILEUP DENTAL CLINIC", fill=(196, 241, 235), font=micro_font)
+    y = 78
+    for line in _wrap_text(variant.get("title") or "SmileUp tư vấn nha khoa cá nhân hóa", 32, 2):
+        draw.text((224, y), line, fill=(255, 255, 255), font=title_font)
+        y += 58
+
+    bottom = Image.new("RGBA", (1080, 122), (7, 92, 86, 238))
+    canvas.alpha_composite(bottom, (0, 1228))
+    cta = variant.get("call_to_action") or "Inbox SmileUp để được tư vấn trường hợp của bạn."
+    draw.rounded_rectangle((52, 1250, 1028, 1320), radius=34, fill=(255, 255, 255, 245))
+    draw.text((92, 1268), _shorten(cta, 62), fill=(7, 92, 86), font=cta_font)
 
 
 def _fit_to_canvas(image, width: int, height: int):

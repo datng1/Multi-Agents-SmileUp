@@ -181,9 +181,11 @@ Strict originality rules:
 - Do not reproduce source pixels, exact text, logo, watermark, face, identity, clothing, background, or distinctive props from the competitor ad.
 - Preserve only broad composition logic: subject count, relative placement, shot distance, visual hierarchy, and CTA/text zone placement.
 - Replace all people with new Vietnamese dentist/patient subjects with different faces, different styling, different clothes, and different background details.
-- Remove all competitor brand marks and rewrite any visible text into new SmileUp-safe Vietnamese wording.
+- Remove all competitor brand marks, visible text, watermarks, labels, numbers, and typography from the generated image.
+- Do not add prices, discounts, promo gifts, guarantees, success rates, or urgent scarcity claims.
+- Do not render any readable words, letters, text overlays, bullet lists, labels, UI captions, or fake logo in the image. Local post-processing will add the final Vietnamese headline, CTA, and real SmileUp logo.
 - Use SmileUp-owned brand direction: clean modern dental clinic, white/teal palette, trustworthy, premium but warm.
-- Add a clean SmileUp logo area at the top-left; local post-processing will overlay the actual logo.
+- Reserve a clean blank logo area at the top-left; do not draw a fake logo because local post-processing will overlay the actual SmileUp logo.
 - Avoid exaggerated medical claims, before/after claims, or guaranteed results.
 - Make the image suitable for a Facebook dental marketing post about porcelain crowns, porcelain restoration, or implants.
 - No watermark. No fake medical before/after. No body-shaming.
@@ -194,6 +196,8 @@ Title overlay idea: {variant.get("title", "")}
 Angle: {variant.get("angle", "")}
 Differentiation: {variant.get("differentiation", "")}
 CTA: {variant.get("call_to_action", "")}
+
+Important: the title and CTA above are for composition planning only. Do not write them in the image; the application will overlay exact Vietnamese text after generation.
 
 Top-match ad context for strategy only, do not copy wording:
 Page: {reference_ad.get("page_name", "")}

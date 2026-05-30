@@ -29,6 +29,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                 country=config.AD_LIBRARY_COUNTRY,
                 max_ads=config.AD_LIBRARY_MAX_ADS,
                 cache_ttl_hours=config.AD_LIBRARY_CACHE_TTL_HOURS,
+                force_refresh=True,
                 competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
                 competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
             )

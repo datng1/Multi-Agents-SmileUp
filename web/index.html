@@ -133,8 +133,8 @@
                 <label>
                   <span class="label">Image mode</span>
                   <select id="creativeImageMode" class="mode-select">
-                    <option value="text_only" selected>Chỉ gen bài viết, không gen ảnh</option>
-                    <option value="top_match_reference">Xào lại ảnh ads match cao nhất bằng Gemini</option>
+                    <option value="top_match_reference" selected>Có ảnh xào Gemini từ ads match cao nhất</option>
+                    <option value="text_only">Chỉ gen bài viết, không gen ảnh</option>
                     <option value="layout_reference">Upload ảnh chỉ để lấy form/layout</option>
                     <option value="owned">Dùng ảnh SmileUp upload làm nguồn</option>
                   </select>
@@ -368,7 +368,6 @@
               </label>
               <div class="final-image-actions">
                 <button id="finalNoImageButton" class="secondary-button" type="button">Chỉ đăng bài viết</button>
-                <button id="finalRewriteImageButton" class="secondary-button" type="button">Xào ảnh ads bằng Gemini</button>
                 <button id="finalRemoveImageButton" class="secondary-button danger" type="button">Xóa ảnh đang chọn</button>
                 <button id="finalAddImageButton" class="secondary-button" type="button">Thêm / đổi ảnh</button>
                 <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp" hidden />
