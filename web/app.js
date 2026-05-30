@@ -1156,7 +1156,10 @@ function updateFinalImageControls() {
   const selectedIndex = Number(finalCreativeSelect.value);
   const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
   const hasSelectedImage = Boolean(selectedAsset?.image_path);
-  finalUseImageButton.disabled = !currentCreativeAssets.some((asset) => asset?.image_path);
+  const firstImageAsset = currentCreativeAssets.find((asset) => asset?.image_path);
+  const firstImageIsGemini = firstImageAsset?.gemini_generated || firstImageAsset?.image_mode === "top_match_reference";
+  finalUseImageButton.disabled = !firstImageAsset;
+  finalUseImageButton.textContent = firstImageIsGemini ? "Dùng ảnh xào Gemini" : "Dùng ảnh đang có";
   finalRemoveImageButton.disabled = !hasSelectedImage;
   finalNoImageButton.classList.toggle("active", selectedIndex === -1);
   finalUseImageButton.classList.toggle("active", hasSelectedImage);

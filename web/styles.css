@@ -1644,6 +1644,13 @@ pre {
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
+.final-image-select {
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fbfffe, #f3faf8);
+}
+
 .final-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1652,8 +1659,8 @@ pre {
 }
 
 .final-image-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1661,6 +1668,18 @@ pre {
 .final-actions .secondary-button,
 .final-actions .primary-button {
   min-height: 40px;
+}
+
+.final-image-actions .secondary-button {
+  min-width: 0;
+  padding-inline: 12px;
+  white-space: normal;
+}
+
+.final-image-actions #finalUseImageButton {
+  border-color: rgba(15, 118, 110, 0.38);
+  color: var(--accent-strong);
+  background: #f4fffc;
 }
 
 .final-image-actions .secondary-button.active {
@@ -1685,8 +1704,12 @@ pre {
 }
 
 .final-image-status {
-  margin: -4px 0 0;
+  margin: -2px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(102, 112, 133, 0.18);
+  border-radius: 8px;
   color: var(--muted);
+  background: #fbfcfd;
   font-size: 13px;
   line-height: 1.45;
 }
@@ -2086,6 +2109,7 @@ dd {
   .track-card-grid,
   .referenced-ads-list,
   .final-two-col,
+  .final-image-actions,
   .creative-source-grid,
   .creative-grid,
   .cmo-grid,

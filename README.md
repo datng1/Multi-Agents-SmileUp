@@ -135,6 +135,17 @@ Workflow hiện có thêm:
 
 Lưu ý: mode rewrite ảnh dùng ảnh ads gốc như reference để “xào lại” bố cục ở mức cao. Output vẫn phải là ảnh mới của SmileUp: không dùng lại pixel, logo, watermark, mặt người, text gốc, nền đặc trưng hoặc tài sản nhận diện của đối thủ.
 
+## Taste Skill UI Guardrails
+
+Dashboard áp dụng hướng “anti-slop frontend” kiểu Taste Skill cho các màn CMO/final review:
+
+- Audit trước khi thêm UI: ưu tiên sửa điểm gây nhầm lẫn trong workflow thay vì thêm card/trang trí.
+- Một quyết định phải có một primary action rõ. Ví dụ phần ảnh có nút **Dùng ảnh xào Gemini**/**Dùng ảnh đang có**, còn **Chỉ đăng bài viết** là lựa chọn phụ có chủ đích.
+- Preview phải phản ánh payload thật: nếu chọn ảnh thì khung Facebook hiển thị ảnh ngay; nếu không có ảnh thì nêu rõ lý do và bước tiếp theo.
+- Không dùng placeholder giả cho trạng thái quan trọng. Ảnh rewrite chỉ được đưa vào final review khi Gemini thật sự trả file ảnh.
+- Copy UI phải là tiếng Việt tự nhiên, ngắn, đúng ngữ cảnh marketing nha khoa.
+- Layout ưu tiên mật độ làm việc: ít hero/card trang trí, nhiều trạng thái có ích, spacing đều, button không chen chữ.
+
 ## Quét tự động mỗi ngày
 
 Chạy một lần và lưu báo cáo vào `reports/`:
