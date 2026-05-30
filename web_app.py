@@ -19,6 +19,7 @@ from graph.state import create_initial_state
 from graph.workflow import build_workflow
 from tools.facebook_publisher import get_publish_pages, publish_facebook_post
 from tools.manual_input import parse_manual_competitor_posts
+from tools.workflow_progress import set_workflow_progress_callback
 from utils import config
 
 
@@ -458,10 +459,31 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
 
 
 def _run_job(job_id: str, request_payload: dict, session_id: str, username: str) -> None:
+    def _progress(agent_name: str, status: str) -> None:
+        with JOB_LOCK:
+            job = JOBS.get(job_id)
+            if not job:
+                return
+            statuses = dict(job.get("agent_statuses") or {})
+            statuses[agent_name] = status
+            job["agent_statuses"] = statuses
+            job["current_step"] = agent_name
+            job["logs"] = _progress_log(statuses, agent_name, status)
+
     try:
+        set_workflow_progress_callback(_progress)
         output = _run_workflow_payload(request_payload, session_id, username)
         with JOB_LOCK:
-            JOBS[job_id].update({"status": "completed", **output, "finished_at": time.time()})
+            statuses = dict(JOBS[job_id].get("agent_statuses") or {})
+            JOBS[job_id].update(
+                {
+                    "status": "completed",
+                    "agent_statuses": statuses,
+                    "current_step": "publisher",
+                    **output,
+                    "finished_at": time.time(),
+                }
+            )
     except Exception as exc:
         with JOB_LOCK:
             JOBS[job_id].update(
@@ -471,6 +493,29 @@ def _run_job(job_id: str, request_payload: dict, session_id: str, username: str)
                     "finished_at": time.time(),
                 }
             )
+    finally:
+        set_workflow_progress_callback(None)
+
+
+def _progress_log(statuses: dict, current_agent: str, current_status: str) -> str:
+    labels = {
+        "crawler": "Crawler",
+        "text_insight": "Text Insight",
+        "trend_analysis": "Trend",
+        "visual_insight": "Visual",
+        "video_insight": "Video",
+        "strategy": "Strategy",
+        "content_creator": "Content",
+        "compliance": "Compliance",
+        "hardness": "Hardness",
+        "manager_review": "CMO Lead",
+        "publisher": "Publisher",
+    }
+    lines = [f"{labels.get(current_agent, current_agent)}: {current_status}"]
+    for key, label in labels.items():
+        if key in statuses:
+            lines.append(f"- {label}: {statuses[key]}")
+    return "\n".join(lines)
 
 
 def _run_workflow_payload(request_payload: dict, session_id: str, username: str) -> dict:
@@ -495,9 +540,13 @@ def _run_workflow_payload(request_payload: dict, session_id: str, username: str)
 def _workflow_context_cache_key(request_payload: dict) -> str:
     ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip() or config.AD_LIBRARY_KEYWORDS
     creative_image_data_url = str(request_payload.get("creative_image_data_url", "") or "")
+    scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
     payload = {
         "version": WORKFLOW_CONTEXT_CACHE_VERSION,
         "mode": str(request_payload.get("mode", "auto")).strip(),
+        "scan_mode": scan_mode,
+        "ad_library_run_max_ads": max_ads,
+        "ad_library_reference_scan_limit": reference_scan_limit,
         "ad_library_keywords": re.sub(r"\s+", " ", ad_library_keywords).strip().casefold(),
         "manual_competitor_posts": str(request_payload.get("manual_competitor_posts", "")).strip(),
         "manual_visual_notes": str(request_payload.get("manual_visual_notes", "")).strip(),
@@ -685,6 +734,7 @@ def _build_initial_state(request_payload: dict) -> dict:
     visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
     video_notes = str(request_payload.get("manual_video_notes", "")).strip()
     ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
+    scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
     creative_image_mode = _normalize_creative_image_mode(request_payload.get("creative_image_mode", "text_only"))
     creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
     creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
@@ -692,6 +742,9 @@ def _build_initial_state(request_payload: dict) -> dict:
     initial_state = create_initial_state()
     initial_state["run_seed"] = str(time.time_ns())
     initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
+    initial_state["ad_library_scan_mode"] = scan_mode
+    initial_state["ad_library_max_ads"] = max_ads
+    initial_state["ad_library_reference_scan_limit"] = reference_scan_limit
     initial_state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
     initial_state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
     initial_state["competitor_visual_notes"] = visual_notes
@@ -714,6 +767,13 @@ def _build_initial_state(request_payload: dict) -> dict:
     if visual_notes or video_notes:
         initial_state["data_source"] = "manual"
     return initial_state
+
+
+def _scan_settings(request_payload: dict) -> tuple[str, int, int]:
+    mode = str(request_payload.get("scan_mode") or request_payload.get("ad_library_scan_mode") or "quick").strip().lower()
+    if mode == "deep":
+        return "deep", 12, 12
+    return "quick", 5, 5
 
 
 def _normalize_creative_image_mode(value: object) -> str:

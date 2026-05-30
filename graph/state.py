@@ -72,6 +72,9 @@ class AgentState(TypedDict):
     high_match_threshold: float
     ad_library_report: str
     ad_library_keywords: str
+    ad_library_max_ads: int
+    ad_library_reference_scan_limit: int
+    ad_library_scan_mode: str
     ad_library_competitor_urls: list[str]
     ad_library_competitor_ratio: float
     market_trend_summary: str
@@ -134,6 +137,9 @@ def create_initial_state() -> AgentState:
         "high_match_threshold": 0.95,
         "ad_library_report": "",
         "ad_library_keywords": "",
+        "ad_library_max_ads": 12,
+        "ad_library_reference_scan_limit": 12,
+        "ad_library_scan_mode": "quick",
         "ad_library_competitor_urls": [],
         "ad_library_competitor_ratio": 0.8,
         "market_trend_summary": "",

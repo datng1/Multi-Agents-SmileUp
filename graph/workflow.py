@@ -11,6 +11,7 @@ from agents.video_insight_agent import run_video_insight_agent
 from agents.visual_insight_agent import run_visual_insight_agent
 from graph.edges import route_after_manager
 from graph.state import AgentState
+from tools.workflow_progress import emit_workflow_progress
 
 try:
     from langgraph.graph import END, StateGraph
@@ -21,25 +22,40 @@ except Exception:
 
 class SimpleRunner:
     def invoke(self, state: AgentState) -> AgentState:
-        state = run_crawler_agent(state)
-        state = run_text_insight_agent(state)
-        state = run_trend_agent(state)
-        state = run_visual_insight_agent(state)
-        state = run_video_insight_agent(state)
-        state = run_strategy_agent(state)
-        state = run_content_agent(state)
+        state = _run_with_progress("crawler", run_crawler_agent, state)
+        state = _run_with_progress("text_insight", run_text_insight_agent, state)
+        state = _run_with_progress("trend_analysis", run_trend_agent, state)
+        state = _run_with_progress("visual_insight", run_visual_insight_agent, state)
+        state = _run_with_progress("video_insight", run_video_insight_agent, state)
+        state = _run_with_progress("strategy", run_strategy_agent, state)
+        state = _run_with_progress("content_creator", run_content_agent, state)
 
         while True:
-            state = run_compliance_agent(state)
-            state = run_hardness_agent(state)
-            state = run_manager_agent(state)
+            state = _run_with_progress("compliance", run_compliance_agent, state)
+            state = _run_with_progress("hardness", run_hardness_agent, state)
+            state = _run_with_progress("manager_review", run_manager_agent, state)
             route = route_after_manager(state)
             if route == "publish":
-                return run_publisher_agent(state)
+                return _run_with_progress("publisher", run_publisher_agent, state)
             if route == "revise":
-                state = run_content_agent(state)
+                state = _run_with_progress("content_creator", run_content_agent, state)
                 continue
             return state
+
+
+def _run_with_progress(agent_name: str, func, state: AgentState) -> AgentState:
+    emit_workflow_progress(agent_name, "running")
+    try:
+        return func(state)
+    finally:
+        emit_workflow_progress(agent_name, "done")
+
+
+def _progress_node(agent_name: str, func):
+    def _node(state: AgentState) -> AgentState:
+        return _run_with_progress(agent_name, func, state)
+
+    return _node
 
 
 def build_workflow():
@@ -47,17 +63,17 @@ def build_workflow():
         return SimpleRunner()
 
     workflow = StateGraph(AgentState)
-    workflow.add_node("crawler", run_crawler_agent)
-    workflow.add_node("text_insight", run_text_insight_agent)
-    workflow.add_node("trend_analysis", run_trend_agent)
-    workflow.add_node("visual_insight", run_visual_insight_agent)
-    workflow.add_node("video_insight", run_video_insight_agent)
-    workflow.add_node("strategy", run_strategy_agent)
-    workflow.add_node("content_creator", run_content_agent)
-    workflow.add_node("compliance", run_compliance_agent)
-    workflow.add_node("hardness", run_hardness_agent)
-    workflow.add_node("manager_review", run_manager_agent)
-    workflow.add_node("publisher", run_publisher_agent)
+    workflow.add_node("crawler", _progress_node("crawler", run_crawler_agent))
+    workflow.add_node("text_insight", _progress_node("text_insight", run_text_insight_agent))
+    workflow.add_node("trend_analysis", _progress_node("trend_analysis", run_trend_agent))
+    workflow.add_node("visual_insight", _progress_node("visual_insight", run_visual_insight_agent))
+    workflow.add_node("video_insight", _progress_node("video_insight", run_video_insight_agent))
+    workflow.add_node("strategy", _progress_node("strategy", run_strategy_agent))
+    workflow.add_node("content_creator", _progress_node("content_creator", run_content_agent))
+    workflow.add_node("compliance", _progress_node("compliance", run_compliance_agent))
+    workflow.add_node("hardness", _progress_node("hardness", run_hardness_agent))
+    workflow.add_node("manager_review", _progress_node("manager_review", run_manager_agent))
+    workflow.add_node("publisher", _progress_node("publisher", run_publisher_agent))
     workflow.set_entry_point("crawler")
     workflow.add_edge("crawler", "text_insight")
     workflow.add_edge("text_insight", "trend_analysis")

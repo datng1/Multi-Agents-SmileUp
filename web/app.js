@@ -1,4 +1,5 @@
 const runButton = document.querySelector("#runButton");
+const deepRunButton = document.querySelector("#deepRunButton");
 const homeButton = document.querySelector("#homeButton");
 const historyButton = document.querySelector("#historyButton");
 const historyPanel = document.querySelector("#historyPanel");
@@ -185,6 +186,19 @@ function setAgentState(activeStep) {
   });
 }
 
+function applyAgentProgress(statuses = {}, currentStep = "") {
+  agentCards.forEach((card) => {
+    const agent = card.dataset.agent;
+    const status = statuses[agent] || (agent === currentStep ? "running" : "idle");
+    const state = card.querySelector(".agent-state");
+    const isActive = status === "running";
+    const isDone = status === "done";
+    card.classList.toggle("active", isActive);
+    card.classList.toggle("done", isDone);
+    state.textContent = isActive ? "Running" : isDone ? "Done" : "Idle";
+  });
+}
+
 function completeAgents() {
   agentCards.forEach((card) => {
     card.classList.remove("active");
@@ -287,13 +301,24 @@ async function loadStatus() {
   renderPublishPages(status.publish_pages || []);
 }
 
-async function runWorkflow() {
+function setRunButtons(isRunning, scanMode = "quick") {
   runButton.disabled = true;
-  runButton.querySelector(".button-icon").textContent = "...";
+  deepRunButton.disabled = true;
+  runButton.querySelector(".button-icon").textContent = isRunning ? "..." : "▶";
+  runButton.lastChild.textContent = isRunning && scanMode === "quick" ? " Đang chạy nhanh" : " Chạy nhanh 5 ads";
+  deepRunButton.textContent = isRunning && scanMode === "deep" ? "Đang quét sâu..." : "Quét sâu 12 ads";
+}
+
+async function runWorkflow(scanMode = "quick") {
+  setRunButtons(true, scanMode);
   homeButton.classList.add("hidden-panel");
   resetAgents();
   resetRunOutputs();
   setAgentState("crawler");
+  safePayload.textContent =
+    scanMode === "deep"
+      ? "Đã tạo job quét sâu 12 ads. UI sẽ cập nhật từng agent khi backend chạy."
+      : "Đã tạo job chạy nhanh 5 ads. UI sẽ cập nhật từng agent khi backend chạy.";
 
   try {
     const response = await fetch("/api/run", {
@@ -304,6 +329,7 @@ async function runWorkflow() {
         manual_visual_notes: activeSourceMode === "manual" ? visualInput.value.trim() : "",
         manual_video_notes: activeSourceMode === "manual" ? videoInput.value.trim() : "",
         ad_library_keywords: keywordValue.value.trim(),
+        scan_mode: scanMode,
         creative_image_mode: creativeImageMode.value || "text_only",
         creative_image_name: uploadedCreativeImage?.name || "",
         creative_image_data_url: uploadedCreativeImage?.dataUrl || "",
@@ -312,6 +338,9 @@ async function runWorkflow() {
     const payload = await response.json();
     if (!payload.ok) {
       throw new Error(payload.error || "Workflow failed");
+    }
+    if (payload.job_id) {
+      safePayload.textContent = `Job ${payload.job_id} đã nhận. Bạn có thể theo dõi từng agent ngay trên màn hình này.`;
     }
     const completedPayload = payload.job_id ? await waitForWorkflowJob(payload.job_id) : payload;
 
@@ -330,12 +359,15 @@ async function runWorkflow() {
     logOutput.textContent = error.stack || error.message;
   } finally {
     runButton.disabled = false;
+    deepRunButton.disabled = false;
     runButton.querySelector(".button-icon").textContent = "▶";
+    runButton.lastChild.textContent = " Chạy nhanh 5 ads";
+    deepRunButton.textContent = "Quét sâu 12 ads";
   }
 }
 
 async function waitForWorkflowJob(jobId) {
-  safePayload.textContent = `Job ${jobId} đang chạy. Các agent con có thể gọi GPT/Gemini nên lượt chạy có thể mất vài phút.`;
+  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con có thể gọi GPT/Gemini nên lượt chạy có thể mất vài phút.`;
   let attempt = 0;
   while (true) {
     await sleep(3000);
@@ -346,6 +378,7 @@ async function waitForWorkflowJob(jobId) {
       throw new Error(payload.error || "Workflow job failed");
     }
     if (payload.status === "completed") {
+      applyAgentProgress(payload.agent_statuses || {}, payload.current_step || "");
       return payload;
     }
     if (payload.status === "error") {
@@ -353,9 +386,28 @@ async function waitForWorkflowJob(jobId) {
     }
     const elapsed = payload.started_at ? Math.round(Date.now() / 1000 - payload.started_at) : attempt * 3;
     durationValue.textContent = `${elapsed}s`;
-    safePayload.textContent = `Job ${jobId} đang chạy (${elapsed}s). CMO vẫn đang tổng hợp các agent.`;
+    applyAgentProgress(payload.agent_statuses || {}, payload.current_step || "");
+    const currentLabel = agentLabel(payload.current_step);
+    safePayload.textContent = `Job ${jobId} đang chạy (${elapsed}s). Agent hiện tại: ${currentLabel}.`;
     logOutput.textContent = payload.logs || "Workflow đang chạy...";
   }
+}
+
+function agentLabel(agentName) {
+  const labels = {
+    crawler: "Crawler",
+    text_insight: "Text Insight",
+    trend_analysis: "Trend",
+    visual_insight: "Visual",
+    video_insight: "Video",
+    strategy: "Strategy",
+    content_creator: "Content",
+    compliance: "Compliance",
+    hardness: "Hardness",
+    manager_review: "CMO Lead",
+    publisher: "Publisher",
+  };
+  return labels[agentName] || "đang khởi tạo";
 }
 
 function sleep(ms) {
@@ -1300,7 +1352,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-runButton.addEventListener("click", runWorkflow);
+runButton.addEventListener("click", () => runWorkflow("quick"));
+deepRunButton.addEventListener("click", () => runWorkflow("deep"));
 homeButton.addEventListener("click", () => {
   window.location.href = "/";
 });

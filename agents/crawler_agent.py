@@ -24,10 +24,12 @@ def run_crawler_agent(state: AgentState) -> AgentState:
     elif config.AD_LIBRARY_ENABLED and not config.MOCK_MODE:
         try:
             keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
+            max_ads = int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS)
+            reference_scan_limit = int(state.get("ad_library_reference_scan_limit") or max_ads)
             ads = collect_ad_library_ads(
                 keywords=keywords,
                 country=config.AD_LIBRARY_COUNTRY,
-                max_ads=config.AD_LIBRARY_MAX_ADS,
+                max_ads=max_ads,
                 cache_ttl_hours=config.AD_LIBRARY_CACHE_TTL_HOURS,
                 force_refresh=True,
                 competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
@@ -51,7 +53,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                 competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
             )
             state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
-            reference_ad = _top_match_reference_ad(strategy_ads, fallback_ads=ads)
+            reference_ad = _top_match_reference_ad(strategy_ads, fallback_ads=ads, scan_limit=reference_scan_limit)
             if reference_ad:
                 state["creative_reference_ad"] = reference_ad
                 if state.get("creative_image_mode") == "top_match_reference":
@@ -79,6 +81,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                     "role": "crawler",
                     "content": (
                         f"Collected {len(insights)} Ad Library insights; {len(high_match_ads)} ads match >=95%; "
+                        f"scan mode {state.get('ad_library_scan_mode', 'quick')} ({max_ads} ads); "
                         f"source mix {competitor_count} competitor ads / {keyword_count} keyword ads"
                     ),
                 }
@@ -86,7 +89,9 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         except Exception as exc:
             logger.warning("Ad Library scan failed, using controlled fallback ads: %s", exc)
             keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
-            ads = fallback_ad_library_ads(keywords)
+            max_ads = int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS)
+            reference_scan_limit = int(state.get("ad_library_reference_scan_limit") or max_ads)
+            ads = fallback_ad_library_ads(keywords)[:max_ads]
             high_match_ads = filter_high_match_ads(ads, threshold=0.95)
             strategy_ads = high_match_ads or ads
             insights = ads_to_competitor_insights(strategy_ads)
@@ -110,7 +115,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                 )
             )
             state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
-            reference_ad = _top_match_reference_ad(strategy_ads, fallback_ads=ads)
+            reference_ad = _top_match_reference_ad(strategy_ads, fallback_ads=ads, scan_limit=reference_scan_limit)
             if reference_ad:
                 state["creative_reference_ad"] = reference_ad
                 if state.get("creative_image_mode") == "top_match_reference":
