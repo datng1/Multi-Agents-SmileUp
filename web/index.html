@@ -116,27 +116,30 @@
             <div class="panel-header compact">
               <div>
                 <span class="label">Creative image source</span>
-                <h2>Tạm dừng gen ảnh</h2>
+                <h2>Rewrite ảnh bằng Gemini</h2>
               </div>
               <span id="creativeImageStatus" class="meta-chip">Text only</span>
             </div>
             <div class="creative-source-grid">
-              <label class="creative-upload-tile disabled" for="creativeImageInput" aria-disabled="true">
-                <input id="creativeImageInput" type="file" accept="image/png,image/jpeg,image/webp" disabled />
+              <label class="creative-upload-tile" for="creativeImageInput">
+                <input id="creativeImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
                 <span class="upload-icon">+</span>
                 <span>
-                  <strong>Tạm khóa upload ảnh</strong>
-                  <small>Workflow hiện chỉ sinh bài viết</small>
+                  <strong>Upload ảnh tham chiếu</strong>
+                  <small>Dùng ảnh của SmileUp hoặc chỉ lấy layout</small>
                 </span>
               </label>
               <div class="creative-mode-box">
                 <label>
                   <span class="label">Image mode</span>
-                  <select id="creativeImageMode" class="mode-select" disabled>
+                  <select id="creativeImageMode" class="mode-select">
                     <option value="text_only" selected>Chỉ gen bài viết, không gen ảnh</option>
+                    <option value="top_match_reference">Xào lại ảnh ads match cao nhất bằng Gemini</option>
+                    <option value="layout_reference">Upload ảnh chỉ để lấy form/layout</option>
+                    <option value="owned">Dùng ảnh SmileUp upload làm nguồn</option>
                   </select>
                 </label>
-                <p id="creativeImageHint">Tạm thời tắt toàn bộ sinh ảnh. Workflow chỉ tạo chiến lược, bài ads và bài chăm sóc page.</p>
+                <p id="creativeImageHint">Mặc định không gen ảnh. Nếu chọn rewrite, Visual/Content Agent sẽ tạo ảnh SmileUp mới từ ảnh tham chiếu mà không dùng lại pixel, logo, mặt người hay text gốc.</p>
               </div>
               <div id="creativeImagePreview" class="creative-image-preview empty">Text only</div>
             </div>
@@ -426,10 +429,10 @@
 
         <section class="panel panel-wide branded-creatives-panel hidden-panel" aria-hidden="true">
           <div class="panel-header">
-            <div><span class="label">Branded creatives</span><h2>Ảnh gợi ý kèm logo SmileUp</h2></div>
+            <div><span class="label">Branded creatives</span><h2>Ảnh rewrite kèm logo SmileUp</h2></div>
             <span id="creativeCount" class="meta-chip">0 ảnh</span>
           </div>
-          <div id="creativeGrid" class="creative-grid empty-state">Đang tạm tắt gen ảnh; workflow chỉ sinh bài viết.</div>
+          <div id="creativeGrid" class="creative-grid empty-state">Chưa có ảnh rewrite.</div>
         </section>
 
         <section class="panel panel-wide">

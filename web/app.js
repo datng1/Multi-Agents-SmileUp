@@ -75,6 +75,7 @@ const complianceAgentReport = document.querySelector("#complianceAgentReport");
 const hardnessAgentReport = document.querySelector("#hardnessAgentReport");
 const contentPlanList = document.querySelector("#contentPlanList");
 const contentPlanCount = document.querySelector("#contentPlanCount");
+const brandedCreativesPanel = document.querySelector(".branded-creatives-panel");
 const creativeGrid = document.querySelector("#creativeGrid");
 const creativeCount = document.querySelector("#creativeCount");
 const warningList = document.querySelector("#warningList");
@@ -144,8 +145,7 @@ function syncSourceMode() {
 }
 
 function syncCreativeImageMode() {
-  const mode = "text_only";
-  creativeImageMode.value = "text_only";
+  const mode = creativeImageMode.value || "text_only";
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
     top_match_reference: "Top-match Gemini",
@@ -155,7 +155,7 @@ function syncCreativeImageMode() {
     text_only: "Text only",
   };
   const hints = {
-    top_match_reference: "Lấy bài viết và media của ad match cao nhất làm blueprint, rồi Gemini tạo ảnh SmileUp mới không copy ảnh gốc.",
+    top_match_reference: "Gemini nhận ảnh ads match cao nhất làm reference, giữ logic bố cục nhưng tạo ảnh SmileUp mới: mặt khác, nền khác, text khác, không dùng lại pixel gốc.",
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
@@ -163,7 +163,11 @@ function syncCreativeImageMode() {
   };
   creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
   creativeImageHint.textContent = hints[mode] || hints.auto;
-  creativeImageStatus.classList.remove("warning");
+  const needsUpload = ["owned", "layout_reference"].includes(mode) && !hasUpload;
+  creativeImageStatus.classList.toggle("warning", needsUpload);
+  if (needsUpload) {
+    creativeImageHint.textContent = "Chọn mode này cần upload ảnh trước khi chạy workflow.";
+  }
 }
 
 function setAgentState(activeStep) {
@@ -303,7 +307,7 @@ async function runWorkflow() {
         manual_visual_notes: activeSourceMode === "manual" ? visualInput.value.trim() : "",
         manual_video_notes: activeSourceMode === "manual" ? videoInput.value.trim() : "",
         ad_library_keywords: keywordValue.value.trim(),
-        creative_image_mode: "text_only",
+        creative_image_mode: creativeImageMode.value || "text_only",
         creative_image_name: uploadedCreativeImage?.name || "",
         creative_image_data_url: uploadedCreativeImage?.dataUrl || "",
       }),
@@ -922,9 +926,13 @@ function markUsedVariant(index) {
 
 function renderCreatives(assets) {
   creativeCount.textContent = `${assets.length} ảnh`;
+  brandedCreativesPanel?.classList.toggle("hidden-panel", !assets.length);
+  if (brandedCreativesPanel) {
+    brandedCreativesPanel.setAttribute("aria-hidden", String(!assets.length));
+  }
   if (!assets.length) {
     creativeGrid.className = "creative-grid empty-state";
-    creativeGrid.textContent = "Đang tạm tắt gen ảnh; workflow chỉ sinh bài viết.";
+    creativeGrid.textContent = "Chưa có ảnh rewrite. Chọn mode rewrite ảnh rồi chạy workflow để tạo creative.";
     return;
   }
 

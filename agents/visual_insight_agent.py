@@ -16,7 +16,11 @@ def run_visual_insight_agent(state: AgentState) -> AgentState:
     report, provider = reason_with_agent_api(
         agent_name="Visual Insight Agent",
         role="Đọc ghi chú ảnh/media preview, rút bố cục, text overlay, tín hiệu niềm tin và creative direction an toàn.",
-        task="Tạo report cho CMO về visual nên dùng cho tuyến ads hiệu quả và tuyến chăm sóc page. Không yêu cầu rebrand ảnh đối thủ.",
+        task=(
+            "Tạo report cho CMO về visual nên dùng cho tuyến ads hiệu quả và tuyến chăm sóc page. "
+            "Nếu workflow chọn rewrite ảnh, chỉ cho phép dùng ảnh ads làm reference bố cục/visual hierarchy; "
+            "ảnh đầu ra phải là creative SmileUp mới, khác mặt người, khác nền, khác text, không dùng lại pixel/logo/tài sản đối thủ."
+        ),
         context={
             "competitor_visual_notes": state.get("competitor_visual_notes", ""),
             "visual_creative_brief": state.get("visual_creative_brief", ""),

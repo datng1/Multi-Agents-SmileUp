@@ -125,15 +125,15 @@ Workflow hiện có thêm:
 - Tuyến bài ads hiệu quả chỉ ưu tiên các ads có keyword match từ 95% trở lên; nếu chưa đủ nguồn 95%, hệ thống vẫn báo rõ và dùng phần còn lại làm tín hiệu phụ.
 - Phân tích trend Facebook từ bài đối thủ bạn dán vào.
 - Ưu tiên nội dung cho răng sứ thẩm mỹ, phục hình răng sứ và cấy ghép Implant.
-- Tạo visual creative brief an toàn cho ảnh gốc của SmileUp, ảnh có license, ảnh AI tạo mới hoặc blueprint từ ad match cao nhất.
+- Tạo visual creative brief an toàn cho ảnh gốc của SmileUp, ảnh có license, ảnh AI tạo mới hoặc rewrite từ ad match cao nhất.
 - Tạo `content_plan` theo 2 tuyến chính:
   - `ads_effective`: bài ads chuyển đổi, viết để khách hàng để lại SĐT/inbox ngay nhưng vẫn an toàn y khoa.
   - `page_care`: bài chăm sóc page, nuôi niềm tin, tăng bình luận/lưu/chia sẻ và làm nền cho chuyển đổi.
 - Mỗi biến thể có `campaign_track`, `monthly_role` và `differentiation` để làm rõ vai trò trong chiến lược tháng và SmileUp khác gì so với ads đối thủ.
 - Mỗi lượt chạy có `run_seed` riêng để CMO Campaign Plan đổi hook/góc kể/CTA; trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
-- Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode top-match, hệ thống lấy bài viết và media của ad match cao nhất để Gemini rút blueprint bố cục, sau đó tạo ảnh SmileUp mới và overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
+- Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode **Xào lại ảnh ads match cao nhất bằng Gemini**, hệ thống lấy media của ad match cao nhất làm ảnh reference, yêu cầu Gemini giữ logic bố cục/hierarchy nhưng thay mặt người, nền, text, nhận diện và tạo creative SmileUp mới; sau đó overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
 
-Lưu ý: hệ thống không tái sử dụng/rebrand ảnh đối thủ thành ảnh của SmileUp. Mode top-match chỉ dùng ad gốc để rút blueprint không bảo hộ như bố cục, vùng chữ và mood màu; output không được dùng lại pixel, logo, mặt người, text gốc hoặc tài sản nhận diện của đối thủ.
+Lưu ý: mode rewrite ảnh dùng ảnh ads gốc như reference để “xào lại” bố cục ở mức cao. Output vẫn phải là ảnh mới của SmileUp: không dùng lại pixel, logo, watermark, mặt người, text gốc, nền đặc trưng hoặc tài sản nhận diện của đối thủ.
 
 ## Quét tự động mỗi ngày
 

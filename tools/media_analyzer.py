@@ -59,7 +59,7 @@ def build_visual_insight_report(visual_notes: str, visual_brief: str) -> str:
         f"- Tín hiệu hình ảnh ghi nhận: {dominant}.\n"
         f"- Ghi chú ảnh/video frame đầu vào: {evidence}\n"
         "- Hướng đúng cho SmileUp: dùng ảnh gốc, ảnh có license hoặc ảnh AI mới; giữ cảm giác phòng khám thật, sạch, hiện đại, có bác sĩ tư vấn.\n"
-        "- Không rebrand ảnh đối thủ. Có thể học bố cục/hook thị giác rồi tạo creative mới có logo SmileUp.\n"
+        "- Nếu chọn rewrite ảnh, chỉ dùng ads đối thủ làm reference bố cục/hierarchy; ảnh SmileUp mới phải khác pixel, mặt, logo, text, nền và chi tiết nhận diện gốc.\n"
         f"- Brief nền hiện có: {_shorten(visual_brief, 260)}"
     )
 

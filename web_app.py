@@ -684,7 +684,7 @@ def _build_initial_state(request_payload: dict) -> dict:
     visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
     video_notes = str(request_payload.get("manual_video_notes", "")).strip()
     ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
-    creative_image_mode = "text_only"
+    creative_image_mode = _normalize_creative_image_mode(request_payload.get("creative_image_mode", "text_only"))
     creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
     creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
 
@@ -713,6 +713,18 @@ def _build_initial_state(request_payload: dict) -> dict:
     if visual_notes or video_notes:
         initial_state["data_source"] = "manual"
     return initial_state
+
+
+def _normalize_creative_image_mode(value: object) -> str:
+    mode = str(value or "text_only").strip()
+    aliases = {
+        "rewrite_top_ad": "top_match_reference",
+        "rewrite_reference": "top_match_reference",
+        "rewrite_image": "top_match_reference",
+    }
+    mode = aliases.get(mode, mode)
+    allowed = {"text_only", "top_match_reference", "owned", "layout_reference", "auto"}
+    return mode if mode in allowed else "text_only"
 
 
 def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str]:
