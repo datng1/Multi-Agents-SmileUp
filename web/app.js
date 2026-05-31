@@ -236,6 +236,7 @@ function showProcessingScreen(scanMode = "quick") {
   if (!processingScreen) {
     return;
   }
+  document.body.classList.add("is-running");
   processingMode.textContent = scanMode === "deep" ? "Deep scan 12 ads" : "Quick scan 5 ads";
   processingNote.textContent =
     scanMode === "deep"
@@ -250,6 +251,7 @@ function hideProcessingScreen() {
     return;
   }
   processingScreen.classList.add("hidden-panel");
+  document.body.classList.remove("is-running");
 }
 
 function updateProcessingScreen(statuses = {}, currentStep = "", elapsedSeconds = null) {
@@ -536,6 +538,16 @@ function renderResult(result, logs, durationMs, historyHit = false) {
   renderCreatives(creativeAssets);
   setFinalDraft(draft, creativeAssets, result.cmo_selected_creative_index);
   updateManualCount(result.manual_posts_count || countManualPosts());
+  highlightResultPanels();
+}
+
+function highlightResultPanels() {
+  [document.querySelector(".cmo-panel"), document.querySelector(".content-plan-panel"), document.querySelector(".post-panel")]
+    .filter(Boolean)
+    .forEach((panel) => {
+      panel.classList.remove("highlight-result");
+      requestAnimationFrame(() => panel.classList.add("highlight-result"));
+    });
 }
 
 function formatCacheAge(seconds) {

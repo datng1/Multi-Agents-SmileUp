@@ -38,6 +38,24 @@
         </div>
       </header>
 
+      <section class="quick-start" aria-label="Hướng dẫn nhanh">
+        <div>
+          <span>01</span>
+          <strong>Nhập từ khóa hoặc để mặc định</strong>
+          <p>Hệ thống sẽ ưu tiên ads đối thủ và tín hiệu mới nhất.</p>
+        </div>
+        <div>
+          <span>02</span>
+          <strong>Bấm Chạy nhanh 5 ads</strong>
+          <p>CMO tự điều phối agent con, bạn chỉ chờ kết quả.</p>
+        </div>
+        <div>
+          <span>03</span>
+          <strong>Duyệt bản cuối rồi đăng</strong>
+          <p>Sửa caption, chọn ảnh và chọn page ngay trong preview.</p>
+        </div>
+      </section>
+
       <section id="processingScreen" class="processing-screen hidden-panel" aria-live="polite" aria-label="Trạng thái xử lý workflow">
         <div class="processing-card">
           <div class="processing-header">
@@ -78,13 +96,13 @@
       <section class="control-board" aria-label="Workflow controls">
         <div class="control-main">
           <div class="source-tabs" role="tablist" aria-label="Chọn nguồn dữ liệu">
-            <button id="autoTabButton" class="tab-button active" type="button" role="tab" aria-selected="true" data-mode="auto">Auto scan</button>
-            <button id="manualTabButton" class="tab-button" type="button" role="tab" aria-selected="false" data-mode="manual">Manual input</button>
+            <button id="autoTabButton" class="tab-button active" type="button" role="tab" aria-selected="true" data-mode="auto">Tự động quét ads</button>
+            <button id="manualTabButton" class="tab-button" type="button" role="tab" aria-selected="false" data-mode="manual">Nhập tay</button>
           </div>
 
           <section id="autoSourcePanel" class="source-mode-panel active" role="tabpanel" aria-labelledby="autoTabButton">
             <div>
-              <span class="label">Meta Ad Library keyword</span>
+              <span class="label">Từ khóa muốn phân tích</span>
               <div class="keyword-shell">
                 <input
                   id="keywordValue"
@@ -93,13 +111,13 @@
                   value="nha khoa răng sứ răng đẹp cấy implant"
                   aria-label="Keyword scan"
                 />
-                <span class="enter-hint">Enter để chạy</span>
+                <span class="enter-hint">Enter để chạy nhanh</span>
               </div>
             </div>
             <div class="auto-note-grid">
-              <div><span class="label">Source mix</span><strong>80% ads đối thủ · 20% keyword</strong></div>
-              <div><span class="label">Mặc định</span><strong>Chạy nhanh 5 ads để ra kết quả sớm</strong></div>
-              <div><span class="label">Schedule</span><strong>Daily scan qua Task Scheduler</strong></div>
+              <div><span class="label">Nguồn dữ liệu</span><strong>80% ads đối thủ · 20% keyword</strong></div>
+              <div><span class="label">Cách chạy</span><strong>Chạy nhanh 5 ads để ra kết quả sớm</strong></div>
+              <div><span class="label">Lịch tự động</span><strong>Mỗi ngày quét một lần trên server</strong></div>
             </div>
           </section>
 
@@ -141,8 +159,8 @@
           <section class="creative-source-panel" aria-label="Creative image source">
             <div class="panel-header compact">
               <div>
-                <span class="label">Creative image source</span>
-                <h2>Rewrite ảnh bằng Gemini</h2>
+                <span class="label">Ảnh bài đăng</span>
+                <h2>Tùy chọn ảnh nếu cần</h2>
               </div>
               <span id="creativeImageStatus" class="meta-chip">Text only</span>
             </div>
@@ -151,13 +169,13 @@
                 <input id="creativeImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
                 <span class="upload-icon">+</span>
                 <span>
-                  <strong>Upload ảnh tham chiếu</strong>
-                  <small>Dùng ảnh của SmileUp hoặc chỉ lấy layout</small>
+                  <strong>Thêm ảnh tham chiếu</strong>
+                  <small>Dùng ảnh SmileUp hoặc chỉ lấy bố cục</small>
                 </span>
               </label>
               <div class="creative-mode-box">
                 <label>
-                  <span class="label">Image mode</span>
+                  <span class="label">Chế độ ảnh</span>
                   <select id="creativeImageMode" class="mode-select">
                     <option value="top_match_reference" selected>Có ảnh xào Gemini từ ads match cao nhất có ảnh</option>
                     <option value="text_only">Chỉ gen bài viết, không gen ảnh</option>
@@ -194,15 +212,15 @@
 
       <section class="status-strip" aria-live="polite">
         <div>
-          <span class="label">AI model</span>
+          <span class="label">Trạng thái AI</span>
           <strong id="modeValue">Đang kiểm tra</strong>
         </div>
         <div>
-          <span class="label">Publish guard</span>
+          <span class="label">Chế độ đăng</span>
           <strong id="dryRunValue">-</strong>
         </div>
         <div>
-          <span class="label">Last run</span>
+          <span class="label">Lần chạy cuối</span>
           <strong id="lastRunValue">-</strong>
         </div>
         <div>
