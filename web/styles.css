@@ -24,6 +24,8 @@
   --shadow-soft: 0 8px 20px rgba(15, 23, 42, 0.048);
   --shadow-card: 0 10px 26px rgba(15, 23, 42, 0.055);
   --focus: 0 0 0 3px rgba(8, 118, 106, 0.13);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-press: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 * {
@@ -35,12 +37,41 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: Aptos, "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(238, 244, 245, 0.98) 380px),
     linear-gradient(135deg, rgba(8, 118, 106, 0.075), transparent 34%),
     linear-gradient(225deg, rgba(37, 99, 235, 0.052), transparent 32%),
     var(--canvas);
+}
+
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: 12px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--navy);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 180ms var(--ease-out);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 body::before {
@@ -97,6 +128,12 @@ html {
   backdrop-filter: blur(18px) saturate(1.05);
   background: rgba(250, 253, 253, 0.92);
   box-shadow: 0 14px 32px rgba(15, 23, 42, 0.045);
+  transition: border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out), background 220ms var(--ease-out);
+}
+
+.topbar:hover {
+  border-color: rgba(8, 117, 104, 0.22);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
 }
 
 .brand-block {
@@ -179,7 +216,7 @@ h2 {
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 252, 252, 0.96));
   box-shadow: var(--shadow-soft);
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition: transform 220ms var(--ease-out), border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
 }
 
 .quick-start div:hover {
@@ -229,12 +266,12 @@ h2 {
   align-items: center;
   width: min(560px, calc(100vw - 32px));
   padding: 14px 48px 14px 14px;
-  border: 1px solid rgba(8, 117, 104, 0.28);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+  border: 1px solid rgba(8, 117, 104, 0.36);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
   backdrop-filter: blur(12px);
-  animation: notice-in 260ms ease both;
+  animation: notice-in 320ms var(--ease-out) both;
 }
 
 .completion-dot {
@@ -346,6 +383,8 @@ h2 {
 }
 
 .primary-button {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -357,19 +396,47 @@ h2 {
   background: linear-gradient(180deg, #0b8276, var(--accent-strong));
   font-size: 15px;
   box-shadow: 0 12px 24px rgba(8, 118, 106, 0.22);
-  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease, opacity 150ms ease;
+  transition: transform 220ms var(--ease-press), box-shadow 220ms var(--ease-out), background 220ms var(--ease-out), opacity 150ms ease;
+}
+
+.primary-button::after {
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: 6px;
+  content: "";
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 46%);
+}
+
+.button-icon {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform 220ms var(--ease-out);
 }
 
 .primary-button:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   background: var(--accent-strong);
-  box-shadow: 0 10px 22px rgba(8, 118, 106, 0.2);
+  box-shadow: 0 14px 30px rgba(8, 118, 106, 0.24);
+}
+
+.primary-button:hover .button-icon {
+  transform: translateX(1px) scale(1.04);
 }
 
 .primary-button:active,
 .secondary-button:active,
 .tab-button:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.985);
 }
 
 .primary-button:disabled {
@@ -385,20 +452,21 @@ h2 {
   place-items: center;
   padding: 24px;
   background:
-    linear-gradient(180deg, rgba(238, 244, 245, 0.9), rgba(238, 244, 245, 0.98)),
-    rgba(15, 23, 42, 0.1);
+    radial-gradient(circle at 50% 18%, rgba(8, 117, 104, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(238, 244, 245, 0.92), rgba(238, 244, 245, 0.985)),
+    rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(10px) saturate(1.04);
-  animation: overlay-in 220ms ease both;
+  animation: overlay-in 260ms var(--ease-out) both;
 }
 
 .processing-card {
   width: min(680px, 100%);
-  padding: 22px;
-  border: 1px solid rgba(8, 117, 104, 0.24);
-  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid rgba(8, 117, 104, 0.3);
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
-  animation: sheet-up 260ms ease both;
+  box-shadow: 0 30px 86px rgba(15, 23, 42, 0.19), 0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+  animation: sheet-up 320ms var(--ease-out) both;
 }
 
 .processing-header,
@@ -423,8 +491,11 @@ h2 {
   gap: 14px;
   padding: 16px;
   border: 1px solid rgba(8, 117, 104, 0.18);
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, #f2fffb, #fbfffe);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(242, 255, 251, 0.96), #fbfffe),
+    #fff;
+  box-shadow: 0 10px 24px rgba(8, 117, 104, 0.065);
 }
 
 .processing-current span {
@@ -489,7 +560,7 @@ h2 {
   color: var(--muted);
   background: #fbfcfd;
   font-weight: 780;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+  transition: transform 220ms var(--ease-out), border-color 220ms var(--ease-out), background 220ms var(--ease-out), color 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
 }
 
 .processing-step span {
@@ -525,6 +596,7 @@ h2 {
   color: var(--accent-strong);
   background: #ecfdf7;
   transform: translateX(2px);
+  box-shadow: 0 10px 22px rgba(8, 117, 104, 0.11);
 }
 
 .processing-step.running span {
@@ -998,7 +1070,9 @@ h2 {
   border-radius: var(--radius);
   color: var(--ink);
   background: #fff;
-  font: 14px/1.55 "Segoe UI", Arial, sans-serif;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.55;
   outline: none;
 }
 
@@ -1029,7 +1103,7 @@ h2 {
   border: 1px solid rgba(185, 200, 208, 0.86);
   color: var(--ink);
   background: #fff;
-  transition: transform 150ms ease, border-color 150ms ease, color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  transition: transform 220ms var(--ease-press), border-color 220ms var(--ease-out), color 220ms var(--ease-out), background 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
 }
 
 .secondary-button.compact {
@@ -1229,13 +1303,14 @@ h2 {
 .panel {
   min-width: 0;
   padding: 22px;
-  animation: panel-enter 360ms ease both;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  animation: panel-enter 420ms var(--ease-out) both;
+  transition: border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out), transform 220ms var(--ease-out);
 }
 
 .panel:hover {
   border-color: rgba(8, 117, 104, 0.24);
   box-shadow: 0 20px 46px rgba(15, 23, 42, 0.07);
+  transform: translateY(-1px);
 }
 
 .panel-wide {
@@ -2048,7 +2123,9 @@ pre {
   border-radius: 10px;
   color: var(--ink);
   background: #fff;
-  font: 14px/1.55 "Segoe UI", Arial, sans-serif;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.55;
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
@@ -2249,7 +2326,7 @@ pre {
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 16px 38px rgba(23, 32, 42, 0.09);
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition: transform 240ms var(--ease-out), box-shadow 240ms var(--ease-out);
 }
 
 .facebook-preview:hover {
