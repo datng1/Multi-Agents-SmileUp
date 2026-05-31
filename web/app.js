@@ -84,9 +84,6 @@ const complianceAgentReport = document.querySelector("#complianceAgentReport");
 const hardnessAgentReport = document.querySelector("#hardnessAgentReport");
 const contentPlanList = document.querySelector("#contentPlanList");
 const contentPlanCount = document.querySelector("#contentPlanCount");
-const brandedCreativesPanel = document.querySelector(".branded-creatives-panel");
-const creativeGrid = document.querySelector("#creativeGrid");
-const creativeCount = document.querySelector("#creativeCount");
 const warningList = document.querySelector("#warningList");
 const logOutput = document.querySelector("#logOutput");
 const manualInput = document.querySelector("#manualInput");
@@ -1052,36 +1049,7 @@ function markUsedVariant(index) {
 }
 
 function renderCreatives(assets) {
-  creativeCount.textContent = `${assets.length} ảnh`;
-  brandedCreativesPanel?.classList.toggle("hidden-panel", !assets.length);
-  if (brandedCreativesPanel) {
-    brandedCreativesPanel.setAttribute("aria-hidden", String(!assets.length));
-  }
-  if (!assets.length) {
-    creativeGrid.className = "creative-grid empty-state";
-    creativeGrid.textContent = "Chưa có ảnh rewrite. Chọn mode rewrite ảnh rồi chạy workflow để tạo creative.";
-    return;
-  }
-
-  creativeGrid.className = "creative-grid";
-  creativeGrid.innerHTML = assets
-    .map((asset) => {
-      const imagePath = asset.image_path || "";
-      return `
-        <article class="creative-card">
-          ${imagePath ? `<img src="${escapeHtml(imagePath)}" alt="${escapeHtml(asset.title || "SmileUp creative")}" />` : ""}
-          <div>
-            <span class="label">${escapeHtml(asset.service_line || "creative")}</span>
-            <h3>${escapeHtml(asset.title || "-")}</h3>
-            <p>${escapeHtml(asset.image_prompt || "")}</p>
-            ${asset.source_policy ? `<p class="source-policy">${escapeHtml(asset.source_policy)}</p>` : ""}
-            ${asset.reference_ad_url ? `<a class="creative-reference-link" href="${escapeHtml(asset.reference_ad_url)}" target="_blank" rel="noopener noreferrer">Ad tham chiếu: ${escapeHtml(asset.reference_page_name || "top match")}</a>` : ""}
-            ${asset.gemini_image_note ? `<p class="source-policy">${escapeHtml(asset.gemini_image_note)}</p>` : ""}
-          </div>
-        </article>
-      `;
-    })
-    .join("");
+  return assets;
 }
 
 function renderPublishedPostLink(publish) {
