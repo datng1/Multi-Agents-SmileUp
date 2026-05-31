@@ -1,5 +1,9 @@
 const runButton = document.querySelector("#runButton");
 const deepRunButton = document.querySelector("#deepRunButton");
+const completionNotice = document.querySelector("#completionNotice");
+const completionJumpButton = document.querySelector("#completionJumpButton");
+const completionCloseButton = document.querySelector("#completionCloseButton");
+const appFavicon = document.querySelector("#appFavicon");
 const processingScreen = document.querySelector("#processingScreen");
 const processingMode = document.querySelector("#processingMode");
 const processingAgent = document.querySelector("#processingAgent");
@@ -110,6 +114,15 @@ let currentContentPlan = [];
 let currentResult = null;
 let publishPages = [];
 let finalImageManuallyDisabled = false;
+let pendingCompletionNotice = false;
+
+const defaultDocumentTitle = document.title;
+const defaultFaviconHref = "data:,";
+const completionFaviconHref =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#ffffff"/><circle cx="32" cy="32" r="16" fill="#dc2626"/></svg>',
+  );
 
 const agentOrder = [
   "crawler",
@@ -254,6 +267,50 @@ function hideProcessingScreen() {
   document.body.classList.remove("is-running");
 }
 
+function notifyWorkflowComplete() {
+  pendingCompletionNotice = true;
+  document.body.classList.add("has-completion-notice");
+  setBrowserTabAttention(true);
+  if (!document.hidden) {
+    showCompletionNotice();
+  }
+}
+
+function showCompletionNotice() {
+  if (!completionNotice) {
+    return;
+  }
+  pendingCompletionNotice = false;
+  setBrowserTabAttention(false);
+  completionNotice.classList.remove("hidden-panel");
+  window.clearTimeout(showCompletionNotice._timer);
+  showCompletionNotice._timer = window.setTimeout(() => {
+    hideCompletionNotice();
+  }, 9000);
+}
+
+function hideCompletionNotice() {
+  if (!completionNotice) {
+    return;
+  }
+  completionNotice.classList.add("hidden-panel");
+  document.body.classList.remove("has-completion-notice");
+}
+
+function clearCompletionNotice() {
+  pendingCompletionNotice = false;
+  window.clearTimeout(showCompletionNotice._timer);
+  setBrowserTabAttention(false);
+  hideCompletionNotice();
+}
+
+function setBrowserTabAttention(enabled) {
+  document.title = enabled ? `● Hoàn tất - ${defaultDocumentTitle}` : defaultDocumentTitle;
+  if (appFavicon) {
+    appFavicon.href = enabled ? completionFaviconHref : defaultFaviconHref;
+  }
+}
+
 function updateProcessingScreen(statuses = {}, currentStep = "", elapsedSeconds = null) {
   if (!processingScreen || processingScreen.classList.contains("hidden-panel")) {
     return;
@@ -393,6 +450,7 @@ function setRunButtons(isRunning, scanMode = "quick") {
 }
 
 async function runWorkflow(scanMode = "quick") {
+  clearCompletionNotice();
   setRunButtons(true, scanMode);
   showProcessingScreen(scanMode);
   homeButton.classList.add("hidden-panel");
@@ -429,6 +487,7 @@ async function runWorkflow(scanMode = "quick") {
     const completedPayload = payload.job_id ? await waitForWorkflowJob(payload.job_id) : payload;
 
     renderResult(completedPayload.result, completedPayload.logs || "", completedPayload.duration_ms, completedPayload.history_hit);
+    notifyWorkflowComplete();
     completeAgents();
     lastRunValue.textContent = new Date().toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -1409,6 +1468,21 @@ function escapeHtml(value) {
 
 runButton.addEventListener("click", () => runWorkflow("quick"));
 deepRunButton.addEventListener("click", () => runWorkflow("deep"));
+completionJumpButton?.addEventListener("click", () => {
+  document.querySelector(".post-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  hideCompletionNotice();
+});
+completionCloseButton?.addEventListener("click", hideCompletionNotice);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && pendingCompletionNotice) {
+    showCompletionNotice();
+  }
+});
+window.addEventListener("focus", () => {
+  if (pendingCompletionNotice) {
+    showCompletionNotice();
+  }
+});
 homeButton.addEventListener("click", () => {
   window.location.href = "/";
 });

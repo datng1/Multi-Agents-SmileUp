@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SmileUp Marketing Intelligence</title>
-    <link rel="icon" href="data:," />
+    <link id="appFavicon" rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -55,6 +55,16 @@
           <p>Sửa caption, chọn ảnh và chọn page ngay trong preview.</p>
         </div>
       </section>
+
+      <aside id="completionNotice" class="completion-notice hidden-panel" role="status" aria-live="polite">
+        <span class="completion-dot" aria-hidden="true"></span>
+        <div>
+          <strong>Thao tác đã thành công</strong>
+          <p>Workflow đã chạy xong. Bạn có thể xem chiến lược, chọn bài và duyệt bản cuối trước khi đăng.</p>
+        </div>
+        <button id="completionJumpButton" class="secondary-button compact" type="button">Xem bản cuối</button>
+        <button id="completionCloseButton" class="notice-close-button" type="button" aria-label="Đóng thông báo">×</button>
+      </aside>
 
       <section id="processingScreen" class="processing-screen hidden-panel" aria-live="polite" aria-label="Trạng thái xử lý workflow">
         <div class="processing-card">
