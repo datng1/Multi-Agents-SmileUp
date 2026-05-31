@@ -48,8 +48,8 @@ def build_visual_creative_brief(insights: list[dict]) -> str:
         "Visual creative brief an toàn:\n"
         f"- Chủ đề hình ảnh: {service_focus} tại SmileUp, cảm giác hiện đại, sạch, tin cậy.\n"
         "- Dùng ảnh gốc của SmileUp, ảnh tự chụp, ảnh có license, hoặc ảnh AI tạo mới. Không tái sử dụng/rebrand ảnh của đối thủ.\n"
-        "- Bố cục: bác sĩ tư vấn bên ghế nha, khách hàng cười tự nhiên, ánh sáng trắng xanh nhẹ, logo SmileUp ở góc trên trái hoặc trên bảng tên.\n"
-        "- Text overlay ngắn: 'Tư vấn răng sứ & implant cá nhân hóa' hoặc 'Khôi phục nụ cười, bắt đầu từ thăm khám đúng'.\n"
+        "- Bố cục bắt buộc: ảnh photorealistic có bác sĩ Việt Nam tư vấn bên ghế nha hoặc màn hình phim chụp, có bệnh nhân/khách hàng trong khung hình, ánh sáng trắng xanh nhẹ, logo SmileUp được gắn bằng post-process.\n"
+        "- Không dùng text overlay, poster chữ, banner, icon răng, infographic, phòng khám trống hoặc layout trang trí; caption Facebook sẽ chứa toàn bộ chữ.\n"
         "- Tránh: before/after không có consent, claim 100%, phóng đại kết quả, dùng ảnh nhận diện phòng khám/khách hàng đối thủ."
     )
 

@@ -27,6 +27,7 @@ def run_content_agent(state: AgentState) -> AgentState:
             variants = _offline_content_plan(state)
             state["messages"].append({"role": "content", "content": f"Campaign plan created locally ({exc})"})
 
+    variants = _enforce_people_first_image_prompts(variants)
     state["content_plan"] = variants
     state["draft_content"] = _draft_from_variant(variants[0]) if variants else _offline_draft(state)
     creative_context = {
@@ -53,6 +54,20 @@ def run_content_agent(state: AgentState) -> AgentState:
     state["approval_status"] = "pending"
     state["current_step"] = "content_creator"
     return state
+
+
+def _enforce_people_first_image_prompts(variants: list[ContentVariant]) -> list[ContentVariant]:
+    """Keep every image brief anchored in real doctor + patient scenes."""
+    required = (
+        " Bắt buộc ảnh photorealistic có người thật trong phòng khám nha khoa SmileUp: "
+        "một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng; "
+        "không tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí."
+    )
+    for variant in variants:
+        prompt = str(variant.get("image_prompt") or "").strip()
+        if "photorealistic có người thật" not in prompt:
+            variant["image_prompt"] = f"{prompt.rstrip('.')}.{required}" if prompt else required.strip()
+    return variants
 
 
 def _generate_content_plan_with_preferred_model(state: AgentState) -> tuple[list[ContentVariant], str]:

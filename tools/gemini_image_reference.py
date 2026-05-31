@@ -203,6 +203,8 @@ Strict originality rules:
 - Do not reproduce source pixels, exact text, logo, watermark, face, identity, clothing, background, or distinctive props from the competitor ad.
 - Preserve only broad composition logic: subject count, relative placement, shot distance, visual hierarchy, and overall mood. Do not preserve text or CTA zones.
 - Replace all people with new Vietnamese dentist/patient subjects with different faces, different styling, different clothes, and different background details.
+- The final image MUST be a photorealistic dental-clinic scene with people: at least one Vietnamese dentist in clinical attire and at least one patient/customer/consultation subject. If the reference ad has no people, create a new dentist + patient consultation scene anyway.
+- Do NOT generate standalone logos, tooth icons, abstract shapes, typography posters, UI mockups, product-only shots, empty clinic rooms, infographics, banners, or decorative graphic layouts. The image must look like a real SmileUp dental consultation/photo shoot.
 - Remove all competitor brand marks, visible text, watermarks, labels, numbers, and typography from the generated image.
 - Do not add prices, discounts, promo gifts, guarantees, success rates, or urgent scarcity claims.
 - Do not render any readable words, letters, text overlays, bullet lists, labels, UI captions, promo banners, or fake logo in the image. The Facebook caption will carry all wording outside the image.
