@@ -1,5 +1,12 @@
 const runButton = document.querySelector("#runButton");
 const deepRunButton = document.querySelector("#deepRunButton");
+const processingScreen = document.querySelector("#processingScreen");
+const processingMode = document.querySelector("#processingMode");
+const processingAgent = document.querySelector("#processingAgent");
+const processingAgentDetail = document.querySelector("#processingAgentDetail");
+const processingElapsed = document.querySelector("#processingElapsed");
+const processingSteps = document.querySelector("#processingSteps");
+const processingNote = document.querySelector("#processingNote");
 const homeButton = document.querySelector("#homeButton");
 const historyButton = document.querySelector("#historyButton");
 const historyPanel = document.querySelector("#historyPanel");
@@ -121,6 +128,34 @@ const agentOrder = [
   "publisher",
 ];
 
+const agentLabels = {
+  crawler: "Crawler",
+  text_insight: "Text Insight",
+  trend_analysis: "Trend",
+  visual_insight: "Visual",
+  video_insight: "Video",
+  strategy: "Strategy",
+  content_creator: "Content",
+  compliance: "Compliance",
+  hardness: "Hardness",
+  manager_review: "CMO Lead",
+  publisher: "Publisher",
+};
+
+const agentDescriptions = {
+  crawler: "Quét ads theo chế độ đã chọn, ưu tiên ads đối thủ và nguồn mới nhất.",
+  text_insight: "Đọc hook, pain point, offer, CTA và ngôn ngữ khách hàng.",
+  trend_analysis: "Tìm góc trend Facebook có thể dùng cho nha khoa mà vẫn phục vụ booking.",
+  visual_insight: "Đọc bố cục ảnh, tín hiệu tin cậy và format creative đang hiệu quả.",
+  video_insight: "Phân tích hook 3 giây đầu, nhịp kể chuyện và CTA nếu có video.",
+  strategy: "Chọn chiến dịch tháng, phân tuyến ads lấy SĐT và chăm sóc page.",
+  content_creator: "Viết các biến thể bài đăng theo chiến lược CMO.",
+  compliance: "Kiểm tra claim, rủi ro y khoa, pháp lý và an toàn nền tảng.",
+  hardness: "Đánh giá độ chắc của dữ liệu trước khi CMO ra quyết định.",
+  manager_review: "CMO tổng hợp agent con, chấm điểm và quyết định publish/revise/reject.",
+  publisher: "Chuẩn bị payload đăng bài sau khi CMO duyệt.",
+};
+
 const sourceLabels = {
   ad_library: "Auto Ad Library",
   ad_library_fallback: "Auto fallback",
@@ -197,6 +232,55 @@ function applyAgentProgress(statuses = {}, currentStep = "") {
     card.classList.toggle("done", isDone);
     state.textContent = isActive ? "Running" : isDone ? "Done" : "Idle";
   });
+  updateProcessingScreen(statuses, currentStep);
+}
+
+function showProcessingScreen(scanMode = "quick") {
+  if (!processingScreen) {
+    return;
+  }
+  processingMode.textContent = scanMode === "deep" ? "Deep scan 12 ads" : "Quick scan 5 ads";
+  processingNote.textContent =
+    scanMode === "deep"
+      ? "Đang quét sâu 12 ads để có thêm tín hiệu và ảnh reference rộng hơn."
+      : "Đang chạy nhanh 5 ads để ra chiến lược sớm hơn.";
+  processingScreen.classList.remove("hidden-panel");
+  updateProcessingScreen({}, "crawler", 0);
+}
+
+function hideProcessingScreen() {
+  if (!processingScreen) {
+    return;
+  }
+  processingScreen.classList.add("hidden-panel");
+}
+
+function updateProcessingScreen(statuses = {}, currentStep = "", elapsedSeconds = null) {
+  if (!processingScreen || processingScreen.classList.contains("hidden-panel")) {
+    return;
+  }
+  const activeStep = currentStep || Object.keys(statuses).find((agent) => statuses[agent] === "running") || "crawler";
+  processingAgent.textContent = agentLabel(activeStep);
+  if (processingAgentDetail) {
+    processingAgentDetail.textContent = agentDescriptions[activeStep] || "Đang xử lý bước hiện tại.";
+  }
+  if (elapsedSeconds !== null) {
+    processingElapsed.textContent = `${elapsedSeconds}s`;
+  }
+  processingSteps.innerHTML = agentOrder
+    .map((agent, index) => {
+      const status = statuses[agent] || (agent === activeStep ? "running" : "idle");
+      const className = status === "done" ? "done" : status === "running" ? "running" : "";
+      const statusLabel = status === "done" ? "Xong" : status === "running" ? "Đang làm" : "Chờ";
+      return `
+        <div class="processing-step ${className}">
+          <span>${String(index + 1).padStart(2, "0")}</span>
+          <strong>${escapeHtml(agentLabel(agent))}</strong>
+          <small>${statusLabel}</small>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function completeAgents() {
@@ -311,6 +395,7 @@ function setRunButtons(isRunning, scanMode = "quick") {
 
 async function runWorkflow(scanMode = "quick") {
   setRunButtons(true, scanMode);
+  showProcessingScreen(scanMode);
   homeButton.classList.add("hidden-panel");
   resetAgents();
   resetRunOutputs();
@@ -358,6 +443,7 @@ async function runWorkflow(scanMode = "quick") {
     safePayload.textContent = error.message;
     logOutput.textContent = error.stack || error.message;
   } finally {
+    hideProcessingScreen();
     runButton.disabled = false;
     deepRunButton.disabled = false;
     runButton.querySelector(".button-icon").textContent = "▶";
@@ -377,37 +463,26 @@ async function waitForWorkflowJob(jobId) {
     if (!payload.ok) {
       throw new Error(payload.error || "Workflow job failed");
     }
+    const elapsed = payload.started_at ? Math.round(Date.now() / 1000 - payload.started_at) : attempt * 3;
     if (payload.status === "completed") {
       applyAgentProgress(payload.agent_statuses || {}, payload.current_step || "");
+      updateProcessingScreen(payload.agent_statuses || {}, payload.current_step || "", elapsed);
       return payload;
     }
     if (payload.status === "error") {
       throw new Error(payload.error || "Workflow job failed");
     }
-    const elapsed = payload.started_at ? Math.round(Date.now() / 1000 - payload.started_at) : attempt * 3;
     durationValue.textContent = `${elapsed}s`;
     applyAgentProgress(payload.agent_statuses || {}, payload.current_step || "");
     const currentLabel = agentLabel(payload.current_step);
+    updateProcessingScreen(payload.agent_statuses || {}, payload.current_step || "", elapsed);
     safePayload.textContent = `Job ${jobId} đang chạy (${elapsed}s). Agent hiện tại: ${currentLabel}.`;
     logOutput.textContent = payload.logs || "Workflow đang chạy...";
   }
 }
 
 function agentLabel(agentName) {
-  const labels = {
-    crawler: "Crawler",
-    text_insight: "Text Insight",
-    trend_analysis: "Trend",
-    visual_insight: "Visual",
-    video_insight: "Video",
-    strategy: "Strategy",
-    content_creator: "Content",
-    compliance: "Compliance",
-    hardness: "Hardness",
-    manager_review: "CMO Lead",
-    publisher: "Publisher",
-  };
-  return labels[agentName] || "đang khởi tạo";
+  return agentLabels[agentName] || "đang khởi tạo";
 }
 
 function sleep(ms) {

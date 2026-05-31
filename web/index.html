@@ -38,6 +38,29 @@
         </div>
       </header>
 
+      <section id="processingScreen" class="processing-screen hidden-panel" aria-live="polite" aria-label="Trạng thái xử lý workflow">
+        <div class="processing-card">
+          <div class="processing-header">
+            <div>
+              <span class="label">Workflow đang chạy</span>
+              <h2>Đang xử lý</h2>
+            </div>
+            <span id="processingMode" class="meta-chip">Quick scan</span>
+          </div>
+          <div class="processing-current">
+            <span id="processingPulse" aria-hidden="true"></span>
+            <div>
+              <p>Agent hiện tại</p>
+              <strong id="processingAgent">Crawler</strong>
+              <em id="processingAgentDetail">Đang chuẩn bị dữ liệu đầu vào.</em>
+            </div>
+            <small id="processingElapsed">0s</small>
+          </div>
+          <div id="processingSteps" class="processing-steps"></div>
+          <p id="processingNote" class="processing-note">CMO đang điều phối các agent con. Kết quả sẽ tự hiện khi workflow hoàn tất.</p>
+        </div>
+      </section>
+
       <section id="historyPanel" class="history-panel hidden-panel" aria-label="Lịch sử phân tích 7 ngày" aria-live="polite">
         <div class="panel-header compact">
           <div>
