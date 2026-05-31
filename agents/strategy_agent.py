@@ -33,6 +33,8 @@ def run_strategy_agent(state: AgentState) -> AgentState:
             "ad_library_report": state.get("ad_library_report", ""),
             "high_match_ads": state.get("high_match_ads", []),
             "fallback_monthly_strategy": fallback_monthly,
+            "run_seed": state.get("run_seed", ""),
+            "creative_variation_profile": state.get("creative_variation_profile", {}),
         },
         fallback=f"{fallback_monthly}\n\n{fallback_direction}",
     )

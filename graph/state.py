@@ -127,6 +127,7 @@ class AgentState(TypedDict):
     data_source: str
     manual_posts_count: int
     run_seed: str
+    creative_variation_profile: dict[str, str]
 
 
 def create_initial_state() -> AgentState:
@@ -192,4 +193,5 @@ def create_initial_state() -> AgentState:
         "data_source": "auto",
         "manual_posts_count": 0,
         "run_seed": "",
+        "creative_variation_profile": {},
     }

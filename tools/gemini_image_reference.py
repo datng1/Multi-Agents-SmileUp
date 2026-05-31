@@ -49,7 +49,7 @@ def generate_smileup_reference_image(
         reference_ad["media_url"] = used_media_url
         client = genai.Client(api_key=config.GEMINI_API_KEY)
         blueprint = _describe_reference_blueprint(client, types, image_bytes, mime_type, reference_ad)
-        prompt = _build_generation_prompt(variant, reference_ad, blueprint)
+        prompt = _build_generation_prompt(variant, reference_ad, blueprint, context)
         generated = _generate_image(client, types, prompt, image_bytes, mime_type)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(generated)
@@ -190,7 +190,8 @@ def _extract_image_bytes(response) -> bytes:
     return b""
 
 
-def _build_generation_prompt(variant: ContentVariant, reference_ad: dict[str, Any], blueprint: str) -> str:
+def _build_generation_prompt(variant: ContentVariant, reference_ad: dict[str, Any], blueprint: str, context: dict[str, Any]) -> str:
+    variation = context.get("creative_variation_profile") or {}
     return f"""
 Rewrite the first reference image into a completely new original 4:5 Facebook ad image for SmileUp Dental Clinic in Vietnam.
 If a second reference image is attached, use it only for SmileUp logo/brand color guidance.
@@ -210,6 +211,9 @@ Strict originality rules:
 - Avoid exaggerated medical claims, before/after claims, or guaranteed results.
 - Make the image suitable for a Facebook dental marketing post about porcelain crowns, porcelain restoration, or implants.
 - No watermark. No fake medical before/after. No body-shaming.
+- Creative variation for this run: {variation}
+- Apply the visual_mood from the variation profile. Change lighting, camera angle, subject styling, background detail, props, and color balance from previous generations even when the keyword and reference ad are the same.
+- Do not make all variants look like the same template; each image must feel like a fresh shoot concept.
 
 SmileUp post variant:
 Service: {variant.get("service_line", "")}

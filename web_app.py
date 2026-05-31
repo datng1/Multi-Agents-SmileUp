@@ -740,7 +740,9 @@ def _build_initial_state(request_payload: dict) -> dict:
     creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
 
     initial_state = create_initial_state()
-    initial_state["run_seed"] = str(time.time_ns())
+    run_seed = _build_run_seed(ad_library_keywords or config.AD_LIBRARY_KEYWORDS, scan_mode)
+    initial_state["run_seed"] = run_seed
+    initial_state["creative_variation_profile"] = _creative_variation_profile(run_seed)
     initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
     initial_state["ad_library_scan_mode"] = scan_mode
     initial_state["ad_library_max_ads"] = max_ads
@@ -767,6 +769,63 @@ def _build_initial_state(request_payload: dict) -> dict:
     if visual_notes or video_notes:
         initial_state["data_source"] = "manual"
     return initial_state
+
+
+def _build_run_seed(keywords: str, scan_mode: str) -> str:
+    raw = f"{keywords}|{scan_mode}|{time.time_ns()}|{uuid.uuid4().hex}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _creative_variation_profile(run_seed: str) -> dict[str, str]:
+    seed_value = int(str(run_seed or "0")[:8], 16) if run_seed else 0
+    hook_styles = [
+        "counter-intuitive: đi ngược quảng cáo giảm giá, nhấn vào tư vấn đúng chỉ định",
+        "checklist: các câu hỏi cần hỏi trước khi làm răng sứ/implant",
+        "story/problem-first: bắt đầu từ nỗi lo thật của khách Việt",
+        "myth-busting: sửa hiểu lầm phổ biến nhưng không hù dọa",
+        "consultation-first: mời để lại SĐT để được hỏi đúng tình trạng",
+    ]
+    copy_rhythms = [
+        "mở bài ngắn, đoạn 1 câu mạnh, CTA đặt riêng ở cuối",
+        "mở bằng câu hỏi, thân bài dạng 3 gạch đầu dòng dễ scan",
+        "mở bằng tình huống đời thường, thân bài kể chuyện ngắn",
+        "mở bằng checklist, mỗi ý chỉ 1-2 câu",
+        "mở bằng insight khách hàng, sau đó dẫn vào quy trình SmileUp",
+    ]
+    visual_moods = [
+        "ánh sáng phòng khám trắng xanh, góc máy ngang tầm mắt, bác sĩ tư vấn nhẹ nhàng",
+        "cận cảnh tương tác bác sĩ - bệnh nhân, hậu cảnh sạch, cảm giác premium ấm",
+        "góc máy hơi nghiêng, không gian tư vấn hiện đại, ít đạo cụ, ảnh thật tự nhiên",
+        "bố cục nhiều khoảng thở, chủ thể lệch 1/3 khung hình, màu teal/trắng tinh tế",
+        "ảnh lifestyle nha khoa, khách hàng thoải mái, bác sĩ giải thích trên tablet/phim chụp",
+    ]
+    lead_magnets = [
+        "kiểm tra bước đầu xem trường hợp có phù hợp răng sứ/implant không",
+        "gợi ý danh sách câu hỏi cần hỏi bác sĩ trước khi quyết định",
+        "tư vấn cá nhân hóa theo tình trạng răng, thời gian mất răng và ngân sách",
+        "phân biệt khi nào nên phục hình sứ, khi nào cần kiểm tra implant",
+        "hẹn thăm khám để có phim chụp và kế hoạch điều trị rõ ràng",
+    ]
+    cta_modes = [
+        "xin SĐT để SmileUp gọi lại hỏi nhanh tình trạng",
+        "inbox số điện thoại kèm vấn đề răng đang gặp",
+        "để lại SĐT để được gợi ý bước thăm khám phù hợp",
+        "nhắn 'tư vấn' kèm SĐT để đội ngũ liên hệ",
+        "comment/inbox tình trạng, bài ads vẫn ưu tiên lấy SĐT",
+    ]
+
+    def pick(items: list[str], offset: int = 0) -> str:
+        return items[(seed_value + offset) % len(items)]
+
+    return {
+        "run_seed": run_seed,
+        "hook_style": pick(hook_styles),
+        "copy_rhythm": pick(copy_rhythms, 1),
+        "visual_mood": pick(visual_moods, 2),
+        "lead_magnet": pick(lead_magnets, 3),
+        "cta_mode": pick(cta_modes, 4),
+        "anti_repeat_rule": "Không dùng lại tiêu đề, câu mở đầu, CTA hoặc visual mood giống lượt chạy trước dù keyword giống nhau.",
+    }
 
 
 def _scan_settings(request_payload: dict) -> tuple[str, int, int]:

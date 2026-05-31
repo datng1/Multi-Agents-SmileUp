@@ -36,6 +36,8 @@ def run_content_agent(state: AgentState) -> AgentState:
         "creative_reference_note": state.get("creative_reference_note", ""),
         "creative_reference_ad": state.get("creative_reference_ad", {}),
         "creative_reference_blueprint": state.get("creative_reference_blueprint", ""),
+        "run_seed": state.get("run_seed", ""),
+        "creative_variation_profile": state.get("creative_variation_profile", {}),
     }
     state["creative_assets"] = generate_creative_assets(variants, creative_context)
     if creative_context.get("creative_reference_blueprint"):
@@ -61,7 +63,7 @@ def _generate_content_plan_with_preferred_model(state: AgentState) -> tuple[list
             text, model = generate_text_with_openai(
                 _build_campaign_prompt(state),
                 system="You are a senior Vietnamese dental marketing CMO copywriting agent. Return only valid JSON matching the requested schema.",
-                temperature=0.35,
+                temperature=0.72,
                 timeout=120,
             )
             return _parse_content_plan(text), f"GPT ({model})"

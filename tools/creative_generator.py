@@ -36,9 +36,10 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     assets: list[dict[str, str]] = []
-    stamp = datetime.now().strftime("%Y%m%d")
+    seed_suffix = _slugify(str(context.get("run_seed") or datetime.now().strftime("%H%M%S%f")))[:10]
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     for index, variant in enumerate(variants, start=1):
-        filename = f"{stamp}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
+        filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
         output_path = OUTPUT_DIR / filename
         image_mode = str(context.get("creative_image_mode") or "auto")
         gemini_note = ""
@@ -78,7 +79,7 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
 
 def _render_creative(variant: ContentVariant, output_path: Path, index: int, context: dict) -> None:
     width, height = 1080, 1350
-    canvas = _background(width, height, context)
+    canvas = _background(width, height, {**context, "variant_index": index})
     draw = ImageDraw.Draw(canvas)
 
     title_font = _font(54, bold=True)
@@ -144,35 +145,49 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
 def _background(width: int, height: int, context: dict):
     image_mode = str(context.get("creative_image_mode") or "auto")
     upload_path = Path(str(context.get("creative_upload_path") or ""))
+    seed_value = _seed_value(context)
     if image_mode == "owned" and upload_path.exists():
-        image = _crop_to_canvas(upload_path, width, height)
+        image = _crop_to_canvas(upload_path, width, height, seed_value)
         if image is not None:
-            image = image.filter(ImageFilter.GaussianBlur(1.2))
-            image = ImageEnhance.Color(image).enhance(0.9)
-            image = ImageEnhance.Brightness(image).enhance(1.04)
+            image = _vary_image_treatment(image, seed_value, blur=1.0)
             return image
 
     if BACKGROUND_PATH.exists():
-        image = _crop_to_canvas(BACKGROUND_PATH, width, height)
+        image = _crop_to_canvas(BACKGROUND_PATH, width, height, seed_value)
         if image is None:
             return Image.new("RGB", (width, height), (244, 249, 249))
-        image = image.filter(ImageFilter.GaussianBlur(2.4))
-        image = ImageEnhance.Color(image).enhance(0.82)
-        image = ImageEnhance.Brightness(image).enhance(1.08)
+        image = _vary_image_treatment(image, seed_value, blur=2.0)
         return image
     return Image.new("RGB", (width, height), (244, 249, 249))
 
 
-def _crop_to_canvas(path: Path, width: int, height: int):
+def _crop_to_canvas(path: Path, width: int, height: int, seed_value: int = 0):
     try:
         image = Image.open(path).convert("RGB")
     except Exception:
         return None
-    scale = max(width / image.width, height / image.height)
+    scale = max(width / image.width, height / image.height) * (1 + ((seed_value % 4) * 0.015))
     image = image.resize((int(image.width * scale), int(image.height * scale)))
-    left = (image.width - width) // 2
-    top = (image.height - height) // 2
+    max_left = max(0, image.width - width)
+    max_top = max(0, image.height - height)
+    left = min(max_left, max(0, max_left // 2 + ((seed_value % 7) - 3) * max(8, max_left // 18)))
+    top = min(max_top, max(0, max_top // 2 + (((seed_value // 7) % 7) - 3) * max(8, max_top // 18)))
     return image.crop((left, top, left + width, top + height))
+
+
+def _vary_image_treatment(image, seed_value: int, blur: float):
+    image = image.filter(ImageFilter.GaussianBlur(blur + (seed_value % 3) * 0.18))
+    image = ImageEnhance.Color(image).enhance(0.78 + (seed_value % 5) * 0.035)
+    image = ImageEnhance.Brightness(image).enhance(1.02 + ((seed_value // 5) % 5) * 0.018)
+    image = ImageEnhance.Contrast(image).enhance(0.94 + ((seed_value // 11) % 5) * 0.025)
+    if seed_value % 2:
+        image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    return image
+
+
+def _seed_value(context: dict) -> int:
+    raw = f"{context.get('run_seed', '')}:{context.get('variant_index', '')}"
+    return sum((index + 1) * ord(char) for index, char in enumerate(raw))
 
 
 def _source_policy(image_mode: str) -> str:

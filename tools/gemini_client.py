@@ -82,6 +82,7 @@ def _gemini_model_candidates() -> list[str]:
 
 def _build_prompt(state: AgentState) -> str:
     insights = json.dumps(state.get("competitor_insights", []), ensure_ascii=False, indent=2)
+    variation_profile = json.dumps(state.get("creative_variation_profile", {}), ensure_ascii=False, indent=2)
     trend_analysis = state.get("facebook_trend_analysis") or "Chưa có phân tích trend."
     visual_brief = state.get("visual_creative_brief") or "Tạo ảnh gốc có nhận diện SmileUp, không dùng ảnh đối thủ."
     text_report = state.get("text_insight_report") or "Text Insight Agent chưa có đủ caption để phân tích."
@@ -147,6 +148,9 @@ Chiến lược hiện tại:
 Feedback cần xử lý:
 {feedback}
 
+Creative variation profile cho lượt chạy này:
+{variation_profile}
+
 Hãy tạo một bài đăng Facebook mới cho SmileUp.
 Yêu cầu:
 - Bám trọng tâm răng sứ hoặc implant, không lan man sang dịch vụ khác nếu insight không yêu cầu.
@@ -162,6 +166,7 @@ Yêu cầu:
 - Nếu là bài ads, CTA phải đủ rõ để khách để lại SĐT/inbox số điện thoại; nếu là chăm sóc page thì CTA ưu tiên bình luận, lưu bài, chia sẻ câu hỏi.
 - Hashtag 3-8 cái.
 - image_prompt phải mô tả ảnh gốc/AI mới cho SmileUp, có logo/nhận diện SmileUp, tuyệt đối không yêu cầu chỉnh ảnh đối thủ thành ảnh của SmileUp.
+- Bắt buộc áp dụng creative variation profile: đổi hook style, nhịp copy, lead magnet, CTA mode và visual mood theo profile. Không viết lại cùng câu mở đầu/cùng CTA/cùng bối cảnh ảnh với lượt trước nếu keyword giống nhau.
 
 Chỉ trả về JSON thuần, không markdown:
 {{
@@ -180,6 +185,7 @@ Chỉ trả về JSON thuần, không markdown:
 def _build_campaign_prompt(state: AgentState) -> str:
     base = _build_prompt(state)
     high_match_ads = json.dumps(state.get("high_match_ads", []), ensure_ascii=False, indent=2)
+    variation_profile = json.dumps(state.get("creative_variation_profile", {}), ensure_ascii=False, indent=2)
     monthly_strategy = state.get("monthly_strategy") or state.get("strategic_direction") or "Chưa có chiến lược tháng."
     return f"""
 {base}
@@ -191,6 +197,15 @@ CMO không chỉ viết bài lẻ. CMO phải lập chiến lược tháng và c
 
 RUN SEED: {state.get('run_seed', '')}
 Mỗi lượt chạy phải thay đổi hook, góc kể, lead magnet, cấu trúc mở bài và CTA theo seed này. Không trả lại cùng một bộ tiêu đề/caption nếu insight đầu vào giống lần trước.
+
+Creative variation profile bắt buộc dùng ở lượt này:
+{variation_profile}
+
+Luật chống lặp:
+- Nếu cùng keyword được chạy lại, vẫn phải tạo angle/copy/CTA mới theo profile này.
+- Không dùng lại cùng câu title, câu mở đầu body, lead magnet hoặc CTA với lượt trước.
+- Không dùng cùng visual mood cho tất cả ảnh; mỗi variant cần bối cảnh/góc máy/ánh sáng/đạo cụ khác nhau.
+- Nếu insight đầu vào giống nhau, hãy đổi cách tiếp cận thay vì đổi vài chữ bề mặt.
 
 Chiến lược tháng hiện tại:
 {monthly_strategy}
@@ -223,6 +238,7 @@ Chuẩn output bắt buộc:
 - ads_effective phải có service_line thuộc implant, rang_su hoặc phuc_hinh_su.
 - page_care phải có service_line thuộc trust hoặc reels.
 - Mỗi variant phải có angle khác nhau, CTA khác nhau và hook không trùng nhau.
+- Mỗi variant phải thể hiện rõ hook_style/copy_rhythm/lead_magnet/cta_mode từ creative variation profile, nhưng không lộ chữ "run_seed" trong caption.
 - Mỗi body phải có lưu ý an toàn: kết quả/phương án phụ thuộc tình trạng răng miệng và cần bác sĩ thăm khám hoặc tư vấn trực tiếp.
 - Không được trả lời ngoài JSON.
 

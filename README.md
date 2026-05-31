@@ -130,7 +130,7 @@ Workflow hiện có thêm:
   - `ads_effective`: bài ads chuyển đổi, viết để khách hàng để lại SĐT/inbox ngay nhưng vẫn an toàn y khoa.
   - `page_care`: bài chăm sóc page, nuôi niềm tin, tăng bình luận/lưu/chia sẻ và làm nền cho chuyển đổi.
 - Mỗi biến thể có `campaign_track`, `monthly_role` và `differentiation` để làm rõ vai trò trong chiến lược tháng và SmileUp khác gì so với ads đối thủ.
-- Mỗi lượt chạy có `run_seed` riêng để CMO Campaign Plan đổi hook/góc kể/CTA; trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
+- Mỗi lượt chạy có `run_seed` và `creative_variation_profile` riêng để CMO Campaign Plan đổi hook/góc kể/lead magnet/CTA/visual mood; cùng một keyword chạy lại vẫn phải sinh caption và ảnh khác nhau, không tái dùng cùng câu mở đầu hoặc cùng bối cảnh ảnh. Trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
 - Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode **Xào lại ảnh ads match cao nhất bằng Gemini**, hệ thống lấy media của ad match cao nhất làm ảnh reference, yêu cầu Gemini giữ logic bố cục/hierarchy nhưng thay mặt người, nền, text, nhận diện và tạo creative SmileUp mới; sau đó overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
 
 Lưu ý: mode rewrite ảnh dùng ảnh ads gốc như reference để “xào lại” bố cục ở mức cao. Output vẫn phải là ảnh mới của SmileUp: không dùng lại pixel, logo, watermark, mặt người, text gốc, nền đặc trưng hoặc tài sản nhận diện của đối thủ.
