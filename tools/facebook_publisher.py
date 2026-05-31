@@ -1,4 +1,6 @@
 from typing import Any
+import unicodedata
+from urllib.parse import urlencode
 
 try:
     import requests
@@ -111,7 +113,8 @@ def _publish_to_page(page: dict[str, str], message: str, schedule_time: str | No
     try:
         response = requests.post(
             f"{GRAPH_URL}/{page['page_id']}/feed",
-            data=payload,
+            data=_encode_graph_form(payload),
+            headers={"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"},
             timeout=15,
         )
         result = _parse_graph_response(response)
@@ -183,17 +186,49 @@ def _safe_pages(pages: list[dict[str, str]]) -> list[dict[str, Any]]:
 
 
 def format_facebook_message(draft: DraftContent) -> str:
-    hashtags = " ".join(draft.get("hashtags", []))
+    hashtags = " ".join(_normalize_facebook_text(tag) for tag in draft.get("hashtags", []))
     return "\n\n".join(
         part
         for part in [
-            draft.get("title", "").strip(),
-            draft.get("body", "").strip(),
-            draft.get("call_to_action", "").strip(),
+            _normalize_facebook_text(draft.get("title", "")).strip(),
+            _normalize_facebook_text(draft.get("body", "")).strip(),
+            _normalize_facebook_text(draft.get("call_to_action", "")).strip(),
             hashtags.strip(),
         ]
         if part
     )
+
+
+def _encode_graph_form(payload: dict[str, Any]) -> bytes:
+    normalized = {key: _normalize_facebook_text(value) for key, value in payload.items()}
+    return urlencode(normalized, doseq=True, encoding="utf-8", errors="strict").encode("utf-8")
+
+
+def _normalize_facebook_text(value: Any) -> str:
+    text = unicodedata.normalize("NFC", str(value or ""))
+    return _repair_common_mojibake(text)
+
+
+def _repair_common_mojibake(text: str) -> str:
+    if not any(marker in text for marker in ("Ã", "Ä", "Â", "Æ")):
+        return text
+    current_score = _mojibake_score(text)
+    best = text
+    best_score = current_score
+    for encoding in ("latin1", "cp1252"):
+        try:
+            candidate = text.encode(encoding).decode("utf-8")
+        except UnicodeError:
+            continue
+        score = _mojibake_score(candidate)
+        if score < best_score:
+            best = candidate
+            best_score = score
+    return best
+
+
+def _mojibake_score(text: str) -> int:
+    return sum(text.count(marker) for marker in ("Ã", "Ä", "Â", "Æ", "�"))
 
 
 def _facebook_post_url(post_id: str | None) -> str:

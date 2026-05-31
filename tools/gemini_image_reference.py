@@ -200,11 +200,11 @@ Use the first reference only as creative structure:
 
 Strict originality rules:
 - Do not reproduce source pixels, exact text, logo, watermark, face, identity, clothing, background, or distinctive props from the competitor ad.
-- Preserve only broad composition logic: subject count, relative placement, shot distance, visual hierarchy, and CTA/text zone placement.
+- Preserve only broad composition logic: subject count, relative placement, shot distance, visual hierarchy, and overall mood. Do not preserve text or CTA zones.
 - Replace all people with new Vietnamese dentist/patient subjects with different faces, different styling, different clothes, and different background details.
 - Remove all competitor brand marks, visible text, watermarks, labels, numbers, and typography from the generated image.
 - Do not add prices, discounts, promo gifts, guarantees, success rates, or urgent scarcity claims.
-- Do not render any readable words, letters, text overlays, bullet lists, labels, UI captions, or fake logo in the image. Local post-processing will add the final Vietnamese headline, CTA, and real SmileUp logo.
+- Do not render any readable words, letters, text overlays, bullet lists, labels, UI captions, promo banners, or fake logo in the image. The Facebook caption will carry all wording outside the image.
 - Use SmileUp-owned brand direction: clean modern dental clinic, white/teal palette, trustworthy, premium but warm.
 - Reserve a clean blank logo area at the top-left; do not draw a fake logo because local post-processing will overlay the actual SmileUp logo.
 - Avoid exaggerated medical claims, before/after claims, or guaranteed results.
@@ -218,7 +218,7 @@ Angle: {variant.get("angle", "")}
 Differentiation: {variant.get("differentiation", "")}
 CTA: {variant.get("call_to_action", "")}
 
-Important: the title and CTA above are for composition planning only. Do not write them in the image; the application will overlay exact Vietnamese text after generation.
+Important: the title and CTA above are for composition planning only. Do not write them in the image; the final asset must be image-only with no text banner.
 
 Top-match ad context for strategy only, do not copy wording:
 Page: {reference_ad.get("page_name", "")}

@@ -89,9 +89,8 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
     overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     overlay_draw = ImageDraw.Draw(overlay)
     image_mode = str(context.get("creative_image_mode") or "auto")
-    top_alpha = 184 if image_mode == "owned" else 206
+    top_alpha = 46
     overlay_draw.rectangle((0, 0, width, height), fill=(245, 251, 250, top_alpha))
-    overlay_draw.rectangle((0, 910, width, height), fill=(12, 98, 91, 228))
     if image_mode in {"layout_reference", "top_match_reference"}:
         overlay_draw.rounded_rectangle((640, 220, 1020, 850), radius=44, fill=(255, 255, 255, 82), outline=(15, 118, 110, 72), width=4)
         overlay_draw.ellipse((700, 280, 960, 540), fill=(232, 245, 242, 120), outline=(15, 118, 110, 60), width=3)
@@ -100,6 +99,8 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
     draw = ImageDraw.Draw(canvas)
 
     _draw_logo(canvas)
+    canvas.convert("RGB").save(output_path, quality=95)
+    return
 
     service = (variant.get("service_line") or "SmileUp Dental").upper()
     angle = variant.get("angle") or "Tư vấn cá nhân hóa"
@@ -176,12 +177,12 @@ def _crop_to_canvas(path: Path, width: int, height: int):
 
 def _source_policy(image_mode: str) -> str:
     if image_mode == "owned":
-        return "Uploaded SmileUp-owned/licensed photo used as the visual source."
+        return "Uploaded SmileUp-owned/licensed photo used as the visual source; no text banner is added."
     if image_mode == "layout_reference":
-        return "Layout reference only: original ad pixels, faces, logo, and assets are not reused."
+        return "Layout reference only: original ad pixels, faces, logo, text, and assets are not reused."
     if image_mode == "top_match_reference":
-        return "Top-match ad reference only: Gemini creates a new SmileUp image without reusing source pixels, faces, logo, or original text."
-    return "Auto-generated from SmileUp brand assets."
+        return "Top-match ad reference only: Gemini creates a new SmileUp image without reusing source pixels, faces, logo, or original text; no text banner is added."
+    return "Auto-generated from SmileUp brand assets; no text banner is added."
 
 
 def _draw_logo(canvas) -> None:
@@ -204,7 +205,6 @@ def _normalize_generated_image(output_path: Path, variant: ContentVariant) -> No
     except Exception:
         return
     image = _fit_to_canvas(image, 1080, 1350).convert("RGBA")
-    _draw_generated_text_overlay(image, variant)
     _draw_logo(image)
     image.convert("RGB").save(output_path, quality=95)
 
