@@ -2399,9 +2399,14 @@ pre {
 
 .fb-preview-image.has-image {
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 0;
+  aspect-ratio: 4 / 5;
+  max-height: min(680px, 78vh);
   padding: 0;
+  overflow: hidden;
   background: #050505;
 }
 
@@ -2413,7 +2418,9 @@ pre {
 .fb-preview-image img {
   display: block;
   width: 100%;
-  max-height: 680px;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
