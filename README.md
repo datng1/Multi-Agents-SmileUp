@@ -195,7 +195,7 @@ ADMIN_USERNAME=
 ADMIN_PASSWORD=
 AUTH_USERS_JSON={"adminsmileup":"password_admin","cuongsmileup":"password_user_1","vitsmileup":"password_user_2"}
 AUTH_ADMIN_USERNAMES=adminsmileup
-AUTH_PAGE_PERMISSIONS_JSON={"vitsmileup":["111884500869678","1775662159384248"]}
+AUTH_PAGE_PERMISSIONS_JSON={"cuongsmileup":["954145057772731","840668499122232"],"vitsmileup":["111884500869678","1775662159384248"]}
 AUTH_SECRET=
 FACEBOOK_ACCESS_TOKEN=
 FACEBOOK_PAGE_ID=
@@ -214,7 +214,7 @@ Biến cấu hình:
 
 - `FACEBOOK_PAGE_TOKENS_JSON`: map `page_id -> page_access_token`. Đây là nơi đặt token thật trên server `.env`.
 - `FACEBOOK_PAGE_NAMES_JSON`: map `page_id -> tên hiển thị` để UI dễ chọn page.
-- `AUTH_PAGE_PERMISSIONS_JSON`: map `username -> danh sách page_id được phép thấy và đăng`. User không có cấu hình riêng sẽ thấy toàn bộ page như trước; user trong `AUTH_ADMIN_USERNAMES` luôn thấy toàn bộ page. Mặc định `vitsmileup` chỉ được phép dùng `111884500869678` và `1775662159384248`.
+- `AUTH_PAGE_PERMISSIONS_JSON`: map `username -> danh sách page_id được phép thấy và đăng`. User không có cấu hình riêng sẽ thấy toàn bộ page như trước; user trong `AUTH_ADMIN_USERNAMES` luôn thấy toàn bộ page. Mặc định `cuongsmileup` chỉ được phép dùng `954145057772731`, `840668499122232`; `vitsmileup` chỉ được phép dùng `111884500869678`, `1775662159384248`.
 - `FACEBOOK_ACCESS_TOKEN` và `FACEBOOK_PAGE_ID`: legacy fallback cho một page cũ. Nếu đã có `FACEBOOK_PAGE_TOKENS_JSON`, hệ thống ưu tiên danh sách nhiều page.
 - `DRY_RUN=true`: chỉ test payload, không đăng thật.
 - `DRY_RUN=false` và `MOCK_MODE=false`: cho phép gọi Facebook Graph API thật.

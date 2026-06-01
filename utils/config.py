@@ -46,6 +46,10 @@ def _auth_users() -> dict[str, str]:
 
 def _auth_page_permissions() -> dict[str, list[str]]:
     permissions: dict[str, list[str]] = {
+        "cuongsmileup": [
+            "954145057772731",
+            "840668499122232",
+        ],
         "vitsmileup": [
             "111884500869678",
             "1775662159384248",
