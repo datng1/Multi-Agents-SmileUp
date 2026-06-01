@@ -51,18 +51,23 @@ jobs:
           set -euo pipefail
           git archive --format=tar.gz --output=smileup-release.tar.gz HEAD
 
-      - name: Validate deploy secrets
+      - name: Check deploy configuration
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$SERVER_HOST" || (echo "Missing SERVER_HOST secret" && exit 1)
-          test -n "$SERVER_USER" || (echo "Missing SERVER_USER secret" && exit 1)
-          test -n "$SERVER_PASSWORD" || (echo "Missing SERVER_PASSWORD secret" && exit 1)
+          if [ -n "$SERVER_HOST" ] && [ -n "$SERVER_USER" ] && [ -n "$SERVER_PASSWORD" ]; then
+            echo "DEPLOY_ENABLED=true" >> "$GITHUB_ENV"
+            echo "Deploy configuration found."
+          else
+            echo "DEPLOY_ENABLED=false" >> "$GITHUB_ENV"
+            echo "::warning::Deploy skipped because SERVER_HOST, SERVER_USER, or SERVER_PASSWORD secret is missing."
+          fi
 
       - name: Upload and deploy over SSH
+        if: env.DEPLOY_ENABLED == 'true'
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -137,3 +142,8 @@ jobs:
 
           rm -rf "$STAGE" "$PRESERVE" "$RELEASE" /tmp/smileup-status.json
           REMOTE_DEPLOY
+
+      - name: Deployment skipped
+        if: env.DEPLOY_ENABLED != 'true'
+        run: |
+          echo "Regression checks passed. Add SERVER_HOST, SERVER_USER, and SERVER_PASSWORD repository secrets to enable automatic deployment."
