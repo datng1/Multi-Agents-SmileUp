@@ -38,6 +38,8 @@ jobs:
           AD_LIBRARY_ENABLED: "false"
           AGENT_API_REASONING_ENABLED: "false"
           CMO_JURY_ENABLED: "false"
+          FACEBOOK_PAGE_TOKENS_JSON: '{"ci_smoke_page":"ci_smoke_token"}'
+          FACEBOOK_PAGE_NAMES_JSON: '{"ci_smoke_page":"CI Smoke Page"}'
         run: |
           set -euo pipefail
           node --check web/app.js
