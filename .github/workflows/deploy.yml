@@ -20,6 +20,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Regression checks
+        env:
+          MOCK_MODE: "true"
+          DRY_RUN: "true"
+          AD_LIBRARY_ENABLED: "false"
+          AGENT_API_REASONING_ENABLED: "false"
+          CMO_JURY_ENABLED: "false"
+        run: |
+          set -euo pipefail
+          node --check web/app.js
+          python -m py_compile web_app.py main.py
+          python -m tests.smoke_workflow
+
       - name: Build release archive
         run: |
           set -euo pipefail

@@ -1177,13 +1177,21 @@ function renderPublishPages(pages) {
         <label class="publish-page-option">
           <input type="checkbox" value="${escapeHtml(page.page_id)}" ${index === 0 ? "checked" : ""} />
           <span>
-            <strong>${escapeHtml(page.name || `Page ${index + 1}`)}</strong>
+            <strong>${escapeHtml(displayPublishPageName(page, index))}</strong>
             <small>${page.has_token ? "Sẵn sàng đăng" : "Thiếu token"}</small>
           </span>
         </label>
       `,
     )
     .join("");
+}
+
+function displayPublishPageName(page, index) {
+  const name = String(page?.name || "").trim();
+  if (name && !/^Page\s+\d+$/i.test(name)) {
+    return name;
+  }
+  return `Trang Facebook ${index + 1}${page?.page_id ? ` · ${String(page.page_id).slice(-6)}` : ""}`;
 }
 
 function getSelectedPublishPageIds() {
@@ -1211,6 +1219,8 @@ async function publishFinalDraft(pageIds) {
         ...buildFinalDraftPayload(),
         page_ids: selectedPageIds,
         approved: isCurrentResultApproved(),
+        approval_context_key: currentResult?.publish_approval_context_key || "",
+        approval_token: currentResult?.publish_approval_token || "",
       }),
     });
     const payload = await response.json();
@@ -1530,10 +1540,6 @@ clearManualButton.addEventListener("click", () => {
   manualInput.focus();
 });
 creativeImageInput.addEventListener("change", () => {
-  creativeImageInput.value = "";
-  uploadedCreativeImage = null;
-  syncCreativeImageMode();
-  return;
   const file = creativeImageInput.files?.[0];
   if (!file) {
     uploadedCreativeImage = null;
@@ -1567,6 +1573,14 @@ creativeImageInput.addEventListener("change", () => {
     if (creativeImageMode.value === "auto") {
       creativeImageMode.value = "owned";
     }
+    syncCreativeImageMode();
+    creativeImageInput.value = "";
+  };
+  reader.onerror = () => {
+    uploadedCreativeImage = null;
+    creativeImagePreview.className = "creative-image-preview empty";
+    creativeImagePreview.textContent = "Không đọc được ảnh upload";
+    creativeImageInput.value = "";
     syncCreativeImageMode();
   };
   reader.readAsDataURL(file);

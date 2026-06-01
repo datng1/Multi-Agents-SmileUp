@@ -170,6 +170,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
 
     def _handle_publish_final(self) -> None:
         try:
+            username = self._current_username()
+            session_id = self._current_session_id(username)
             payload = self._read_json()
             draft = {
                 "title": str(payload.get("title", "")).strip(),
@@ -184,11 +186,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             if not page_ids:
                 self._send_json({"ok": False, "error": "No publish pages selected"}, status=400)
                 return
-            approved = bool(payload.get("approved"))
+            approved = _verify_publish_approval_payload(payload, session_id, self._current_username())
             result = publish_facebook_post(draft, approved=approved, page_ids=page_ids)
             if not approved:
-                result["reason"] = "Publisher bị chặn: CMO chưa duyệt APPROVE_TO_PUBLISH/approved cho bản hiện tại."
+                result["reason"] = "Publisher bị chặn: backend chưa xác thực được approval token từ workflow đã được CMO duyệt."
             self._send_json({"ok": True, "publish_result": result})
+        except ValueError as exc:
+            self._send_json({"ok": False, "error": _sanitize_error(str(exc))}, status=400)
         except Exception as exc:
             self._send_json({"ok": False, "error": _sanitize_error(str(exc))}, status=500)
 
@@ -475,11 +479,12 @@ def _run_job(job_id: str, request_payload: dict, session_id: str, username: str)
         output = _run_workflow_payload(request_payload, session_id, username)
         with JOB_LOCK:
             statuses = dict(JOBS[job_id].get("agent_statuses") or {})
+            result = output.get("result") or {}
             JOBS[job_id].update(
                 {
                     "status": "completed",
                     "agent_statuses": statuses,
-                    "current_step": "publisher",
+                    "current_step": _completed_workflow_step(result, statuses),
                     **output,
                     "finished_at": time.time(),
                 }
@@ -533,8 +538,74 @@ def _run_workflow_payload(request_payload: dict, session_id: str, username: str)
         "history_hit": False,
         "context_cache_key": context_key,
     }
+    _attach_publish_approval(output, session_id, username)
     output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload, session_id, username)
     return output
+
+
+def _completed_workflow_step(result: dict, statuses: dict) -> str:
+    if statuses.get("publisher") == "done" or result.get("publish_result"):
+        return "publisher"
+    agent_order = [
+        "crawler",
+        "text_insight",
+        "trend_analysis",
+        "visual_insight",
+        "video_insight",
+        "strategy",
+        "content_creator",
+        "compliance",
+        "hardness",
+        "manager_review",
+    ]
+    for agent_name in reversed(agent_order):
+        if statuses.get(agent_name) in {"done", "running"}:
+            return agent_name
+    return str(result.get("current_step") or "manager_review")
+
+
+def _attach_publish_approval(output: dict, session_id: str, username: str) -> None:
+    result = output.get("result")
+    if not isinstance(result, dict):
+        return
+    result.pop("publish_approval_token", None)
+    result.pop("publish_approval_context_key", None)
+    if not _is_publish_approved_result(result):
+        return
+    context_key = str(output.get("context_cache_key") or "")
+    if not context_key:
+        return
+    result["publish_approval_context_key"] = context_key
+    result["publish_approval_token"] = _sign_publish_approval(context_key, session_id, username)
+
+
+def _is_publish_approved_result(result: dict) -> bool:
+    return result.get("approval_status") == "approved" and result.get("cmo_decision") == "APPROVE_TO_PUBLISH"
+
+
+def _publish_approval_secret() -> str:
+    return config.AUTH_SECRET or hashlib.sha256(repr(sorted(config.AUTH_USERS.items())).encode("utf-8")).hexdigest()
+
+
+def _publish_approval_message(context_key: str, session_id: str, username: str) -> bytes:
+    return f"{username}|{session_id}|{context_key}|publish".encode("utf-8")
+
+
+def _sign_publish_approval(context_key: str, session_id: str, username: str) -> str:
+    return hmac.new(
+        _publish_approval_secret().encode("utf-8"),
+        _publish_approval_message(context_key, session_id, username),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _verify_publish_approval_payload(payload: dict, session_id: str, username: str) -> bool:
+    context_key = str(payload.get("approval_context_key") or "").strip()
+    token = str(payload.get("approval_token") or "").strip()
+    if not context_key or not token:
+        return False
+    expected = _sign_publish_approval(context_key, session_id, username)
+    return hmac.compare_digest(token, expected)
 
 
 def _workflow_context_cache_key(request_payload: dict) -> str:

@@ -71,6 +71,9 @@ def _enforce_people_first_image_prompts(variants: list[ContentVariant]) -> list[
 
 
 def _generate_content_plan_with_preferred_model(state: AgentState) -> tuple[list[ContentVariant], str]:
+    if not config.AGENT_API_REASONING_ENABLED:
+        return _offline_content_plan(state), "local-bounded"
+
     if config.OPENAI_API_KEY:
         try:
             from tools.gemini_client import _build_campaign_prompt, _parse_content_plan

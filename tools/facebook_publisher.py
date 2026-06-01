@@ -32,6 +32,8 @@ def publish_facebook_post(
 
     message = format_facebook_message(draft)
     pages = _select_pages(page_ids)
+    if not pages:
+        raise ValueError("No selected Facebook pages are configured")
     if page_ids is None and not (config.MOCK_MODE or config.DRY_RUN):
         return {
             "publisher_status": "awaiting_user_publish",
@@ -171,6 +173,10 @@ def _select_pages(page_ids: list[str] | None) -> list[dict[str, str]]:
     pages = list(config.FACEBOOK_PUBLISH_PAGES)
     if not requested:
         return pages[:1] if pages else []
+    configured_ids = {page["page_id"] for page in pages}
+    unknown = sorted(requested - configured_ids)
+    if unknown:
+        raise ValueError(f"Unknown Facebook page id: {', '.join(unknown)}")
     return [page for page in pages if page["page_id"] in requested]
 
 

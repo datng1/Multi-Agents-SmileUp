@@ -3173,7 +3173,22 @@ pre {
   }
 
   .topbar {
+    position: relative;
+    top: auto;
     padding-inline: 12px;
+  }
+
+  .topbar .top-note {
+    display: none;
+  }
+
+  .topbar h1 {
+    font-size: clamp(28px, 9vw, 38px);
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
   }
 
   .quick-start div {
@@ -3279,7 +3294,8 @@ pre {
 
   .keyword-input {
     min-width: 0;
-    font-size: clamp(15px, 4.2vw, 17px);
+    font-size: clamp(14px, 3.8vw, 15px);
+    font-weight: 820;
   }
 
   .engagement {

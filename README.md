@@ -1,6 +1,6 @@
 # Dental Marketing Multi-Agent System
 
-Hệ thống MVP cho marketing nha khoa, dùng mô hình nhiều agent theo đặc tả trong `README (1).md`.
+Hệ thống MVP cho marketing nha khoa, dùng mô hình nhiều agent với CMO làm người điều phối và chốt quyết định publish.
 
 ## Kiến Trúc
 
@@ -234,13 +234,13 @@ Luồng publish:
 5. Người dùng chọn page bằng checkbox, có thể bấm **Chọn tất cả**.
 6. Bấm **Đăng page đã chọn** để đăng các page đang tick.
 7. Bấm **Đăng nhiều page** để chọn toàn bộ page rồi publish hàng loạt.
-8. Backend gọi `/api/publish`, lấy token tương ứng từ `.env`, gọi Graph API `/{page_id}/feed`, rồi trả kết quả từng page.
+8. Backend gọi `/api/publish`, tự xác thực approval token được ký từ workflow đã được CMO duyệt, lấy page token tương ứng từ `.env`, gọi Graph API `/{page_id}/feed`, rồi trả kết quả từng page.
 9. UI hiển thị link bài đã đăng cho từng page thành công; page lỗi sẽ hiện lỗi riêng, không làm mất kết quả các page đã đăng.
 
 An toàn vận hành:
 
 - Workflow không tự đăng thật ngay khi CMO duyệt. Publisher trong workflow chỉ chuẩn bị trạng thái; hành động đăng thật luôn cần người dùng bấm nút ở Final review.
-- Nếu CMO chưa duyệt, `/api/publish` trả trạng thái `skipped` và không gọi Graph API.
+- Nếu CMO chưa duyệt hoặc request publish không có approval token hợp lệ từ backend, `/api/publish` trả trạng thái `skipped` và không gọi Graph API.
 - Không commit token vào git. Token thật chỉ đặt trong `.env` production hoặc secret manager.
 - Nếu token từng bị gửi qua chat/log, nên rotate lại trong Meta trước khi dùng lâu dài.
 - Page token cần có quyền phù hợp để đăng bài Page, ví dụ quyền quản lý/đăng bài Page theo cấu hình Meta App hiện tại.
