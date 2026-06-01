@@ -199,7 +199,7 @@ function syncCreativeImageMode() {
     text_only: "Text only",
   };
   const hints = {
-    top_match_reference: "GPT Image quét tối đa 12 ads match/mới nhất để lấy ảnh reference đầu tiên hợp lệ, giữ logic bố cục nhưng tạo ảnh SmileUp mới: mặt khác, nền khác, không có chữ/banner/watermark, không dùng lại pixel gốc.",
+    top_match_reference: "GPT Image quét tối đa 12 ads match/mới nhất. Nếu có ảnh ads thì chỉ lấy bố cục làm reference; nếu không có ảnh hoặc ảnh lỗi tải thì tự gen ảnh mới theo bài viết, bối cảnh bác sĩ và bệnh nhân trong phòng khám Việt Nam, photorealistic, không chữ/banner/watermark.",
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",

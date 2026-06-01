@@ -175,7 +175,7 @@ def _top_match_reference_ad(ads: list[dict], fallback_ads: list[dict] | None = N
         f"Using ranked ad #{selected_rank} as GPT Image reference after scanning up to {min(scan_limit, len(candidates))} ads; "
         f"{skipped_without_media} candidate(s) had no usable image."
         if media_urls
-        else f"No usable image found after scanning top {min(scan_limit, len(candidates))} ranked ads; GPT Image rewrite may be skipped."
+        else f"No usable image found after scanning top {min(scan_limit, len(candidates))} ranked ads; GPT Image will generate a fresh SmileUp clinic photo from the selected ad text and final post context."
     )
     return {
         "library_id": str(selected_ad.get("library_id", "")),

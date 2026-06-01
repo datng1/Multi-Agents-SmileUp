@@ -66,8 +66,9 @@ def run_hardness_agent(state: AgentState) -> AgentState:
 
     if state.get("creative_image_mode") == "top_match_reference":
         if not state.get("creative_reference_ad", {}).get("media_url"):
-            penalties += 8
-            missing.append("Top-match reference mode chưa có media URL từ Ad Library để rút blueprint ảnh.")
+            penalties += 2
+            recommendations.append("visual")
+            missing.append("Top-match reference mode chưa có media URL usable; GPT Image sẽ tạo ảnh mới từ caption ads, bài final và visual brief.")
         else:
             missing.append("Top-match reference chỉ được dùng làm blueprint; không dùng lại pixel, mặt người, logo hoặc text gốc.")
 

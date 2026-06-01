@@ -34,16 +34,27 @@ def generate_smileup_reference_image(
     try:
         image_bytes = b""
         mime_type = ""
+        reference_note = "no reference image"
         if media_urls:
-            image_bytes, mime_type, used_media_url = _download_first_reference_image(media_urls)
-            reference_ad["media_url"] = used_media_url
+            try:
+                image_bytes, mime_type, used_media_url = _download_first_reference_image(media_urls)
+                reference_ad["media_url"] = used_media_url
+                reference_note = "reference image used"
+            except Exception as exc:
+                reference_ad["media_url"] = ""
+                reference_ad["media_download_error"] = str(exc)[:320]
+                reference_note = "reference image unavailable; generated from campaign text"
 
         blueprint = _reference_blueprint(reference_ad, bool(image_bytes))
         prompt = _build_generation_prompt(variant, reference_ad, blueprint, context)
-        generated = _edit_or_generate_image(prompt, image_bytes, mime_type)
+        generated, used_model = _edit_or_generate_image(prompt, image_bytes, mime_type)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(generated)
-        return True, blueprint, f"{config.OPENAI_IMAGE_MODEL} generated a new text-free SmileUp dental image; SmileUp logo is overlaid locally."
+        return (
+            True,
+            blueprint,
+            f"{used_model} generated a photorealistic text-free SmileUp dental image ({reference_note}); SmileUp logo is overlaid locally.",
+        )
     except Exception as exc:
         return False, "", f"GPT Image fallback: {exc}"
 
@@ -91,26 +102,27 @@ def _download_reference_image(media_url: str) -> tuple[bytes, str]:
     return image_bytes, mime_type
 
 
-def _edit_or_generate_image(prompt: str, reference_image: bytes, reference_mime_type: str) -> bytes:
+def _edit_or_generate_image(prompt: str, reference_image: bytes, reference_mime_type: str) -> tuple[bytes, str]:
     errors: list[str] = []
-    if reference_image:
+    for model in _image_model_candidates():
+        if reference_image:
+            try:
+                return _call_image_edit(prompt, reference_image, reference_mime_type, model), model
+            except Exception as exc:
+                errors.append(f"edit {model}: {_compact_error(exc)}")
         try:
-            return _call_image_edit(prompt, reference_image, reference_mime_type)
+            return _call_image_generation(prompt, model), model
         except Exception as exc:
-            errors.append(f"edit: {exc}")
-    try:
-        return _call_image_generation(prompt)
-    except Exception as exc:
-        errors.append(f"generation: {exc}")
-    raise OpenAIImageUnavailable(" | ".join(errors[-2:]))
+            errors.append(f"generation {model}: {_compact_error(exc)}")
+    raise OpenAIImageUnavailable(" | ".join(errors[-6:]))
 
 
-def _call_image_edit(prompt: str, reference_image: bytes, reference_mime_type: str) -> bytes:
+def _call_image_edit(prompt: str, reference_image: bytes, reference_mime_type: str, model: str) -> bytes:
     response = requests.post(
         "https://api.openai.com/v1/images/edits",
         headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
         data={
-            "model": config.OPENAI_IMAGE_MODEL,
+            "model": model,
             "prompt": prompt,
             "size": "1024x1536",
             "quality": "high",
@@ -120,11 +132,11 @@ def _call_image_edit(prompt: str, reference_image: bytes, reference_mime_type: s
         },
         timeout=180,
     )
-    response.raise_for_status()
+    _raise_for_image_error(response)
     return _extract_image_bytes(response.json())
 
 
-def _call_image_generation(prompt: str) -> bytes:
+def _call_image_generation(prompt: str, model: str) -> bytes:
     response = requests.post(
         "https://api.openai.com/v1/images/generations",
         headers={
@@ -132,14 +144,14 @@ def _call_image_generation(prompt: str) -> bytes:
             "Content-Type": "application/json",
         },
         json={
-            "model": config.OPENAI_IMAGE_MODEL,
+            "model": model,
             "prompt": prompt,
             "size": "1024x1536",
             "quality": "high",
         },
         timeout=180,
     )
-    response.raise_for_status()
+    _raise_for_image_error(response)
     return _extract_image_bytes(response.json())
 
 
@@ -168,7 +180,8 @@ def _reference_blueprint(reference_ad: dict[str, Any], has_image_reference: bool
         )
     return (
         "No usable image reference was available. Create a fresh premium SmileUp consultation photo "
-        "based on the campaign angle and service line."
+        "based on the campaign angle and service line; use a realistic Vietnamese dental clinic setting "
+        "with real-looking people, natural light, authentic posture, and no graphic/banner treatment."
     )
 
 
@@ -182,18 +195,20 @@ Reference handling:
 
 Absolute visual rules:
 - IMAGE ONLY. No readable text anywhere.
-- No typography, no captions, no labels, no numbers, no price, no discount, no CTA, no banner, no poster layout, no headline block, no speech bubble, no watermark, no UI frame.
+- No typography, no captions, no labels, no numbers, no price, no discount, no CTA, no banner, no poster layout, no headline block, no speech bubble, no watermark, no UI frame, no menu board, no certificate text, no clinic sign text.
+- If a monitor, tablet, X-ray screen, chart, or document appears, it must show only blurred/non-readable medical imagery or abstract shapes. No readable interface text, no measurement labels, no form fields, no brand names.
 - Do not draw fake logos or brand words inside the image. Leave a clean blank area in the top-left so the real SmileUp logo can be overlaid locally after generation.
 - Do not reproduce source pixels, exact composition, exact colors, exact background, face, identity, clothing, logo, watermark, props, or distinctive assets from the competitor ad.
 - Replace all people with new Vietnamese subjects: different faces, different styling, different clothes, different background details.
-- The image must contain real people in a dental clinic scene: at least one Vietnamese dentist in clinical attire and at least one patient/customer in consultation or examination.
+- The image must contain real people in a dental clinic scene in Vietnam: at least one Vietnamese dentist in clinical attire and at least one Vietnamese patient/customer in consultation or examination.
 - Do not generate standalone logos, tooth icons, abstract shapes, decorative graphics, empty clinic rooms, product-only shots, infographics, before/after comparisons, or medical shock imagery.
 - No medical guarantee, no exaggerated transformation, no body-shaming implication.
 
 SmileUp brand direction:
-- Premium but warm Vietnamese dental clinic.
+- Premium but warm Vietnamese dental clinic, realistic Ho Chi Minh/Hanoi clinic interior cues, clean reception/consultation room, dentist chair or X-ray consultation screen if useful.
 - Clean white and teal color mood, modern lighting, trustworthy, human, realistic.
-- Natural expressions, respectful consultation, no over-staged advertisement look.
+- Natural expressions, respectful consultation, imperfectly real photography, believable skin texture, realistic hands and teeth, no plastic AI look, no hyper-smooth faces, no mannequin poses, no beauty-ad retouching.
+- Shot like a real clinic campaign photo: 35mm or 50mm lens feel, natural depth of field, credible Vietnamese people, realistic dental uniforms, tidy equipment, soft daylight or clinic lighting.
 - Suitable for porcelain crowns, porcelain restoration, or dental implants.
 
 Freshness requirement:
@@ -207,6 +222,32 @@ Differentiation: {variant.get("differentiation", "")}
 Image brief: {variant.get("image_prompt", "")}
 Ad text context: {str(reference_ad.get("ad_text", ""))[:900]}
 """.strip()
+
+
+def _image_model_candidates() -> list[str]:
+    candidates: list[str] = []
+    for model in [config.OPENAI_IMAGE_MODEL, *config.OPENAI_IMAGE_FALLBACK_MODELS]:
+        safe_model = str(model or "").strip()
+        if safe_model and safe_model not in candidates:
+            candidates.append(safe_model)
+    return candidates
+
+
+def _raise_for_image_error(response: requests.Response) -> None:
+    if response.ok:
+        return
+    detail = response.text[:500]
+    try:
+        payload = response.json()
+        error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+        detail = str(error.get("message") or detail)
+    except Exception:
+        pass
+    raise OpenAIImageUnavailable(f"HTTP {response.status_code}: {detail}")
+
+
+def _compact_error(exc: Exception) -> str:
+    return " ".join(str(exc).split())[:260]
 
 
 def _guess_mime_type(media_url: str) -> str:
