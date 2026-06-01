@@ -507,7 +507,7 @@ async function runWorkflow(scanMode = "deep") {
 }
 
 async function waitForWorkflowJob(jobId) {
-  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con có thể gọi GPT/Gemini, riêng ảnh dùng GPT Image nên lượt chạy có thể mất vài phút.`;
+  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con có thể gọi GPT/Gemini; ảnh GPT Image chỉ gen tối đa 3 creative ưu tiên tuyến ads để tránh chờ quá lâu.`;
   let attempt = 0;
   while (true) {
     await sleep(3000);

@@ -7,6 +7,7 @@ from textwrap import wrap
 
 from graph.state import ContentVariant
 from tools.openai_image_reference import generate_smileup_reference_image
+from utils import config
 
 try:
     from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
@@ -38,7 +39,8 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
     assets: list[dict[str, str]] = []
     seed_suffix = _slugify(str(context.get("run_seed") or datetime.now().strftime("%H%M%S%f")))[:10]
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    for index, variant in enumerate(variants, start=1):
+    selected_variants = _select_variants_for_creatives(variants, config.OPENAI_IMAGE_MAX_CREATIVES)
+    for index, variant in selected_variants:
         filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
         output_path = OUTPUT_DIR / filename
         image_mode = str(context.get("creative_image_mode") or "auto")
@@ -76,6 +78,31 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
             }
         )
     return assets
+
+
+def _select_variants_for_creatives(variants: list[ContentVariant], limit: int) -> list[tuple[int, ContentVariant]]:
+    if limit <= 0:
+        return []
+    ranked = sorted(
+        enumerate(variants, start=1),
+        key=lambda item: (
+            0 if item[1].get("campaign_track") == "ads_effective" else 1,
+            _service_priority(str(item[1].get("service_line") or "")),
+            item[0],
+        ),
+    )
+    return ranked[:limit]
+
+
+def _service_priority(service_line: str) -> int:
+    priorities = {
+        "implant": 0,
+        "rang_su": 1,
+        "phuc_hinh_su": 2,
+        "trust": 3,
+        "reels": 4,
+    }
+    return priorities.get(service_line, 9)
 
 
 def _render_creative(variant: ContentVariant, output_path: Path, index: int, context: dict) -> None:

@@ -130,7 +130,7 @@ def _call_image_edit(prompt: str, reference_image: bytes, reference_mime_type: s
         files={
             "image": (f"reference.{_extension_for_mime(reference_mime_type)}", reference_image, reference_mime_type),
         },
-        timeout=180,
+        timeout=config.OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS,
     )
     _raise_for_image_error(response)
     return _extract_image_bytes(response.json())
@@ -149,7 +149,7 @@ def _call_image_generation(prompt: str, model: str) -> bytes:
             "size": "1024x1536",
             "quality": "high",
         },
-        timeout=180,
+        timeout=config.OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS,
     )
     _raise_for_image_error(response)
     return _extract_image_bytes(response.json())
@@ -230,7 +230,7 @@ def _image_model_candidates() -> list[str]:
         safe_model = str(model or "").strip()
         if safe_model and safe_model not in candidates:
             candidates.append(safe_model)
-    return candidates
+    return candidates[: config.OPENAI_IMAGE_MAX_MODEL_ATTEMPTS]
 
 
 def _raise_for_image_error(response: requests.Response) -> None:

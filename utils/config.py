@@ -123,6 +123,9 @@ class Settings:
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
     openai_image_model: str = os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-2")
     openai_image_fallback_models: list[str] = field(default_factory=lambda: _list("OPENAI_IMAGE_FALLBACK_MODELS") or ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"])
+    openai_image_max_creatives: int = int(os.getenv("OPENAI_IMAGE_MAX_CREATIVES", "3"))
+    openai_image_max_model_attempts: int = int(os.getenv("OPENAI_IMAGE_MAX_MODEL_ATTEMPTS", "2"))
+    openai_image_request_timeout_seconds: int = int(os.getenv("OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS", "90"))
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
     cmo_jury_enabled: bool = _bool("CMO_JURY_ENABLED", True)
     agent_api_reasoning_enabled: bool = _bool("AGENT_API_REASONING_ENABLED", True)
@@ -179,6 +182,9 @@ GEMINI_FALLBACK_MODELS = settings.gemini_fallback_models
 OPENAI_MODEL = settings.openai_model
 OPENAI_IMAGE_MODEL = settings.openai_image_model
 OPENAI_IMAGE_FALLBACK_MODELS = settings.openai_image_fallback_models
+OPENAI_IMAGE_MAX_CREATIVES = max(0, settings.openai_image_max_creatives)
+OPENAI_IMAGE_MAX_MODEL_ATTEMPTS = max(1, settings.openai_image_max_model_attempts)
+OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS = max(30, settings.openai_image_request_timeout_seconds)
 ANTHROPIC_MODEL = settings.anthropic_model
 CMO_JURY_ENABLED = settings.cmo_jury_enabled
 AGENT_API_REASONING_ENABLED = settings.agent_api_reasoning_enabled

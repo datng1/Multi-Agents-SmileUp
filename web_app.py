@@ -40,6 +40,19 @@ CLIENT_SESSION_SECONDS = 30 * 24 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_VERSION = 1
 WORKFLOW_CONTEXT_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_CLEANUP_INTERVAL_SECONDS = 60 * 60
+WORKFLOW_AGENT_ORDER = [
+    "crawler",
+    "text_insight",
+    "trend_analysis",
+    "visual_insight",
+    "video_insight",
+    "strategy",
+    "content_creator",
+    "compliance",
+    "hardness",
+    "manager_review",
+    "publisher",
+]
 
 
 def _enable_utf8_console() -> None:
@@ -480,6 +493,9 @@ def _run_job(job_id: str, request_payload: dict, session_id: str, username: str)
             if not job:
                 return
             statuses = dict(job.get("agent_statuses") or {})
+            if status == "running" and agent_name in WORKFLOW_AGENT_ORDER:
+                for downstream_agent in WORKFLOW_AGENT_ORDER[WORKFLOW_AGENT_ORDER.index(agent_name) + 1 :]:
+                    statuses.pop(downstream_agent, None)
             statuses[agent_name] = status
             job["agent_statuses"] = statuses
             job["current_step"] = agent_name
@@ -557,19 +573,7 @@ def _run_workflow_payload(request_payload: dict, session_id: str, username: str)
 def _completed_workflow_step(result: dict, statuses: dict) -> str:
     if statuses.get("publisher") == "done" or result.get("publish_result"):
         return "publisher"
-    agent_order = [
-        "crawler",
-        "text_insight",
-        "trend_analysis",
-        "visual_insight",
-        "video_insight",
-        "strategy",
-        "content_creator",
-        "compliance",
-        "hardness",
-        "manager_review",
-    ]
-    for agent_name in reversed(agent_order):
+    for agent_name in reversed(WORKFLOW_AGENT_ORDER):
         if statuses.get(agent_name) in {"done", "running"}:
             return agent_name
     return str(result.get("current_step") or "manager_review")
