@@ -195,6 +195,7 @@ ADMIN_USERNAME=
 ADMIN_PASSWORD=
 AUTH_USERS_JSON={"adminsmileup":"password_admin","cuongsmileup":"password_user_1","vitsmileup":"password_user_2"}
 AUTH_ADMIN_USERNAMES=adminsmileup
+AUTH_PAGE_PERMISSIONS_JSON={"vitsmileup":["111884500869678","1775662159384248"]}
 AUTH_SECRET=
 FACEBOOK_ACCESS_TOKEN=
 FACEBOOK_PAGE_ID=
@@ -213,6 +214,7 @@ Biến cấu hình:
 
 - `FACEBOOK_PAGE_TOKENS_JSON`: map `page_id -> page_access_token`. Đây là nơi đặt token thật trên server `.env`.
 - `FACEBOOK_PAGE_NAMES_JSON`: map `page_id -> tên hiển thị` để UI dễ chọn page.
+- `AUTH_PAGE_PERMISSIONS_JSON`: map `username -> danh sách page_id được phép thấy và đăng`. User không có cấu hình riêng sẽ thấy toàn bộ page như trước; user trong `AUTH_ADMIN_USERNAMES` luôn thấy toàn bộ page. Mặc định `vitsmileup` chỉ được phép dùng `111884500869678` và `1775662159384248`.
 - `FACEBOOK_ACCESS_TOKEN` và `FACEBOOK_PAGE_ID`: legacy fallback cho một page cũ. Nếu đã có `FACEBOOK_PAGE_TOKENS_JSON`, hệ thống ưu tiên danh sách nhiều page.
 - `DRY_RUN=true`: chỉ test payload, không đăng thật.
 - `DRY_RUN=false` và `MOCK_MODE=false`: cho phép gọi Facebook Graph API thật.
@@ -231,11 +233,11 @@ Luồng publish:
 1. Người dùng chạy workflow để Crawler, Text, Trend, Strategy, Content, Compliance, Hardness và CMO xử lý.
 2. CMO chỉ mở gate publish khi `cmo_decision=APPROVE_TO_PUBLISH` và `approval_status=approved`.
 3. Người dùng chỉnh lại bản cuối trong **Final review**.
-4. UI hiển thị danh sách page từ `/api/status`, chỉ gồm `page_id`, `name`, `has_token`; token không bao giờ trả về frontend.
+4. UI hiển thị danh sách page từ `/api/status`, chỉ gồm `page_id`, `name`, `has_token`; token không bao giờ trả về frontend. Danh sách này đã được lọc theo quyền của tài khoản đăng nhập.
 5. Người dùng chọn page bằng checkbox, có thể bấm **Chọn tất cả**.
 6. Bấm **Đăng page đã chọn** để đăng các page đang tick.
 7. Bấm **Đăng nhiều page** để chọn toàn bộ page rồi publish hàng loạt.
-8. Backend gọi `/api/publish`, tự xác thực approval token được ký từ workflow đã được CMO duyệt, lấy page token tương ứng từ `.env`, gọi Graph API `/{page_id}/feed`, rồi trả kết quả từng page.
+8. Backend gọi `/api/publish`, tự xác thực approval token được ký từ workflow đã được CMO duyệt, kiểm tra lại quyền page theo tài khoản đăng nhập, lấy page token tương ứng từ `.env`, gọi Graph API `/{page_id}/feed`, rồi trả kết quả từng page.
 9. UI hiển thị link bài đã đăng cho từng page thành công; page lỗi sẽ hiện lỗi riêng, không làm mất kết quả các page đã đăng.
 
 An toàn vận hành:

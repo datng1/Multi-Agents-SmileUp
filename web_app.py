@@ -92,7 +92,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
                     "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
                     "ad_library_competitor_count": len(config.AD_LIBRARY_COMPETITOR_URLS),
-                    "publish_pages": get_publish_pages(),
+                    "publish_pages": _get_allowed_publish_pages(username),
                     "workflow_context_cache_days": round(WORKFLOW_CONTEXT_CACHE_TTL_SECONDS / 86400),
                     "warnings": config.CONFIG_WARNINGS,
                 }
@@ -187,7 +187,17 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             if not page_ids:
                 self._send_json({"ok": False, "error": "No publish pages selected"}, status=400)
                 return
-            approved = _verify_publish_approval_payload(payload, session_id, self._current_username())
+            unauthorized = _unauthorized_publish_page_ids(page_ids, username)
+            if unauthorized:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "Bạn không có quyền đăng vào page: " + ", ".join(unauthorized),
+                    },
+                    status=403,
+                )
+                return
+            approved = _verify_publish_approval_payload(payload, session_id, username)
             result = publish_facebook_post(draft, approved=approved, page_ids=page_ids)
             if not approved:
                 result["reason"] = "Publisher bị chặn: backend chưa xác thực được approval token từ workflow đã được CMO duyệt."
@@ -988,6 +998,36 @@ def _auth_username(token: str) -> str:
 
 def _is_admin_user(username: str) -> bool:
     return str(username or "") in set(config.AUTH_ADMIN_USERNAMES)
+
+
+def _allowed_publish_page_ids(username: str) -> set[str] | None:
+    safe_username = str(username or "").strip()
+    if _is_admin_user(safe_username):
+        return None
+    page_ids = config.AUTH_PAGE_PERMISSIONS.get(safe_username)
+    if page_ids is None:
+        return None
+    return {str(page_id).strip() for page_id in page_ids if str(page_id).strip()}
+
+
+def _get_allowed_publish_pages(username: str) -> list[dict]:
+    pages = get_publish_pages()
+    allowed_page_ids = _allowed_publish_page_ids(username)
+    if allowed_page_ids is None:
+        return pages
+    return [page for page in pages if str(page.get("page_id") or "") in allowed_page_ids]
+
+
+def _unauthorized_publish_page_ids(page_ids: list[str], username: str) -> list[str]:
+    allowed_page_ids = _allowed_publish_page_ids(username)
+    if allowed_page_ids is None:
+        return []
+    configured_allowed_ids = {str(page.get("page_id") or "") for page in _get_allowed_publish_pages(username)}
+    return [
+        page_id
+        for page_id in page_ids
+        if page_id not in allowed_page_ids or page_id not in configured_allowed_ids
+    ]
 
 
 def _can_access_history_entry(entry: dict, session_id: str, username: str) -> bool:

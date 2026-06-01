@@ -44,6 +44,25 @@ def _auth_users() -> dict[str, str]:
     return {username: password for username, password in users.items() if username and password}
 
 
+def _auth_page_permissions() -> dict[str, list[str]]:
+    permissions: dict[str, list[str]] = {
+        "vitsmileup": [
+            "111884500869678",
+            "1775662159384248",
+        ]
+    }
+    raw_permissions = _json_object("AUTH_PAGE_PERMISSIONS_JSON")
+    for username, page_ids in raw_permissions.items():
+        if isinstance(page_ids, list):
+            cleaned = [str(page_id).strip() for page_id in page_ids if str(page_id).strip()]
+        else:
+            cleaned = [item.strip() for item in str(page_ids).split(",") if item.strip()]
+        safe_username = str(username).strip()
+        if safe_username:
+            permissions[safe_username] = cleaned
+    return permissions
+
+
 def _facebook_publish_pages() -> list[dict[str, str]]:
     tokens = _json_object("FACEBOOK_PAGE_TOKENS_JSON")
     names = _json_object("FACEBOOK_PAGE_NAMES_JSON")
@@ -118,6 +137,7 @@ class Settings:
     admin_password: str = os.getenv("ADMIN_PASSWORD", "")
     auth_users: dict[str, str] = field(default_factory=_auth_users)
     auth_admin_usernames: list[str] = field(default_factory=lambda: _list("AUTH_ADMIN_USERNAMES") or ([os.getenv("ADMIN_USERNAME", "").strip()] if os.getenv("ADMIN_USERNAME", "").strip() else []))
+    auth_page_permissions: dict[str, list[str]] = field(default_factory=_auth_page_permissions)
     auth_secret: str = os.getenv("AUTH_SECRET", "")
 
     @property
@@ -176,4 +196,5 @@ ADMIN_USERNAME = settings.admin_username
 ADMIN_PASSWORD = settings.admin_password
 AUTH_USERS = settings.auth_users
 AUTH_ADMIN_USERNAMES = settings.auth_admin_usernames
+AUTH_PAGE_PERMISSIONS = settings.auth_page_permissions
 AUTH_SECRET = settings.auth_secret
