@@ -6,7 +6,7 @@ from pathlib import Path
 from textwrap import wrap
 
 from graph.state import ContentVariant
-from tools.gemini_image_reference import generate_smileup_reference_image
+from tools.openai_image_reference import generate_smileup_reference_image
 
 try:
     from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
@@ -42,12 +42,12 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
         filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
         output_path = OUTPUT_DIR / filename
         image_mode = str(context.get("creative_image_mode") or "auto")
-        gemini_note = ""
+        image_model_note = ""
         if image_mode == "top_match_reference":
-            generated, blueprint, gemini_note = generate_smileup_reference_image(variant, context, output_path)
+            generated, blueprint, image_model_note = generate_smileup_reference_image(variant, context, output_path)
             if blueprint:
                 context["creative_reference_blueprint"] = blueprint
-            context["creative_generation_note"] = gemini_note
+            context["creative_generation_note"] = image_model_note
             if generated:
                 _normalize_generated_image(output_path, variant)
             else:
@@ -69,8 +69,9 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
                 "source_image_url": str(context.get("creative_upload_url") or reference_ad.get("media_url") or ""),
                 "reference_ad_url": str(reference_ad.get("ad_url") or ""),
                 "reference_page_name": str(reference_ad.get("page_name") or ""),
-                "gemini_image_note": gemini_note,
-                "gemini_generated": bool(image_mode == "top_match_reference" and gemini_note),
+                "image_model_note": image_model_note,
+                "openai_image_note": image_model_note,
+                "openai_generated": bool(image_mode == "top_match_reference" and image_model_note),
                 "source_policy": source_policy,
             }
         )
@@ -196,7 +197,7 @@ def _source_policy(image_mode: str) -> str:
     if image_mode == "layout_reference":
         return "Layout reference only: original ad pixels, faces, logo, text, and assets are not reused."
     if image_mode == "top_match_reference":
-        return "Top-match ad reference only: Gemini creates a new SmileUp image without reusing source pixels, faces, logo, or original text; no text banner is added."
+        return "Top-match ad reference only: GPT Image creates a new SmileUp image without reusing source pixels, faces, logo, or original text; no text, banner, watermark, or typography is allowed."
     return "Auto-generated from SmileUp brand assets; no text banner is added."
 
 

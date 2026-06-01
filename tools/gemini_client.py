@@ -165,8 +165,8 @@ Yêu cầu:
 - Có CTA đặt lịch/inbox/gọi hotline.
 - Nếu là bài ads, CTA phải đủ rõ để khách để lại SĐT/inbox số điện thoại; nếu là chăm sóc page thì CTA ưu tiên bình luận, lưu bài, chia sẻ câu hỏi.
 - Hashtag 3-8 cái.
-- image_prompt phải mô tả ảnh gốc/AI mới cho SmileUp, có logo/nhận diện SmileUp, tuyệt đối không yêu cầu chỉnh ảnh đối thủ thành ảnh của SmileUp.
-- image_prompt bắt buộc là ảnh photorealistic có người thật trong phòng khám: một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng. Không được tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí.
+- image_prompt phải mô tả ảnh gốc/AI mới cho SmileUp, chừa vùng trống sạch để hậu kỳ gắn logo thật, tuyệt đối không yêu cầu chỉnh ảnh đối thủ thành ảnh của SmileUp.
+- image_prompt bắt buộc là ảnh photorealistic có người thật trong phòng khám: một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng. Không được tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí. Tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, bảng giá, khuyến mãi hoặc banner trong ảnh.
 - Bắt buộc áp dụng creative variation profile: đổi hook style, nhịp copy, lead magnet, CTA mode và visual mood theo profile. Không viết lại cùng câu mở đầu/cùng CTA/cùng bối cảnh ảnh với lượt trước nếu keyword giống nhau.
 
 Chỉ trả về JSON thuần, không markdown:
@@ -232,8 +232,8 @@ Mỗi bài phải khác biệt hơn các ads đầu vào bằng cách:
 - Không dựa vào giảm giá sốc làm lợi thế chính.
 - Không copy câu chữ, offer, bố cục copy của đối thủ.
 - Làm nổi bật SmileUp: tư vấn cá nhân hóa, quy trình minh bạch, phòng khám hiện đại, an toàn y khoa.
-- Có visual direction riêng và image_prompt riêng. image_prompt bắt buộc yêu cầu ảnh gốc/AI mới, có logo SmileUp, không rebrand ảnh đối thủ.
-- image_prompt cho mọi variant bắt buộc là ảnh photorealistic có người thật trong phòng khám: một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng. Cấm prompt tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí.
+- Có visual direction riêng và image_prompt riêng. image_prompt bắt buộc yêu cầu ảnh gốc/AI mới, chừa vùng trống sạch để hậu kỳ gắn logo SmileUp thật, không rebrand ảnh đối thủ.
+- image_prompt cho mọi variant bắt buộc là ảnh photorealistic có người thật trong phòng khám: một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng. Cấm prompt tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí. Tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, bảng giá, khuyến mãi hoặc banner trong ảnh.
 
 Chuẩn output bắt buộc:
 - Tối thiểu 5 variants: 3 ads_effective và 2 page_care.
@@ -261,7 +261,7 @@ Chỉ trả về JSON thuần theo schema:
       "body": "caption có thể đăng ngay",
       "hashtags": ["#tag"],
       "call_to_action": "string",
-      "image_prompt": "prompt ảnh gốc có logo SmileUp"
+      "image_prompt": "prompt ảnh gốc không chữ/banner, chừa vùng trống để gắn logo SmileUp thật bằng hậu kỳ"
     }}
   ]
 }}

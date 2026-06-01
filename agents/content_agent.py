@@ -61,7 +61,8 @@ def _enforce_people_first_image_prompts(variants: list[ContentVariant]) -> list[
     required = (
         " Bắt buộc ảnh photorealistic có người thật trong phòng khám nha khoa SmileUp: "
         "một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng; "
-        "không tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí."
+        "không tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí; "
+        "tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, nhãn, bảng giá, khuyến mãi hoặc banner trong ảnh."
     )
     for variant in variants:
         prompt = str(variant.get("image_prompt") or "").strip()
@@ -146,7 +147,7 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
             ),
             "hashtags": ["#SmileUp", "#CayGhepImplant", "#TrongRangImplant", "#NhaKhoaUyTin"],
             "call_to_action": "Để lại SĐT hoặc inbox SmileUp, đội ngũ tư vấn sẽ gọi lại để hỏi tình trạng và hẹn lịch thăm khám phù hợp.",
-            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp tư vấn implant bên màn hình phim chụp, phòng khám sạch hiện đại, logo SmileUp góc trên trái.",
+            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp tư vấn implant bên màn hình phim chụp, phòng khám sạch hiện đại; không chữ, không banner, không watermark, chừa khoảng trống sạch ở góc trên trái để gắn logo thật bằng hậu kỳ.",
         },
         {
             "campaign_track": "ads_effective",
@@ -166,7 +167,7 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
             ),
             "hashtags": ["#SmileUp", "#RangSuThamMy", "#NuCuoiTuNhien", "#NhaKhoaThamMy"],
             "call_to_action": "Để lại SĐT để SmileUp gọi lại tư vấn răng sứ theo tình trạng răng hiện tại.",
-            "image_prompt": "Ảnh gốc/AI mới: khách hàng soi gương mỉm cười tự nhiên trong phòng khám SmileUp, logo SmileUp góc trên trái, tone trắng xanh.",
+            "image_prompt": "Ảnh gốc/AI mới: khách hàng soi gương mỉm cười tự nhiên trong phòng khám SmileUp, tone trắng xanh; không chữ, không banner, không watermark, chừa khoảng trống sạch ở góc trên trái để gắn logo thật bằng hậu kỳ.",
         },
         {
             "campaign_track": "ads_effective",
@@ -186,7 +187,7 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
             ),
             "hashtags": ["#SmileUp", "#PhucHinhRangSu", "#RangSu", "#TuVanNhaKhoa"],
             "call_to_action": "Để lại SĐT để SmileUp gọi lại tư vấn bước kiểm tra phù hợp cho tình trạng răng yếu/vỡ.",
-            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp trao đổi với khách hàng về phục hình răng sứ trên màn hình tư vấn, logo SmileUp góc trái, phòng khám hiện đại.",
+            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp trao đổi với khách hàng về phục hình răng sứ trên màn hình tư vấn, phòng khám hiện đại; không chữ, không banner, không watermark, chừa khoảng trống sạch ở góc trên trái để gắn logo thật bằng hậu kỳ.",
         },
         {
             "campaign_track": "page_care",
@@ -205,7 +206,7 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
             ),
             "hashtags": ["#SmileUp", "#TuVanNhaKhoa", "#NhaKhoaMinhBach", "#RangSuImplant"],
             "call_to_action": "Bạn đang phân vân răng sứ hay implant? Bình luận câu hỏi của bạn để SmileUp gợi ý điều nên kiểm tra trước.",
-            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp giải thích phác đồ trên tablet, không gian phòng khám hiện đại, logo SmileUp rõ nét.",
+            "image_prompt": "Ảnh gốc/AI mới: bác sĩ SmileUp giải thích phác đồ trên tablet, không gian phòng khám hiện đại; không chữ, không banner, không watermark, chừa khoảng trống sạch ở góc trên trái để gắn logo thật bằng hậu kỳ.",
         },
         {
             "campaign_track": "page_care",
@@ -224,7 +225,7 @@ def _offline_content_plan(state: AgentState) -> list[ContentVariant]:
             ),
             "hashtags": ["#SmileUp", "#HoiDapNhaKhoa", "#MatRang", "#Implant"],
             "call_to_action": "Comment tình trạng răng của bạn hoặc lưu bài này để nhớ kiểm tra khi có thời gian.",
-            "image_prompt": "Ảnh gốc/AI mới: frame reels dọc, bác sĩ SmileUp chỉ vào câu hỏi text overlay, logo SmileUp góc trên trái, phòng khám sáng sạch.",
+            "image_prompt": "Ảnh gốc/AI mới: frame reels dọc, bác sĩ SmileUp tư vấn cùng bệnh nhân trong phòng khám sáng sạch; không chữ, không text overlay, không banner, không watermark, chừa khoảng trống sạch ở góc trên trái để gắn logo thật bằng hậu kỳ.",
         },
     ]
     return _vary_offline_plan(plan, state.get("run_seed", ""))

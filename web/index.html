@@ -194,13 +194,13 @@
                 <label>
                   <span class="label">Chế độ ảnh</span>
                   <select id="creativeImageMode" class="mode-select">
-                    <option value="top_match_reference" selected>Có ảnh xào Gemini từ ads match cao nhất có ảnh</option>
+                    <option value="top_match_reference" selected>Có ảnh GPT Image từ ads match cao nhất có ảnh</option>
                     <option value="text_only">Chỉ gen bài viết, không gen ảnh</option>
                     <option value="layout_reference">Upload ảnh chỉ để lấy form/layout</option>
                     <option value="owned">Dùng ảnh SmileUp upload làm nguồn</option>
                   </select>
                 </label>
-                <p id="creativeImageHint">Mặc định không gen ảnh. Nếu chọn rewrite, Visual/Content Agent sẽ tạo ảnh SmileUp mới từ ảnh tham chiếu mà không dùng lại pixel, logo, mặt người hay text gốc.</p>
+                <p id="creativeImageHint">Mặc định không gen ảnh. Nếu chọn rewrite, Visual/Content Agent sẽ tạo ảnh SmileUp mới từ ảnh tham chiếu mà không dùng lại pixel, logo, mặt người hay text gốc, đồng thời không đưa chữ/banner vào ảnh.</p>
               </div>
               <div id="creativeImagePreview" class="creative-image-preview empty">Text only</div>
             </div>

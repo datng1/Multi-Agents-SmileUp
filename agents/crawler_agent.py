@@ -140,7 +140,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
 
 
 def _top_match_reference_ad(ads: list[dict], fallback_ads: list[dict] | None = None, scan_limit: int = 12) -> dict:
-    """Pick the best ranked ad with usable media for Gemini image rewrite.
+    """Pick the best ranked ad with usable media for GPT Image rewrite.
 
     Conversion strategy still prioritizes high-match ads. Visual generation should
     not fail just because the first one or two ads have no image, so we scan the
@@ -172,10 +172,10 @@ def _top_match_reference_ad(ads: list[dict], fallback_ads: list[dict] | None = N
 
     skipped_without_media = sum(1 for ad in candidates[: min(scan_limit, len(candidates))] if not _usable_media_urls(ad))
     selection_note = (
-        f"Using ranked ad #{selected_rank} as Gemini image reference after scanning up to {min(scan_limit, len(candidates))} ads; "
+        f"Using ranked ad #{selected_rank} as GPT Image reference after scanning up to {min(scan_limit, len(candidates))} ads; "
         f"{skipped_without_media} candidate(s) had no usable image."
         if media_urls
-        else f"No usable image found after scanning top {min(scan_limit, len(candidates))} ranked ads; Gemini image rewrite may be skipped."
+        else f"No usable image found after scanning top {min(scan_limit, len(candidates))} ranked ads; GPT Image rewrite may be skipped."
     )
     return {
         "library_id": str(selected_ad.get("library_id", "")),

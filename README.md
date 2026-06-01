@@ -131,10 +131,10 @@ Workflow hiện có thêm:
   - `page_care`: bài chăm sóc page, nuôi niềm tin, tăng bình luận/lưu/chia sẻ và làm nền cho chuyển đổi.
 - Mỗi biến thể có `campaign_track`, `monthly_role` và `differentiation` để làm rõ vai trò trong chiến lược tháng và SmileUp khác gì so với ads đối thủ.
 - Mỗi lượt chạy có `run_seed` và `creative_variation_profile` riêng để CMO Campaign Plan đổi hook/góc kể/lead magnet/CTA/visual mood; cùng một keyword chạy lại vẫn phải sinh caption và ảnh khác nhau, không tái dùng cùng câu mở đầu hoặc cùng bối cảnh ảnh. Trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
-- Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode **Xào lại ảnh ads match cao nhất bằng Gemini**, hệ thống lấy media của ad match cao nhất làm ảnh reference, yêu cầu Gemini giữ logic bố cục/hierarchy nhưng thay mặt người, nền, text, nhận diện và tạo creative SmileUp mới; sau đó overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
-- Prompt ảnh đã được khóa theo hướng people-first: ảnh Gemini phải là cảnh photorealistic trong phòng khám có bác sĩ Việt Nam và bệnh nhân/khách hàng đang tư vấn hoặc thăm khám; không tạo ảnh chỉ có logo, icon răng, banner chữ, infographic, phòng khám trống hoặc layout trang trí.
+- Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode **Tạo ảnh GPT Image từ ads match cao nhất**, hệ thống lấy media của ad match cao nhất làm ảnh reference, yêu cầu GPT Image giữ logic bố cục/hierarchy ở mức cao nhưng thay mặt người, nền, nhận diện và tạo creative SmileUp mới; sau đó overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
+- Prompt ảnh đã được khóa theo hướng people-first: ảnh GPT Image phải là cảnh photorealistic trong phòng khám có bác sĩ Việt Nam và bệnh nhân/khách hàng đang tư vấn hoặc thăm khám; không tạo ảnh chỉ có logo, icon răng, banner chữ, infographic, phòng khám trống hoặc layout trang trí; tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, bảng giá, khuyến mãi hoặc banner trong ảnh.
 
-Lưu ý: mode rewrite ảnh dùng ảnh ads gốc như reference để “xào lại” bố cục ở mức cao. Output vẫn phải là ảnh mới của SmileUp: không dùng lại pixel, logo, watermark, mặt người, text gốc, nền đặc trưng hoặc tài sản nhận diện của đối thủ.
+Lưu ý: mode rewrite ảnh dùng ảnh ads gốc như reference để xào lại bố cục ở mức cao. Output vẫn phải là ảnh mới của SmileUp: không dùng lại pixel, logo, watermark, mặt người, text gốc, nền đặc trưng hoặc tài sản nhận diện của đối thủ.
 
 ## Taste Skill UI Guardrails
 
@@ -186,6 +186,7 @@ GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.1-pro-preview
 GEMINI_FALLBACK_MODELS=gemini-3.1-pro-preview,gemini-3-pro,gemini-2.5-pro,gemini-2.5-flash
 OPENAI_MODEL=gpt-5.4-mini
+OPENAI_IMAGE_MODEL=gpt-image-2
 ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
 CMO_JURY_ENABLED=true
 AGENT_API_REASONING_ENABLED=true

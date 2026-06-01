@@ -96,10 +96,9 @@ class Settings:
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
     gemini_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_FALLBACK_MODELS") or ["gemini-3.1-pro-preview", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"])
-    gemini_image_model: str = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
-    gemini_image_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_IMAGE_FALLBACK_MODELS") or ["gemini-2.5-flash-image", "gemini-2.5-flash-image-preview", "gemini-2.0-flash-preview-image-generation"])
     competitor_page_ids: list[str] = field(default_factory=lambda: _list("COMPETITOR_PAGE_IDS"))
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+    openai_image_model: str = os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-2")
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
     cmo_jury_enabled: bool = _bool("CMO_JURY_ENABLED", True)
     agent_api_reasoning_enabled: bool = _bool("AGENT_API_REASONING_ENABLED", True)
@@ -152,9 +151,8 @@ ANTHROPIC_API_KEY = settings.anthropic_api_key
 GEMINI_API_KEY = settings.gemini_api_key
 GEMINI_MODEL = settings.gemini_model
 GEMINI_FALLBACK_MODELS = settings.gemini_fallback_models
-GEMINI_IMAGE_MODEL = settings.gemini_image_model
-GEMINI_IMAGE_FALLBACK_MODELS = settings.gemini_image_fallback_models
 OPENAI_MODEL = settings.openai_model
+OPENAI_IMAGE_MODEL = settings.openai_image_model
 ANTHROPIC_MODEL = settings.anthropic_model
 CMO_JURY_ENABLED = settings.cmo_jury_enabled
 AGENT_API_REASONING_ENABLED = settings.agent_api_reasoning_enabled

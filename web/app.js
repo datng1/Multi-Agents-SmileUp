@@ -192,14 +192,14 @@ function syncCreativeImageMode() {
   const mode = creativeImageMode.value || "text_only";
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
-    top_match_reference: "Có ảnh xào Gemini",
+    top_match_reference: "Có ảnh GPT Image",
     auto: "Auto SmileUp",
     owned: hasUpload ? "Using uploaded image" : "Upload needed",
     layout_reference: hasUpload ? "Layout reference" : "Upload needed",
     text_only: "Text only",
   };
   const hints = {
-    top_match_reference: "Gemini quét tối đa 12 ads match/mới nhất để lấy ảnh reference đầu tiên hợp lệ, giữ logic bố cục nhưng tạo ảnh SmileUp mới: mặt khác, nền khác, text khác, không dùng lại pixel gốc.",
+    top_match_reference: "GPT Image quét tối đa 12 ads match/mới nhất để lấy ảnh reference đầu tiên hợp lệ, giữ logic bố cục nhưng tạo ảnh SmileUp mới: mặt khác, nền khác, không có chữ/banner/watermark, không dùng lại pixel gốc.",
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
@@ -507,7 +507,7 @@ async function runWorkflow(scanMode = "quick") {
 }
 
 async function waitForWorkflowJob(jobId) {
-  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con có thể gọi GPT/Gemini nên lượt chạy có thể mất vài phút.`;
+  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con có thể gọi GPT/Gemini, riêng ảnh dùng GPT Image nên lượt chạy có thể mất vài phút.`;
   let attempt = 0;
   while (true) {
     await sleep(3000);
@@ -1269,11 +1269,11 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
   finalCreativeSelect.appendChild(noImageOption);
 
   if (!currentCreativeAssets.length) {
-    const pendingGeminiOption = document.createElement("option");
-    pendingGeminiOption.value = "gemini-pending";
-    pendingGeminiOption.disabled = true;
-    pendingGeminiOption.textContent = "Chưa có ảnh xào Gemini trong lượt chạy này";
-    finalCreativeSelect.appendChild(pendingGeminiOption);
+    const pendingImageOption = document.createElement("option");
+    pendingImageOption.value = "image-pending";
+    pendingImageOption.disabled = true;
+    pendingImageOption.textContent = "Chưa có ảnh GPT Image trong lượt chạy này";
+    finalCreativeSelect.appendChild(pendingImageOption);
     finalCreativeSelect.value = "-1";
     updateFinalImageControls();
     return;
@@ -1282,8 +1282,8 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
   currentCreativeAssets.forEach((asset, index) => {
     const option = document.createElement("option");
     option.value = String(index);
-    const isGeminiRewrite = asset.image_mode === "top_match_reference" || asset.gemini_generated;
-    const label = isGeminiRewrite ? "Có ảnh xào Gemini" : "Ảnh SmileUp";
+    const isModelRewrite = asset.image_mode === "top_match_reference" || asset.openai_generated || asset.gemini_generated;
+    const label = isModelRewrite ? "Có ảnh GPT Image" : "Ảnh SmileUp";
     option.textContent = `${label} · ${String(index + 1).padStart(2, "0")} · ${asset.service_line || asset.title || "SmileUp creative"}`;
     finalCreativeSelect.appendChild(option);
   });
@@ -1309,7 +1309,7 @@ function updateFacebookPreview() {
   }
   const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
   if (selectedAsset?.image_path) {
-    const label = selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Ảnh xào Gemini" : "Ảnh đính kèm";
+    const label = selectedAsset.openai_generated || selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Ảnh GPT Image" : "Ảnh đính kèm";
     fbPreviewImage.className = "fb-preview-image has-image";
     fbPreviewImage.innerHTML = `
       <img src="${escapeHtml(selectedAsset.image_path)}" alt="${escapeHtml(selectedAsset.title || "SmileUp creative")}" />
@@ -1319,7 +1319,7 @@ function updateFacebookPreview() {
     fbPreviewImage.className = "fb-preview-image empty";
     fbPreviewImage.textContent = currentCreativeAssets.length
       ? "Đã có ảnh, hãy chọn trong mục Ảnh đi kèm để xem trước."
-      : "Chưa có ảnh Gemini trong lượt chạy này.";
+      : "Chưa có ảnh GPT Image trong lượt chạy này.";
   }
   updateFinalImageControls();
 }
@@ -1329,17 +1329,17 @@ function updateFinalImageControls() {
   const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
   const hasSelectedImage = Boolean(selectedAsset?.image_path);
   const firstImageAsset = currentCreativeAssets.find((asset) => asset?.image_path);
-  const firstImageIsGemini = firstImageAsset?.gemini_generated || firstImageAsset?.image_mode === "top_match_reference";
+  const firstImageIsModelGenerated = firstImageAsset?.openai_generated || firstImageAsset?.gemini_generated || firstImageAsset?.image_mode === "top_match_reference";
   finalUseImageButton.disabled = !firstImageAsset;
-  finalUseImageButton.textContent = firstImageIsGemini ? "Dùng ảnh xào Gemini" : "Dùng ảnh đang có";
+  finalUseImageButton.textContent = firstImageIsModelGenerated ? "Dùng ảnh GPT Image" : "Dùng ảnh đang có";
   finalRemoveImageButton.disabled = !hasSelectedImage;
   finalNoImageButton.classList.toggle("active", selectedIndex === -1);
   finalUseImageButton.classList.toggle("active", hasSelectedImage);
   finalImageStatus.textContent = hasSelectedImage
-    ? `${selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Đang chọn ảnh xào Gemini" : "Đang chọn ảnh"}: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
+    ? `${selectedAsset.openai_generated || selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Đang chọn ảnh GPT Image" : "Đang chọn ảnh"}: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
     : currentCreativeAssets.length
       ? "Có ảnh trong lượt chạy này. Bấm “Dùng ảnh đang có” hoặc chọn ảnh trong dropdown để xem trước."
-      : "Chưa có ảnh trong lượt chạy này. Hãy chạy workflow ở chế độ “Có ảnh xào Gemini” hoặc bấm “Thêm / đổi ảnh”.";
+      : "Chưa có ảnh trong lượt chạy này. Hãy chạy workflow ở chế độ “Có ảnh GPT Image” hoặc bấm “Thêm / đổi ảnh”.";
 }
 
 function useFirstAvailableImage() {
