@@ -44,6 +44,7 @@ jobs:
           set -euo pipefail
           node --check web/app.js
           python -m py_compile web_app.py main.py
+          python -m tests.test_facebook_publisher_encoding
           python -m tests.smoke_workflow
 
       - name: Build release archive
