@@ -117,12 +117,8 @@ let finalImageManuallyDisabled = false;
 let pendingCompletionNotice = false;
 
 const defaultDocumentTitle = document.title;
-const defaultFaviconHref = "data:,";
-const completionFaviconHref =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#ffffff"/><circle cx="32" cy="32" r="16" fill="#dc2626"/></svg>',
-  );
+const defaultFaviconHref = "/assets/favicon.png";
+const completionFaviconHref = "/assets/favicon-alert.png";
 
 const agentOrder = [
   "crawler",
