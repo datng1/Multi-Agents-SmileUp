@@ -145,7 +145,7 @@ Dashboard áp dụng hướng “anti-slop frontend” kiểu Taste Skill cho c�
 - Preview phải phản ánh payload thật: nếu chọn ảnh thì khung Facebook hiển thị ảnh ngay; nếu không có ảnh thì nêu rõ lý do và bước tiếp theo.
 - Không dùng placeholder giả cho trạng thái quan trọng. Ảnh GPT Image chỉ được đưa vào final review khi model thật sự trả file ảnh; nếu không có ảnh ads usable thì phải chuyển sang generate ảnh mới từ bài viết.
 - Khi chọn mode ảnh GPT Image từ ads, hệ thống không dừng ở 1-2 ads đầu. Crawler xếp hạng ads theo nguồn đối thủ, keyword match và độ mới, quét tối đa 12 ads để lấy ảnh hợp lệ đầu tiên làm reference; nếu toàn bộ ads không có ảnh hoặc media lỗi tải thì tự chuyển sang text-to-image dựa trên caption ads, bài final và visual brief. Ảnh cuối vẫn được post-process để gắn logo SmileUp local.
-- Nút **Chạy nhanh 5 ads** tạo job nền ngay để UI không chờ request dài; `/api/job` trả trạng thái từng agent (`running`/`done`) cho dashboard. Nút **Quét sâu 12 ads** dùng khi cần thêm dữ liệu và ảnh reference rộng hơn.
+- Nút chính **Quét sâu 12 ads** tạo job nền ngay để ưu tiên đủ dữ liệu và ảnh reference rộng hơn; `/api/job` trả trạng thái từng agent (`running`/`done`) cho dashboard. Nút phụ **Chạy nhanh 5 ads** dùng khi cần ra bản nháp nhanh.
 - Copy UI phải là tiếng Việt tự nhiên, ngắn, đúng ngữ cảnh marketing nha khoa.
 - Layout ưu tiên mật độ làm việc: ít hero/card trang trí, nhiều trạng thái có ích, spacing đều, button không chen chữ.
 

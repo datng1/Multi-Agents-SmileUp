@@ -241,7 +241,7 @@ function applyAgentProgress(statuses = {}, currentStep = "") {
   updateProcessingScreen(statuses, currentStep);
 }
 
-function showProcessingScreen(scanMode = "quick") {
+function showProcessingScreen(scanMode = "deep") {
   if (!processingScreen) {
     return;
   }
@@ -437,15 +437,15 @@ async function loadStatus() {
   renderPublishPages(status.publish_pages || []);
 }
 
-function setRunButtons(isRunning, scanMode = "quick") {
+function setRunButtons(isRunning, scanMode = "deep") {
   runButton.disabled = true;
   deepRunButton.disabled = true;
   runButton.querySelector(".button-icon").textContent = isRunning ? "..." : "▶";
-  runButton.lastChild.textContent = isRunning && scanMode === "quick" ? " Đang chạy nhanh" : " Chạy nhanh 5 ads";
-  deepRunButton.textContent = isRunning && scanMode === "deep" ? "Đang quét sâu..." : "Quét sâu 12 ads";
+  runButton.lastChild.textContent = isRunning && scanMode === "deep" ? " Đang quét sâu" : " Quét sâu 12 ads";
+  deepRunButton.textContent = isRunning && scanMode === "quick" ? "Đang chạy nhanh..." : "Chạy nhanh 5 ads";
 }
 
-async function runWorkflow(scanMode = "quick") {
+async function runWorkflow(scanMode = "deep") {
   clearCompletionNotice();
   setRunButtons(true, scanMode);
   showProcessingScreen(scanMode);
@@ -501,8 +501,8 @@ async function runWorkflow(scanMode = "quick") {
     runButton.disabled = false;
     deepRunButton.disabled = false;
     runButton.querySelector(".button-icon").textContent = "▶";
-    runButton.lastChild.textContent = " Chạy nhanh 5 ads";
-    deepRunButton.textContent = "Quét sâu 12 ads";
+    runButton.lastChild.textContent = " Quét sâu 12 ads";
+    deepRunButton.textContent = "Chạy nhanh 5 ads";
   }
 }
 
@@ -1472,8 +1472,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-runButton.addEventListener("click", () => runWorkflow("quick"));
-deepRunButton.addEventListener("click", () => runWorkflow("deep"));
+runButton.addEventListener("click", () => runWorkflow("deep"));
+deepRunButton.addEventListener("click", () => runWorkflow("quick"));
 completionJumpButton?.addEventListener("click", () => {
   document.querySelector(".post-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   hideCompletionNotice();
