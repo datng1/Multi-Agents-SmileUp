@@ -89,17 +89,24 @@ jobs:
           APP_DIR="/opt/smileup-multi-agents"
           SERVICE_NAME="smileup-cmo"
           RELEASE="/tmp/smileup-release.tar.gz"
-          STAGE="/tmp/smileup-release"
-          PRESERVE="/tmp/smileup-preserve"
+          STAGE="$(mktemp -d /tmp/smileup-release.XXXXXX)"
+          PRESERVE="$(mktemp -d /tmp/smileup-preserve.XXXXXX)"
+          BACKUP="${APP_DIR}.previous"
+          ROLLED_BACK=false
+
+          cleanup() {
+            rm -rf "$STAGE" "$PRESERVE" "$RELEASE" /tmp/smileup-status.json
+          }
+          trap cleanup EXIT
 
           if [ ! -f "$RELEASE" ]; then
             echo "Release archive not found: $RELEASE"
             exit 1
           fi
 
-          rm -rf "$STAGE" "$PRESERVE"
-          mkdir -p "$STAGE" "$PRESERVE"
           tar -xzf "$RELEASE" -C "$STAGE"
+          test -f "$STAGE/web_app.py"
+          test -f "$STAGE/requirements.txt"
 
           if [ -d "$APP_DIR" ]; then
             [ -f "$APP_DIR/.env" ] && cp -a "$APP_DIR/.env" "$PRESERVE/.env"
@@ -108,25 +115,46 @@ jobs:
             [ -d "$APP_DIR/web/generated" ] && mkdir -p "$PRESERVE/web" && cp -a "$APP_DIR/web/generated" "$PRESERVE/web/generated"
           fi
 
-          systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-          rm -rf "$APP_DIR"
-          mkdir -p "$APP_DIR"
-          cp -a "$STAGE/." "$APP_DIR/"
-
-          [ -f "$PRESERVE/.env" ] && cp -a "$PRESERVE/.env" "$APP_DIR/.env"
-          mkdir -p "$APP_DIR/data" "$APP_DIR/reports" "$APP_DIR/web/generated/uploads" "$APP_DIR/web/generated/creatives"
-          [ -d "$PRESERVE/data" ] && cp -a "$PRESERVE/data/." "$APP_DIR/data/"
-          [ -d "$PRESERVE/reports" ] && cp -a "$PRESERVE/reports/." "$APP_DIR/reports/"
-          [ -d "$PRESERVE/web/generated" ] && cp -a "$PRESERVE/web/generated/." "$APP_DIR/web/generated/"
-
-          cd "$APP_DIR"
+          cd "$STAGE"
           python3 -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/pip install -r requirements.txt
+          .venv/bin/python -m py_compile web_app.py main.py utils/config.py
 
+          [ -f "$PRESERVE/.env" ] && cp -a "$PRESERVE/.env" "$STAGE/.env"
+          mkdir -p "$STAGE/data" "$STAGE/reports" "$STAGE/web/generated/uploads" "$STAGE/web/generated/creatives"
+          [ -d "$PRESERVE/data" ] && cp -a "$PRESERVE/data/." "$STAGE/data/"
+          [ -d "$PRESERVE/reports" ] && cp -a "$PRESERVE/reports/." "$STAGE/reports/"
+          [ -d "$PRESERVE/web/generated" ] && cp -a "$PRESERVE/web/generated/." "$STAGE/web/generated/"
+
+          rollback() {
+            if [ "$ROLLED_BACK" = "true" ]; then
+              return
+            fi
+            ROLLED_BACK=true
+            systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+            rm -rf "$APP_DIR"
+            if [ -d "$BACKUP" ]; then
+              mv "$BACKUP" "$APP_DIR"
+              systemctl restart "$SERVICE_NAME" || true
+            fi
+          }
+
+          systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+          rm -rf "$BACKUP"
+          if [ -d "$APP_DIR" ]; then
+            mv "$APP_DIR" "$BACKUP"
+          fi
+          mv "$STAGE" "$APP_DIR"
           systemctl daemon-reload
-          systemctl restart "$SERVICE_NAME"
-          systemctl is-active --quiet "$SERVICE_NAME"
+          if ! systemctl restart "$SERVICE_NAME"; then
+            rollback
+            exit 1
+          fi
+          if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+            rollback
+            exit 1
+          fi
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8765/api/health >/tmp/smileup-status.json; then
               break
@@ -134,13 +162,14 @@ jobs:
             if [ "$attempt" = "30" ]; then
               systemctl --no-pager --full status "$SERVICE_NAME" || true
               journalctl -u "$SERVICE_NAME" --no-pager -n 80 || true
+              rollback
               exit 1
             fi
             sleep 1
           done
           cat /tmp/smileup-status.json
 
-          rm -rf "$STAGE" "$PRESERVE" "$RELEASE" /tmp/smileup-status.json
+          rm -rf "$BACKUP"
           REMOTE_DEPLOY
 
       - name: Deployment skipped
