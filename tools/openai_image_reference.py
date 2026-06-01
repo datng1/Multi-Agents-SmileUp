@@ -225,12 +225,7 @@ Ad text context: {str(reference_ad.get("ad_text", ""))[:900]}
 
 
 def _image_model_candidates() -> list[str]:
-    candidates: list[str] = []
-    for model in [config.OPENAI_IMAGE_MODEL, *config.OPENAI_IMAGE_FALLBACK_MODELS]:
-        safe_model = str(model or "").strip()
-        if safe_model and safe_model not in candidates:
-            candidates.append(safe_model)
-    return candidates[: config.OPENAI_IMAGE_MAX_MODEL_ATTEMPTS]
+    return ["gpt-image-2"]
 
 
 def _raise_for_image_error(response: requests.Response) -> None:
