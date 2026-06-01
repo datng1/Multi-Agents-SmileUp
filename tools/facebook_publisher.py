@@ -216,25 +216,32 @@ def _normalize_facebook_text(value: Any) -> str:
 
 
 def _repair_common_mojibake(text: str) -> str:
-    if not any(marker in text for marker in ("Ã", "Ä", "Â", "Æ")):
+    if _mojibake_score(text) <= 0:
         return text
-    current_score = _mojibake_score(text)
     best = text
-    best_score = current_score
-    for encoding in ("latin1", "cp1252"):
-        try:
-            candidate = text.encode(encoding).decode("utf-8")
-        except UnicodeError:
-            continue
-        score = _mojibake_score(candidate)
-        if score < best_score:
-            best = candidate
-            best_score = score
+    best_score = _mojibake_score(text)
+    current = text
+    for _ in range(2):
+        improved = False
+        for encoding in ("latin1", "cp1252"):
+            try:
+                candidate = current.encode(encoding).decode("utf-8")
+            except UnicodeError:
+                continue
+            score = _mojibake_score(candidate)
+            if score < best_score:
+                best = candidate
+                best_score = score
+                current = candidate
+                improved = True
+        if not improved:
+            break
     return best
 
 
 def _mojibake_score(text: str) -> int:
-    return sum(text.count(marker) for marker in ("Ã", "Ä", "Â", "Æ", "�"))
+    markers = ("Ã", "Ä", "Æ", "Â", "ƒ", "„", "€", "œ", "áº", "á»", "�")
+    return sum(text.count(marker) for marker in markers)
 
 
 def _facebook_post_url(post_id: str | None) -> str:
