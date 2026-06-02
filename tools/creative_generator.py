@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
+import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -233,7 +234,7 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
     canvas = Image.alpha_composite(canvas.convert("RGBA"), overlay)
     draw = ImageDraw.Draw(canvas)
 
-    _draw_logo(canvas)
+    _draw_brand_overlay(canvas, variant)
     canvas.convert("RGB").save(output_path, quality=95)
     return
 
@@ -334,20 +335,174 @@ def _source_policy(image_mode: str) -> str:
     return "Auto-generated from SmileUp brand assets; no text banner is added."
 
 
-def _draw_logo(canvas) -> None:
+def _draw_brand_overlay(canvas, variant: ContentVariant | None = None) -> None:
     if not LOGO_PATH.exists():
         return
-    logo = Image.open(LOGO_PATH).convert("RGBA")
-    logo.thumbnail((82, 82))
-    box_size = 104
-    box = Image.new("RGBA", (box_size, box_size), (255, 255, 255, 228))
-    mask = Image.new("L", (box_size, box_size), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.rounded_rectangle((0, 0, box_size, box_size), radius=16, fill=255)
-    box.putalpha(mask)
-    left, top = 54, 50
-    canvas.alpha_composite(box, (left, top))
-    canvas.alpha_composite(logo, (left + (box_size - logo.width) // 2, top + (box_size - logo.height) // 2))
+    width, height = canvas.size
+    seed = sum(ord(char) for char in str((variant or {}).get("title") or "smileup"))
+    logo = _build_horizontal_logo(max_width=260)
+    if logo is not None:
+        corner = _choose_logo_corner(canvas, seed)
+        margin_x = 48
+        margin_y = 42
+        left = margin_x if corner == "left" else width - logo.width - margin_x
+        _draw_soft_logo_plate(canvas, logo, left, margin_y)
+
+    service_line = str((variant or {}).get("service_line") or "").lower()
+    if _should_draw_watermark(service_line, seed):
+        _draw_stamp_watermark(canvas, seed)
+
+
+def _build_horizontal_logo(max_width: int = 260):
+    if not LOGO_PATH.exists():
+        return None
+    mark = _extract_logo_mark()
+    if mark is None:
+        return None
+
+    logo_width = max_width
+    logo_height = 72
+    logo = Image.new("RGBA", (logo_width, logo_height), (255, 255, 255, 0))
+    mark.thumbnail((62, 62), Image.Resampling.LANCZOS)
+    logo.alpha_composite(mark, (0, (logo_height - mark.height) // 2))
+
+    draw = ImageDraw.Draw(logo)
+    blue = (0, 106, 157, 245)
+    dark = (15, 32, 44, 150)
+    word_font = _brand_font(44)
+    clinic_font = _font(12, bold=True)
+    draw.text((78, 8), "DENTAL CLINIC", fill=dark, font=clinic_font)
+    draw.line((78, 23, 112, 23), fill=(15, 32, 44, 130), width=1)
+    draw.line((218, 23, 252, 23), fill=(15, 32, 44, 130), width=1)
+    draw.text((76, 24), "SMILEUP", fill=blue, font=word_font)
+    bbox = logo.getbbox()
+    return logo.crop(bbox) if bbox else logo
+
+
+def _extract_logo_mark():
+    try:
+        raw = Image.open(LOGO_PATH).convert("RGBA")
+    except Exception:
+        return None
+    width, height = raw.size
+    crop = raw.crop((0, 0, width, int(height * 0.52)))
+    crop = _make_light_background_transparent(crop)
+    bbox = crop.getbbox()
+    if not bbox:
+        return None
+    return crop.crop(bbox)
+
+
+def _make_light_background_transparent(image):
+    image = image.convert("RGBA")
+    pixels = image.load()
+    for y in range(image.height):
+        for x in range(image.width):
+            r, g, b, a = pixels[x, y]
+            if r > 235 and g > 235 and b > 235:
+                pixels[x, y] = (r, g, b, 0)
+            elif r > 220 and g > 220 and b > 220:
+                pixels[x, y] = (r, g, b, int(a * 0.22))
+    return image
+
+
+def _choose_logo_corner(canvas, seed: int) -> str:
+    left_score = _corner_luminance(canvas, "left")
+    right_score = _corner_luminance(canvas, "right")
+    if abs(left_score - right_score) < 8:
+        return "right" if seed % 2 else "left"
+    return "left" if left_score > right_score else "right"
+
+
+def _corner_luminance(canvas, side: str) -> float:
+    width, _ = canvas.size
+    left = 28 if side == "left" else width - 348
+    crop = canvas.convert("RGB").crop((left, 24, left + 320, 130))
+    sample = crop.resize((1, 1), Image.Resampling.BILINEAR).getpixel((0, 0))
+    return 0.2126 * sample[0] + 0.7152 * sample[1] + 0.0722 * sample[2]
+
+
+def _draw_soft_logo_plate(canvas, logo, left: int, top: int) -> None:
+    crop = canvas.convert("RGB").crop((left, top, left + logo.width, top + logo.height))
+    luminance = _average_luminance(crop)
+    if luminance < 150:
+        pad_x, pad_y = 14, 9
+        plate = Image.new("RGBA", (logo.width + pad_x * 2, logo.height + pad_y * 2), (255, 255, 255, 0))
+        mask = Image.new("L", plate.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.rounded_rectangle((0, 0, plate.width, plate.height), radius=18, fill=172)
+        plate.putalpha(mask)
+        canvas.alpha_composite(plate, (left - pad_x, top - pad_y))
+    canvas.alpha_composite(logo, (left, top))
+
+
+def _average_luminance(image) -> float:
+    pixel = image.resize((1, 1), Image.Resampling.BILINEAR).getpixel((0, 0))
+    return 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]
+
+
+def _should_draw_watermark(service_line: str, seed: int) -> bool:
+    if service_line in {"rang_su", "trust", "page_care"}:
+        return True
+    if service_line in {"implant", "phuc_hinh_su"}:
+        return seed % 3 == 0
+    return seed % 2 == 0
+
+
+def _draw_stamp_watermark(canvas, seed: int) -> None:
+    width, height = canvas.size
+    size = 178
+    x_choices = [int(width * 0.50), int(width * 0.58), int(width * 0.42)]
+    y_choices = [int(height * 0.58), int(height * 0.64), int(height * 0.52)]
+    center_x = x_choices[seed % len(x_choices)]
+    center_y = y_choices[(seed // 3) % len(y_choices)]
+    left = max(36, min(width - size - 36, center_x - size // 2))
+    top = max(270, min(height - size - 230, center_y - size // 2))
+
+    stamp = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(stamp)
+    white = (255, 255, 255, 118)
+    draw.ellipse((16, 16, size - 16, size - 16), outline=white, width=3)
+    draw.ellipse((46, 46, size - 46, size - 46), outline=(255, 255, 255, 70), width=2)
+    for tick in range(24):
+        angle = math.radians(tick * 15)
+        inner = 68 if tick % 2 else 64
+        outer = 73
+        x1 = size // 2 + math.cos(angle) * inner
+        y1 = size // 2 + math.sin(angle) * inner
+        x2 = size // 2 + math.cos(angle) * outer
+        y2 = size // 2 + math.sin(angle) * outer
+        draw.line((x1, y1, x2, y2), fill=(255, 255, 255, 86), width=2)
+
+    mark = _extract_logo_mark()
+    if mark is not None:
+        mark = _tint_alpha(mark, (255, 255, 255), 132)
+        mark.thumbnail((44, 44), Image.Resampling.LANCZOS)
+        stamp.alpha_composite(mark, ((size - mark.width) // 2, 54))
+
+    small_font = _font(12, bold=True)
+    draw.text((size // 2, size // 2 + 26), "SMILEUP", fill=(255, 255, 255, 128), font=small_font, anchor="mm")
+    canvas.alpha_composite(stamp, (left, top))
+
+
+def _tint_alpha(image, color: tuple[int, int, int], alpha: int):
+    mask = image.getchannel("A")
+    tinted = Image.new("RGBA", image.size, (*color, 0))
+    tinted.putalpha(mask.point(lambda value: min(alpha, value)))
+    return tinted
+
+
+def _brand_font(size: int):
+    candidates = [
+        "C:/Windows/Fonts/timesbd.ttf",
+        "C:/Windows/Fonts/georgiab.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+    ]
+    for path in candidates:
+        if Path(path).exists():
+            return ImageFont.truetype(path, size=size)
+    return _font(size, bold=True)
 
 
 def _normalize_generated_image(output_path: Path, variant: ContentVariant) -> None:
@@ -356,7 +511,7 @@ def _normalize_generated_image(output_path: Path, variant: ContentVariant) -> No
     except Exception:
         return
     image = _fit_to_canvas(image, 1080, 1350).convert("RGBA")
-    _draw_logo(image)
+    _draw_brand_overlay(image, variant)
     image.convert("RGB").save(output_path, quality=95)
 
 
