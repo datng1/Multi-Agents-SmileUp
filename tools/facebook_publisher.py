@@ -19,8 +19,9 @@ def publish_facebook_post(
     approved: bool,
     schedule_time: str | None = None,
     page_ids: list[str] | None = None,
+    approval_override: bool = False,
 ) -> dict[str, Any]:
-    if not approved:
+    if not approved and not approval_override:
         return {
             "publisher_status": "skipped",
             "publish_mode": "blocked",
@@ -44,7 +45,7 @@ def publish_facebook_post(
             "target_pages": _safe_pages(pages),
             "scheduled_time": schedule_time,
             "safe_payload_preview": message[:240],
-            "safety_checks": ["approved_gate_passed", "draft_exists", "manual_page_selection_required"],
+            "safety_checks": _publish_safety_checks(approval_override, "manual_page_selection_required"),
         }
     if config.MOCK_MODE or config.DRY_RUN:
         return {
@@ -68,7 +69,7 @@ def publish_facebook_post(
             ],
             "scheduled_time": schedule_time,
             "safe_payload_preview": message[:240],
-            "safety_checks": ["approved_gate_passed", "draft_exists", "dry_run_enforced"],
+            "safety_checks": _publish_safety_checks(approval_override, "dry_run_enforced"),
         }
 
     if requests is None:
@@ -95,8 +96,15 @@ def publish_facebook_post(
         "page_results": page_results,
         "scheduled_time": schedule_time,
         "safe_payload_preview": message[:240],
-        "safety_checks": ["approved_gate_passed", "draft_exists"],
+        "safety_checks": _publish_safety_checks(approval_override),
     }
+
+
+def _publish_safety_checks(approval_override: bool, *extra: str) -> list[str]:
+    checks = ["draft_exists", *extra]
+    if approval_override:
+        return ["user_override_cmo_gate", *checks]
+    return ["approved_gate_passed", *checks]
 
 
 def get_publish_pages() -> list[dict[str, Any]]:

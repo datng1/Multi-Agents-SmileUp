@@ -211,9 +211,18 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 )
                 return
             approved = _verify_publish_approval_payload(payload, session_id, username)
-            result = publish_facebook_post(draft, approved=approved, page_ids=page_ids)
-            if not approved:
+            approval_override = bool(payload.get("override_publish"))
+            result = publish_facebook_post(
+                draft,
+                approved=approved,
+                page_ids=page_ids,
+                approval_override=approval_override,
+            )
+            if not approved and not approval_override:
                 result["reason"] = "Publisher bị chặn: backend chưa xác thực được approval token từ workflow đã được CMO duyệt."
+            elif approval_override:
+                result["cmo_override"] = True
+                result["reason"] = "Người dùng đã bỏ qua CMO gate và xác nhận đăng thủ công."
             self._send_json({"ok": True, "publish_result": result})
         except ValueError as exc:
             self._send_json({"ok": False, "error": _sanitize_error(str(exc))}, status=400)

@@ -1201,15 +1201,43 @@ function isCurrentResultApproved() {
   return currentResult?.approval_status === "approved" && currentResult?.cmo_decision === "APPROVE_TO_PUBLISH";
 }
 
+function shouldOverrideCmoBeforePublish() {
+  if (isCurrentResultApproved()) {
+    return false;
+  }
+  const decision = currentResult?.cmo_decision || "chưa có quyết định CMO";
+  const approval = currentResult?.approval_status || "pending";
+  const reviseFirst = window.confirm(
+    `CMO hiện chưa approve bài này (${decision} · ${approval}).\n\n` +
+      "Bạn có muốn sửa lại/chạy lại workflow trước khi đăng không?\n\n" +
+      "OK: sửa lại và chạy lại workflow.\n" +
+      "Cancel: bỏ qua cảnh báo CMO và tiếp tục đăng."
+  );
+  if (reviseFirst) {
+    publishPageStatus.textContent = "Đã chọn sửa lại. Workflow sẽ chạy lại đến khi CMO approve.";
+    runWorkflow("deep").catch((error) => {
+      publishPageStatus.textContent = error.message;
+    });
+    return null;
+  }
+  return true;
+}
+
 async function publishFinalDraft(pageIds) {
   const selectedPageIds = pageIds || getSelectedPublishPageIds();
   if (!selectedPageIds.length) {
     publishPageStatus.textContent = "Hãy chọn ít nhất một page trước khi đăng.";
     return;
   }
+  const overridePublish = shouldOverrideCmoBeforePublish();
+  if (overridePublish === null) {
+    return;
+  }
   publishSelectedButton.disabled = true;
   publishAllButton.disabled = true;
-  publishPageStatus.textContent = `Đang gửi bài đến ${selectedPageIds.length} page...`;
+  publishPageStatus.textContent = overridePublish
+    ? `Đang bỏ qua CMO gate và gửi bài đến ${selectedPageIds.length} page...`
+    : `Đang gửi bài đến ${selectedPageIds.length} page...`;
   try {
     const response = await fetch("/api/publish", {
       method: "POST",
@@ -1220,6 +1248,7 @@ async function publishFinalDraft(pageIds) {
         approved: isCurrentResultApproved(),
         approval_context_key: currentResult?.publish_approval_context_key || "",
         approval_token: currentResult?.publish_approval_token || "",
+        override_publish: overridePublish,
       }),
     });
     const payload = await response.json();
@@ -1233,7 +1262,7 @@ async function publishFinalDraft(pageIds) {
     safePayload.textContent = publish.safe_payload_preview || JSON.stringify(publish, null, 2);
     renderPublishedPostLink(publish);
     if (publish.published) {
-      publishPageStatus.textContent = `Đã đăng thành công ${Number((publish.page_results || []).filter((item) => item.published).length || 0)} page.`;
+      publishPageStatus.textContent = `${overridePublish ? "Đã bỏ qua CMO gate và " : ""}Đã đăng thành công ${Number((publish.page_results || []).filter((item) => item.published).length || 0)} page.`;
     } else if (publish.dry_run) {
       publishPageStatus.textContent = `Dry-run OK cho ${Number((publish.page_results || []).length || 0)} page. Tắt DRY_RUN trên server để đăng thật.`;
     } else {
