@@ -13,13 +13,14 @@ from tools.openai_image_reference import generate_smileup_reference_image
 from utils import config
 
 try:
-    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageStat
 except Exception:  # pragma: no cover - optional runtime dependency
     Image = None
     ImageDraw = None
     ImageEnhance = None
     ImageFilter = None
     ImageFont = None
+    ImageStat = None
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -340,12 +341,9 @@ def _draw_brand_overlay(canvas, variant: ContentVariant | None = None) -> None:
         return
     width, height = canvas.size
     seed = sum(ord(char) for char in str((variant or {}).get("title") or "smileup"))
-    logo = _build_horizontal_logo(max_width=260)
+    logo = _build_horizontal_logo(max_width=340)
     if logo is not None:
-        corner = _choose_logo_corner(canvas, seed)
-        margin_x = 48
-        margin_y = 42
-        left = margin_x if corner == "left" else width - logo.width - margin_x
+        left, margin_y = _choose_logo_position(canvas, logo, seed)
         _draw_soft_logo_plate(canvas, logo, left, margin_y)
 
     service_line = str((variant or {}).get("service_line") or "").lower()
@@ -353,30 +351,45 @@ def _draw_brand_overlay(canvas, variant: ContentVariant | None = None) -> None:
         _draw_stamp_watermark(canvas, seed)
 
 
-def _build_horizontal_logo(max_width: int = 260):
+def _build_horizontal_logo(max_width: int = 340):
     if not LOGO_PATH.exists():
         return None
     mark = _extract_logo_mark()
     if mark is None:
         return None
 
-    logo_width = max_width
+    mark_size = 58
+    gap = 13
+    mark.thumbnail((mark_size, mark_size), Image.Resampling.LANCZOS)
+    word_font = _brand_font(42)
+    clinic_font = _font(11, bold=True)
+    probe = ImageDraw.Draw(Image.new("RGBA", (1, 1), (255, 255, 255, 0)))
+    word_bbox = probe.textbbox((0, 0), "SMILEUP", font=word_font)
+    clinic_bbox = probe.textbbox((0, 0), "DENTAL CLINIC", font=clinic_font)
+    word_width = word_bbox[2] - word_bbox[0]
+    clinic_width = clinic_bbox[2] - clinic_bbox[0]
+    text_width = max(word_width, clinic_width + 84)
+    text_left = mark_size + gap
+    logo_width = text_left + text_width + 4
     logo_height = 72
     logo = Image.new("RGBA", (logo_width, logo_height), (255, 255, 255, 0))
-    mark.thumbnail((62, 62), Image.Resampling.LANCZOS)
     logo.alpha_composite(mark, (0, (logo_height - mark.height) // 2))
 
     draw = ImageDraw.Draw(logo)
     blue = (0, 106, 157, 245)
     dark = (15, 32, 44, 150)
-    word_font = _brand_font(44)
-    clinic_font = _font(12, bold=True)
-    draw.text((78, 8), "DENTAL CLINIC", fill=dark, font=clinic_font)
-    draw.line((78, 23, 112, 23), fill=(15, 32, 44, 130), width=1)
-    draw.line((218, 23, 252, 23), fill=(15, 32, 44, 130), width=1)
-    draw.text((76, 24), "SMILEUP", fill=blue, font=word_font)
+    clinic_left = text_left + max(0, (word_width - clinic_width) // 2)
+    line_y = 22
+    draw.text((clinic_left, 7), "DENTAL CLINIC", fill=dark, font=clinic_font)
+    draw.line((text_left, line_y, max(text_left, clinic_left - 10), line_y), fill=(15, 32, 44, 120), width=1)
+    draw.line((clinic_left + clinic_width + 10, line_y, text_left + word_width, line_y), fill=(15, 32, 44, 120), width=1)
+    draw.text((text_left, 25), "SMILEUP", fill=blue, font=word_font)
     bbox = logo.getbbox()
-    return logo.crop(bbox) if bbox else logo
+    logo = logo.crop(bbox) if bbox else logo
+    if logo.width > max_width:
+        ratio = max_width / logo.width
+        logo = logo.resize((max_width, max(1, int(logo.height * ratio))), Image.Resampling.LANCZOS)
+    return logo
 
 
 def _extract_logo_mark():
@@ -406,33 +419,57 @@ def _make_light_background_transparent(image):
     return image
 
 
-def _choose_logo_corner(canvas, seed: int) -> str:
-    left_score = _corner_luminance(canvas, "left")
-    right_score = _corner_luminance(canvas, "right")
-    if abs(left_score - right_score) < 8:
-        return "right" if seed % 2 else "left"
-    return "left" if left_score > right_score else "right"
+def _choose_logo_position(canvas, logo, seed: int) -> tuple[int, int]:
+    width, height = canvas.size
+    pad_x, pad_y = 18, 12
+    region_w = logo.width + pad_x * 2
+    region_h = logo.height + pad_y * 2
+    margin = 46
+    candidates = [
+        (margin, 38, 0),
+        (width - region_w - margin, 38, 0),
+        (margin, height - region_h - 122, 6),
+        (width - region_w - margin, height - region_h - 122, 6),
+    ]
+    scored: list[tuple[float, int, int]] = []
+    for left, top, lower_penalty in candidates:
+        scan_left = max(0, left - 24)
+        scan_top = max(0, top - 12)
+        scan_right = min(width, left + region_w + 24)
+        scan_bottom = min(height, top + region_h + 170)
+        region = canvas.convert("RGB").crop((scan_left, scan_top, scan_right, scan_bottom))
+        score = _logo_region_score(region) - lower_penalty
+        if seed % 2:
+            score += 0.6 if left > width // 2 else 0
+        else:
+            score += 0.6 if left < width // 2 else 0
+        scored.append((score, left + pad_x, top + pad_y))
+    _, best_left, best_top = max(scored, key=lambda item: item[0])
+    return best_left, best_top
 
 
-def _corner_luminance(canvas, side: str) -> float:
-    width, _ = canvas.size
-    left = 28 if side == "left" else width - 348
-    crop = canvas.convert("RGB").crop((left, 24, left + 320, 130))
-    sample = crop.resize((1, 1), Image.Resampling.BILINEAR).getpixel((0, 0))
-    return 0.2126 * sample[0] + 0.7152 * sample[1] + 0.0722 * sample[2]
+def _logo_region_score(region) -> float:
+    luminance = _average_luminance(region)
+    # Score a larger neighborhood, not only the exact logo plate. This helps avoid
+    # placing the logo on top of existing wall signs, busy faces, or text-like detail.
+    edges = region.filter(ImageFilter.FIND_EDGES).convert("L")
+    edge_mean = ImageStat.Stat(edges).mean[0] if ImageStat is not None else 0
+    contrast = max(ImageStat.Stat(region.convert("L")).stddev[0], 1) if ImageStat is not None else 1
+    light_bonus = max(0, 60 - abs(luminance - 218)) / 6
+    return light_bonus - edge_mean / 18 - contrast / 22
 
 
 def _draw_soft_logo_plate(canvas, logo, left: int, top: int) -> None:
     crop = canvas.convert("RGB").crop((left, top, left + logo.width, top + logo.height))
     luminance = _average_luminance(crop)
-    if luminance < 150:
-        pad_x, pad_y = 14, 9
-        plate = Image.new("RGBA", (logo.width + pad_x * 2, logo.height + pad_y * 2), (255, 255, 255, 0))
-        mask = Image.new("L", plate.size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.rounded_rectangle((0, 0, plate.width, plate.height), radius=18, fill=172)
-        plate.putalpha(mask)
-        canvas.alpha_composite(plate, (left - pad_x, top - pad_y))
+    pad_x, pad_y = 16, 10
+    plate_alpha = 192 if luminance < 170 else 76
+    plate = Image.new("RGBA", (logo.width + pad_x * 2, logo.height + pad_y * 2), (255, 255, 255, 0))
+    mask = Image.new("L", plate.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rounded_rectangle((0, 0, plate.width, plate.height), radius=18, fill=plate_alpha)
+    plate.putalpha(mask)
+    canvas.alpha_composite(plate, (left - pad_x, top - pad_y))
     canvas.alpha_composite(logo, (left, top))
 
 
