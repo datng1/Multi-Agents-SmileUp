@@ -674,6 +674,11 @@ def _get_workflow_context_history_item(history_id: str, session_id: str, usernam
         output = entry.get("output")
         if not isinstance(output, dict):
             return None
+        output = dict(output)
+        if isinstance(output.get("result"), dict):
+            output["result"] = dict(output["result"])
+        output["context_cache_key"] = str(output.get("context_cache_key") or entry.get("context_key") or "")
+        _attach_publish_approval(output, session_id, username)
         return {
             "history_id": history_id,
             "cached_at": cached_at,
