@@ -189,21 +189,24 @@ function syncSourceMode() {
 }
 
 function syncCreativeImageMode() {
-  const mode = creativeImageMode.value || "text_only";
+  if (!creativeImageMode.value || creativeImageMode.value === "text_only") {
+    creativeImageMode.value = "top_match_reference";
+  }
+  const mode = creativeImageMode.value || "top_match_reference";
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
     top_match_reference: "Có ảnh GPT Image",
     auto: "Auto SmileUp",
     owned: hasUpload ? "Using uploaded image" : "Upload needed",
     layout_reference: hasUpload ? "Layout reference" : "Upload needed",
-    text_only: "Text only",
+    text_only: "GPT Image bắt buộc",
   };
   const hints = {
     top_match_reference: "GPT Image quét tối đa 12 ads match/mới nhất. Nếu có ảnh ads thì chỉ lấy bố cục làm reference; nếu không có ảnh hoặc ảnh lỗi tải thì tự gen ảnh mới theo bài viết, bối cảnh bác sĩ và bệnh nhân trong phòng khám Việt Nam, photorealistic, không chữ/banner/watermark.",
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
-    text_only: "Workflow chỉ sinh caption và chiến lược; bạn có thể thêm ảnh thủ công ở final review.",
+    text_only: "Workflow hiện bắt buộc gen 3 ảnh GPT Image 2; bạn vẫn có thể bỏ ảnh ở bước final review nếu không muốn đăng kèm ảnh.",
   };
   creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
   creativeImageHint.textContent = hints[mode] || hints.auto;
@@ -468,7 +471,7 @@ async function runWorkflow(scanMode = "deep") {
         manual_video_notes: activeSourceMode === "manual" ? videoInput.value.trim() : "",
         ad_library_keywords: keywordValue.value.trim(),
         scan_mode: scanMode,
-        creative_image_mode: creativeImageMode.value || "text_only",
+        creative_image_mode: creativeImageMode.value || "top_match_reference",
         creative_image_name: uploadedCreativeImage?.name || "",
         creative_image_data_url: uploadedCreativeImage?.dataUrl || "",
       }),

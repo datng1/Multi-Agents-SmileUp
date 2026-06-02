@@ -28,6 +28,7 @@ def run_content_agent(state: AgentState) -> AgentState:
             state["messages"].append({"role": "content", "content": f"Campaign plan created locally ({exc})"})
 
     variants = _enforce_people_first_image_prompts(variants)
+    variants = _ensure_three_image_backed_variants(variants, state)
     state["content_plan"] = variants
     state["draft_content"] = _draft_from_variant(variants[0]) if variants else _offline_draft(state)
     creative_context = {
@@ -41,6 +42,7 @@ def run_content_agent(state: AgentState) -> AgentState:
         "creative_variation_profile": state.get("creative_variation_profile", {}),
     }
     state["creative_assets"] = generate_creative_assets(variants, creative_context)
+    _require_gpt_image_assets_if_needed(state, creative_context)
     if creative_context.get("creative_reference_blueprint"):
         state["creative_reference_blueprint"] = str(creative_context.get("creative_reference_blueprint") or "")
     if state["creative_assets"]:
@@ -54,6 +56,34 @@ def run_content_agent(state: AgentState) -> AgentState:
     state["approval_status"] = "pending"
     state["current_step"] = "content_creator"
     return state
+
+
+def _ensure_three_image_backed_variants(variants: list[ContentVariant], state: AgentState) -> list[ContentVariant]:
+    if len(variants) >= 3:
+        return variants
+    existing_keys = {(variant.get("service_line", ""), variant.get("title", "")) for variant in variants}
+    for fallback in _offline_content_plan(state):
+        key = (fallback.get("service_line", ""), fallback.get("title", ""))
+        if key in existing_keys:
+            continue
+        variants.append(fallback)
+        existing_keys.add(key)
+        if len(variants) >= 3:
+            break
+    return variants
+
+
+def _require_gpt_image_assets_if_needed(state: AgentState, creative_context: dict) -> None:
+    if creative_context.get("creative_image_mode") != "top_match_reference":
+        return
+    target_count = min(config.OPENAI_IMAGE_MAX_CREATIVES, len(state.get("content_plan", [])))
+    assets = state.get("creative_assets", [])
+    if len(assets) >= target_count and all(asset.get("openai_generated") and asset.get("image_path") for asset in assets[:target_count]):
+        return
+    note = str(creative_context.get("creative_generation_note") or "GPT Image did not return enough usable images.")
+    raise RuntimeError(
+        f"GPT Image 2 must generate {target_count} images before CMO review, but only {len(assets)} were created. {note}"
+    )
 
 
 def _enforce_people_first_image_prompts(variants: list[ContentVariant]) -> list[ContentVariant]:

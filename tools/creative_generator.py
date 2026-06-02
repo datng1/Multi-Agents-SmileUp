@@ -28,11 +28,19 @@ LOGO_PATH = ASSET_DIR / "smileup-logo.jfif"
 
 
 def generate_creative_assets(variants: list[ContentVariant], context: dict | None = None) -> list[dict[str, str]]:
-    if not variants or Image is None:
+    context = context or {}
+    image_mode = str(context.get("creative_image_mode") or "auto")
+
+    if not variants:
         return []
 
-    context = context or {}
-    if str(context.get("creative_image_mode") or "auto") == "text_only":
+    if image_mode == "top_match_reference" and Image is None:
+        raise RuntimeError("GPT Image output requires Pillow to normalize Facebook images and overlay the SmileUp logo.")
+
+    if Image is None:
+        return []
+
+    if image_mode == "text_only":
         return []
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -43,17 +51,20 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
     for index, variant in selected_variants:
         filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
         output_path = OUTPUT_DIR / filename
-        image_mode = str(context.get("creative_image_mode") or "auto")
         image_model_note = ""
         if image_mode == "top_match_reference":
-            generated, blueprint, image_model_note = generate_smileup_reference_image(variant, context, output_path)
-            if blueprint:
-                context["creative_reference_blueprint"] = blueprint
-            context["creative_generation_note"] = image_model_note
-            if generated:
-                _normalize_generated_image(output_path, variant)
+            if config.MOCK_MODE:
+                _render_creative(variant, output_path, index, context)
+                image_model_note = "MOCK_MODE: GPT Image 2 generation simulated for workflow tests."
             else:
-                continue
+                generated, blueprint, image_model_note = generate_smileup_reference_image(variant, context, output_path)
+                if blueprint:
+                    context["creative_reference_blueprint"] = blueprint
+                context["creative_generation_note"] = image_model_note
+                if generated:
+                    _normalize_generated_image(output_path, variant)
+                else:
+                    raise RuntimeError(image_model_note or "GPT Image 2 did not return a usable image.")
         else:
             _render_creative(variant, output_path, index, context)
         url_path = f"/generated/creatives/{filename}"
@@ -77,6 +88,8 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
                 "source_policy": source_policy,
             }
         )
+    if image_mode == "top_match_reference" and len(assets) != len(selected_variants):
+        raise RuntimeError(f"GPT Image 2 generated {len(assets)} of {len(selected_variants)} required images.")
     return assets
 
 

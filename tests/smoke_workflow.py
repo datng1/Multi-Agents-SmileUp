@@ -23,6 +23,8 @@ def main() -> None:
     assert result["video_insight_report"], "video insight agent should produce a report"
     assert result["strategic_direction"], "strategy agent should produce a direction"
     assert result["draft_content"], "content agent should produce draft"
+    assert len(result.get("creative_assets", [])) == 3, "workflow should produce exactly 3 GPT Image creative assets"
+    assert all(asset.get("image_path") for asset in result["creative_assets"]), "every creative asset should have an image path"
     assert result["compliance_report"], "compliance agent should produce a report"
     assert result["hardness_report"], "hardness agent should produce a report"
     assert result["hardness_score"] >= 0, "hardness agent should score the workflow"

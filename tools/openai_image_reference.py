@@ -220,7 +220,16 @@ Service: {variant.get("service_line", "")}
 Angle: {variant.get("angle", "")}
 Differentiation: {variant.get("differentiation", "")}
 Image brief: {variant.get("image_prompt", "")}
+Post title to match visually without text: {variant.get("title", "")}
+Post body summary to match visually without text: {str(variant.get("body", ""))[:900]}
+Call to action intent to support visually without text: {variant.get("call_to_action", "")}
 Ad text context: {str(reference_ad.get("ad_text", ""))[:900]}
+
+Visual matching requirement:
+- If the post is about implant or missing teeth, show a dentist consultation around implant planning, X-ray/scan discussion, or dental chair consultation. Do not show porcelain shade selection as the main scene.
+- If the post is about porcelain crowns/veneers, show smile design consultation, shade discussion, or patient reviewing smile aesthetics. Do not show surgery.
+- If the post is about restoration after broken/weak teeth, show a careful restorative consultation, tooth model, scan, or dentist explaining treatment options.
+- The scene must feel like it belongs to the exact post topic, not a generic dental stock photo.
 """.strip()
 
 

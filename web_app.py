@@ -821,7 +821,7 @@ def _build_initial_state(request_payload: dict) -> dict:
     video_notes = str(request_payload.get("manual_video_notes", "")).strip()
     ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
     scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
-    creative_image_mode = _normalize_creative_image_mode(request_payload.get("creative_image_mode", "text_only"))
+    creative_image_mode = _normalize_creative_image_mode(request_payload.get("creative_image_mode", "top_match_reference"))
     creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
     creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
 
@@ -922,15 +922,20 @@ def _scan_settings(request_payload: dict) -> tuple[str, int, int]:
 
 
 def _normalize_creative_image_mode(value: object) -> str:
-    mode = str(value or "text_only").strip()
+    mode = str(value or "top_match_reference").strip()
     aliases = {
+        "text_only": "top_match_reference",
+        "no_image": "top_match_reference",
+        "owned": "top_match_reference",
+        "layout_reference": "top_match_reference",
+        "auto": "top_match_reference",
         "rewrite_top_ad": "top_match_reference",
         "rewrite_reference": "top_match_reference",
         "rewrite_image": "top_match_reference",
     }
     mode = aliases.get(mode, mode)
-    allowed = {"text_only", "top_match_reference", "owned", "layout_reference", "auto"}
-    return mode if mode in allowed else "text_only"
+    allowed = {"top_match_reference"}
+    return mode if mode in allowed else "top_match_reference"
 
 
 def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str]:
