@@ -14,6 +14,14 @@ class OpenAIImageUnavailable(RuntimeError):
     pass
 
 
+ROOT = Path(__file__).resolve().parents[1]
+ASSET_DIR = ROOT / "web" / "assets"
+DOCTOR_REFERENCE_IMAGES = [
+    ASSET_DIR / "doctor-huong-portrait.jpg",
+    ASSET_DIR / "doctor-huong-consult.jpg",
+]
+
+
 def generate_smileup_reference_image(
     variant: ContentVariant,
     context: dict[str, Any],
@@ -35,7 +43,12 @@ def generate_smileup_reference_image(
         image_bytes = b""
         mime_type = ""
         reference_note = "no reference image"
-        if media_urls:
+        doctor_reference = _load_doctor_reference_image(variant, context)
+        if doctor_reference:
+            image_bytes, mime_type, doctor_path = doctor_reference
+            reference_note = f"SmileUp doctor reference used: {doctor_path.name}"
+            reference_ad["doctor_reference_image"] = doctor_path.name
+        elif media_urls:
             try:
                 image_bytes, mime_type, used_media_url = _download_first_reference_image(media_urls)
                 reference_ad["media_url"] = used_media_url
@@ -45,7 +58,8 @@ def generate_smileup_reference_image(
                 reference_ad["media_download_error"] = str(exc)[:320]
                 reference_note = "reference image unavailable; generated from campaign text"
 
-        blueprint = _reference_blueprint(reference_ad, bool(image_bytes))
+        has_doctor_reference = bool(doctor_reference)
+        blueprint = _reference_blueprint(reference_ad, bool(image_bytes), has_doctor_reference)
         prompt = _build_generation_prompt(variant, reference_ad, blueprint, context)
         generated, used_model = _edit_or_generate_image(prompt, image_bytes, mime_type)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -171,7 +185,29 @@ def _extract_image_bytes(payload: dict[str, Any]) -> bytes:
     raise OpenAIImageUnavailable("OpenAI image response did not contain b64_json or url")
 
 
-def _reference_blueprint(reference_ad: dict[str, Any], has_image_reference: bool) -> str:
+def _load_doctor_reference_image(variant: ContentVariant, context: dict[str, Any]) -> tuple[bytes, str, Path] | None:
+    available = [path for path in DOCTOR_REFERENCE_IMAGES if path.exists()]
+    if not available:
+        return None
+    seed = str(context.get("run_seed") or "") + str(variant.get("service_line") or "") + str(variant.get("title") or "")
+    index = sum(ord(char) for char in seed) % len(available)
+    path = available[index]
+    data = path.read_bytes()
+    if not data or len(data) > 12 * 1024 * 1024:
+        return None
+    return data, _guess_mime_type(path.name) or "image/jpeg", path
+
+
+def _reference_blueprint(reference_ad: dict[str, Any], has_image_reference: bool, has_doctor_reference: bool = False) -> str:
+    if has_doctor_reference:
+        return (
+            "Use the attached SmileUp doctor photo as the primary identity reference. Preserve the doctor as a real "
+            "Vietnamese SmileUp dentist: facial likeness, hair character, age range, warm expression, and white coat/teal "
+            "clinical uniform should remain recognizable. You may change pose, camera angle, body position, and clinic "
+            "scene to match the campaign. Do not copy readable text, the large wall logo, documents, background text, "
+            "watermarks, or exact pixels from the reference photo. If competitor ad data exists, use it only as weak "
+            "marketing context, never as a face or asset reference."
+        )
     if has_image_reference:
         return (
             "Use the attached ad image only as a loose composition reference: broad subject count, "
@@ -198,9 +234,11 @@ Absolute visual rules:
 - No typography, no captions, no labels, no numbers, no price, no discount, no CTA, no banner, no poster layout, no headline block, no speech bubble, no watermark, no UI frame, no menu board, no certificate text, no clinic sign text.
 - If a monitor, tablet, X-ray screen, chart, or document appears, it must show only blurred/non-readable medical imagery or abstract shapes. No readable interface text, no measurement labels, no form fields, no brand names.
 - Do not draw fake logos or brand words inside the image. Leave a clean blank area in the top-left so the real SmileUp logo can be overlaid locally after generation.
-- Do not reproduce source pixels, exact composition, exact colors, exact background, face, identity, clothing, logo, watermark, props, or distinctive assets from the competitor ad.
-- Replace all people with new Vietnamese subjects: different faces, different styling, different clothes, different background details.
-- The image must contain real people in a dental clinic scene in Vietnam: at least one Vietnamese dentist in clinical attire and at least one Vietnamese patient/customer in consultation or examination.
+- Do not reproduce source pixels, exact composition, exact colors, exact background, logo, watermark, props, or distinctive assets from any competitor ad.
+- If a SmileUp doctor reference image is attached, the dentist must be that real SmileUp doctor: preserve her recognizable facial likeness, hair character, age range, professional white coat and teal clinical outfit, while placing her into a new natural clinic scene.
+- If no SmileUp doctor reference image is attached, use a realistic Vietnamese dentist, not a generic mannequin-like face.
+- Patient/customer faces should be new Vietnamese subjects with natural styling and realistic anatomy.
+- The image must contain real people in a dental clinic scene in Vietnam: the SmileUp doctor/dentist in clinical attire and at least one Vietnamese patient/customer in consultation or examination.
 - Do not generate standalone logos, tooth icons, abstract shapes, decorative graphics, empty clinic rooms, product-only shots, infographics, before/after comparisons, or medical shock imagery.
 - No medical guarantee, no exaggerated transformation, no body-shaming implication.
 
@@ -208,6 +246,7 @@ SmileUp brand direction:
 - Premium but warm Vietnamese dental clinic, realistic Ho Chi Minh/Hanoi clinic interior cues, clean reception/consultation room, dentist chair or X-ray consultation screen if useful.
 - Clean white and teal color mood, modern lighting, trustworthy, human, realistic.
 - Natural expressions, respectful consultation, imperfectly real photography, believable skin texture, realistic hands and teeth, no plastic AI look, no hyper-smooth faces, no mannequin poses, no beauty-ad retouching.
+- Physical realism is mandatory: correct number of fingers, natural hand grip on dental models/tools, believable seated/standing posture, accurate dentist-patient eye lines, no floating props, no duplicated instruments, no distorted mouth/teeth, no impossible X-ray placement.
 - Shot like a real clinic campaign photo: 35mm or 50mm lens feel, natural depth of field, credible Vietnamese people, realistic dental uniforms, tidy equipment, soft daylight or clinic lighting.
 - Suitable for porcelain crowns, porcelain restoration, or dental implants.
 

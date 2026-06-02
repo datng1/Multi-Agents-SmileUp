@@ -338,14 +338,16 @@ def _draw_logo(canvas) -> None:
     if not LOGO_PATH.exists():
         return
     logo = Image.open(LOGO_PATH).convert("RGBA")
-    logo.thumbnail((112, 112))
-    box = Image.new("RGBA", (142, 142), (255, 255, 255, 245))
-    mask = Image.new("L", (142, 142), 0)
+    logo.thumbnail((82, 82))
+    box_size = 104
+    box = Image.new("RGBA", (box_size, box_size), (255, 255, 255, 228))
+    mask = Image.new("L", (box_size, box_size), 0)
     mask_draw = ImageDraw.Draw(mask)
-    mask_draw.rounded_rectangle((0, 0, 142, 142), radius=18, fill=255)
+    mask_draw.rounded_rectangle((0, 0, box_size, box_size), radius=16, fill=255)
     box.putalpha(mask)
-    canvas.alpha_composite(box, (62, 56))
-    canvas.alpha_composite(logo, (62 + (142 - logo.width) // 2, 56 + (142 - logo.height) // 2))
+    left, top = 54, 50
+    canvas.alpha_composite(box, (left, top))
+    canvas.alpha_composite(logo, (left + (box_size - logo.width) // 2, top + (box_size - logo.height) // 2))
 
 
 def _normalize_generated_image(output_path: Path, variant: ContentVariant) -> None:
