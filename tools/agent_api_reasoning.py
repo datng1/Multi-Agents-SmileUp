@@ -29,6 +29,9 @@ def reason_with_agent_api(
     if not config.AGENT_API_REASONING_ENABLED:
         return fallback, "local-bounded"
 
+    if config.MOCK_MODE:
+        return fallback, "mock-local"
+
     if config.OPENAI_API_KEY:
         try:
             return _clean_report(_call_openai(prompt), fallback), f"GPT ({config.OPENAI_MODEL})"

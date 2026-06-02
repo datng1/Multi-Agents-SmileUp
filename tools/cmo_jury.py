@@ -19,6 +19,8 @@ class CMOJuryUnavailable(RuntimeError):
 def evaluate_with_available_models(state: AgentState, scorecard: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not config.CMO_JURY_ENABLED:
         return []
+    if config.MOCK_MODE:
+        return []
 
     prompt = _build_jury_prompt(state, scorecard)
     evaluators = []
