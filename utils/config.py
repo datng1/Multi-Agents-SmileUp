@@ -105,6 +105,8 @@ DEFAULT_COMPETITOR_AD_LIBRARY_URLS = "\n".join(
         "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=523667784157191",
         "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=746526788551014",
         "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=112901911595862",
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=183094894877720",
+        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=141815746680256",
     ]
 )
 
@@ -136,7 +138,7 @@ class Settings:
     ad_library_enabled: bool = _bool("AD_LIBRARY_ENABLED", True)
     ad_library_keywords: str = os.getenv("AD_LIBRARY_KEYWORDS", "nha khoa răng sứ răng đẹp cấy implant")
     ad_library_country: str = os.getenv("AD_LIBRARY_COUNTRY", "VN")
-    ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "12"))
+    ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "14"))
     ad_library_cache_ttl_hours: float = float(os.getenv("AD_LIBRARY_CACHE_TTL_HOURS", "24"))
     ad_library_competitor_urls: list[str] = field(default_factory=lambda: _multi_list("AD_LIBRARY_COMPETITOR_URLS", DEFAULT_COMPETITOR_AD_LIBRARY_URLS))
     ad_library_competitor_ratio: float = float(os.getenv("AD_LIBRARY_COMPETITOR_RATIO", "0.8"))

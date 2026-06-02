@@ -139,7 +139,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
     return state
 
 
-def _top_match_reference_ad(ads: list[dict], fallback_ads: list[dict] | None = None, scan_limit: int = 12) -> dict:
+def _top_match_reference_ad(ads: list[dict], fallback_ads: list[dict] | None = None, scan_limit: int = 14) -> dict:
     """Pick the best ranked ad with usable media for GPT Image rewrite.
 
     Conversion strategy still prioritizes high-match ads. Visual generation should

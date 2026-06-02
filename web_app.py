@@ -935,7 +935,7 @@ def _creative_variation_profile(run_seed: str) -> dict[str, str]:
 def _scan_settings(request_payload: dict) -> tuple[str, int, int]:
     mode = str(request_payload.get("scan_mode") or request_payload.get("ad_library_scan_mode") or "quick").strip().lower()
     if mode == "deep":
-        return "deep", 12, 12
+        return "deep", 14, 14
     return "quick", 5, 5
 
 

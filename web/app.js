@@ -202,7 +202,7 @@ function syncCreativeImageMode() {
     text_only: "GPT Image bắt buộc",
   };
   const hints = {
-    top_match_reference: "GPT Image quét tối đa 12 ads match/mới nhất. Nếu có ảnh ads thì chỉ lấy bố cục làm reference; nếu không có ảnh hoặc ảnh lỗi tải thì tự gen ảnh mới theo bài viết, bối cảnh bác sĩ và bệnh nhân trong phòng khám Việt Nam, photorealistic, không chữ/banner/watermark.",
+    top_match_reference: "GPT Image quét tối đa 14 ads match/mới nhất. Nếu có ảnh ads thì chỉ lấy bố cục làm reference; nếu không có ảnh hoặc ảnh lỗi tải thì tự gen ảnh mới theo bài viết, bối cảnh bác sĩ và bệnh nhân trong phòng khám Việt Nam, photorealistic, không chữ/banner/watermark.",
     auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
@@ -249,10 +249,10 @@ function showProcessingScreen(scanMode = "deep") {
     return;
   }
   document.body.classList.add("is-running");
-  processingMode.textContent = scanMode === "deep" ? "Deep scan 12 ads" : "Quick scan 5 ads";
+  processingMode.textContent = scanMode === "deep" ? "Deep scan 14 ads" : "Quick scan 5 ads";
   processingNote.textContent =
     scanMode === "deep"
-      ? "Đang quét sâu 12 ads để có thêm tín hiệu và ảnh reference rộng hơn."
+      ? "Đang quét sâu 14 ads để có thêm tín hiệu và ảnh reference rộng hơn."
       : "Đang chạy nhanh 5 ads để ra chiến lược sớm hơn.";
   processingScreen.classList.remove("hidden-panel");
   updateProcessingScreen({}, "crawler", 0);
@@ -444,7 +444,7 @@ function setRunButtons(isRunning, scanMode = "deep") {
   runButton.disabled = true;
   deepRunButton.disabled = true;
   runButton.querySelector(".button-icon").textContent = isRunning ? "..." : "▶";
-  runButton.lastChild.textContent = isRunning && scanMode === "deep" ? " Đang quét sâu" : " Quét sâu 12 ads";
+  runButton.lastChild.textContent = isRunning && scanMode === "deep" ? " Đang quét sâu" : " Quét sâu 14 ads";
   deepRunButton.textContent = isRunning && scanMode === "quick" ? "Đang chạy nhanh..." : "Chạy nhanh 5 ads";
 }
 
@@ -458,7 +458,7 @@ async function runWorkflow(scanMode = "deep") {
   setAgentState("crawler");
   safePayload.textContent =
     scanMode === "deep"
-      ? "Đã tạo job quét sâu 12 ads. UI sẽ cập nhật từng agent khi backend chạy."
+      ? "Đã tạo job quét sâu 14 ads. UI sẽ cập nhật từng agent khi backend chạy."
       : "Đã tạo job chạy nhanh 5 ads. UI sẽ cập nhật từng agent khi backend chạy.";
 
   try {
@@ -504,7 +504,7 @@ async function runWorkflow(scanMode = "deep") {
     runButton.disabled = false;
     deepRunButton.disabled = false;
     runButton.querySelector(".button-icon").textContent = "▶";
-    runButton.lastChild.textContent = " Quét sâu 12 ads";
+    runButton.lastChild.textContent = " Quét sâu 14 ads";
     deepRunButton.textContent = "Chạy nhanh 5 ads";
   }
 }
@@ -1703,3 +1703,4 @@ loadStatus().catch(() => {
   dryRunValue.textContent = "-";
   connectionState.textContent = "Offline";
 });
+
