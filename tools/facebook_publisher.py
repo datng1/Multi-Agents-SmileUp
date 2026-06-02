@@ -1,4 +1,7 @@
 from typing import Any
+import base64
+import mimetypes
+from pathlib import Path
 import unicodedata
 from urllib.parse import urlencode
 
@@ -12,6 +15,8 @@ from utils import config
 
 
 GRAPH_URL = "https://graph.facebook.com/v19.0"
+ROOT = Path(__file__).resolve().parents[1]
+WEB_ROOT = ROOT / "web"
 
 
 def publish_facebook_post(
@@ -20,6 +25,8 @@ def publish_facebook_post(
     schedule_time: str | None = None,
     page_ids: list[str] | None = None,
     approval_override: bool = False,
+    image_path: str = "",
+    image_data_url: str = "",
 ) -> dict[str, Any]:
     if not approved and not approval_override:
         return {
@@ -32,6 +39,7 @@ def publish_facebook_post(
         }
 
     message = format_facebook_message(draft)
+    image_source = _resolve_image_source(image_path=image_path, image_data_url=image_data_url)
     pages = _select_pages(page_ids)
     if not pages:
         raise ValueError("No selected Facebook pages are configured")
@@ -45,6 +53,8 @@ def publish_facebook_post(
             "target_pages": _safe_pages(pages),
             "scheduled_time": schedule_time,
             "safe_payload_preview": message[:240],
+            "image_attached": bool(image_source),
+            "image_name": image_source.get("name", "") if image_source else "",
             "safety_checks": _publish_safety_checks(approval_override, "manual_page_selection_required"),
         }
     if config.MOCK_MODE or config.DRY_RUN:
@@ -69,6 +79,8 @@ def publish_facebook_post(
             ],
             "scheduled_time": schedule_time,
             "safe_payload_preview": message[:240],
+            "image_attached": bool(image_source),
+            "image_name": image_source.get("name", "") if image_source else "",
             "safety_checks": _publish_safety_checks(approval_override, "dry_run_enforced"),
         }
 
@@ -79,7 +91,10 @@ def publish_facebook_post(
 
     page_results = []
     for page in pages:
-        page_results.append(_publish_to_page(page, message, schedule_time))
+        if image_source:
+            page_results.append(_publish_photo_to_page(page, message, image_source, schedule_time))
+        else:
+            page_results.append(_publish_to_page(page, message, schedule_time))
 
     published = [item for item in page_results if item.get("published")]
     primary = published[0] if published else page_results[0]
@@ -96,6 +111,8 @@ def publish_facebook_post(
         "page_results": page_results,
         "scheduled_time": schedule_time,
         "safe_payload_preview": message[:240],
+        "image_attached": bool(image_source),
+        "image_name": image_source.get("name", "") if image_source else "",
         "safety_checks": _publish_safety_checks(approval_override),
     }
 
@@ -150,6 +167,106 @@ def _publish_to_page(page: dict[str, str], message: str, schedule_time: str | No
             "published": False,
             "error": str(exc)[:220],
         }
+
+
+def _publish_photo_to_page(page: dict[str, str], message: str, image_source: dict[str, Any], schedule_time: str | None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "caption": message,
+        "access_token": page["access_token"],
+    }
+    if schedule_time:
+        payload["published"] = "false"
+        payload["scheduled_publish_time"] = schedule_time
+
+    files = {
+        "source": (
+            image_source.get("name") or "smileup-creative.png",
+            image_source["bytes"],
+            image_source.get("mime") or "image/png",
+        )
+    }
+    try:
+        response = requests.post(
+            f"{GRAPH_URL}/{page['page_id']}/photos",
+            data={key: _normalize_facebook_text(value) for key, value in payload.items()},
+            files=files,
+            timeout=45,
+        )
+        result = _parse_graph_response(response)
+        if not response.ok:
+            return {
+                "page_id": page["page_id"],
+                "page_name": page["name"],
+                "published": False,
+                "image_attached": True,
+                "error": _graph_error_message(response, result),
+            }
+        post_id = result.get("post_id") or result.get("id")
+        return {
+            "page_id": page["page_id"],
+            "page_name": page["name"],
+            "published": True,
+            "image_attached": True,
+            "published_photo_id": result.get("id", ""),
+            "published_post_id": post_id,
+            "published_post_url": _facebook_post_url(post_id),
+        }
+    except Exception as exc:
+        return {
+            "page_id": page["page_id"],
+            "page_name": page["name"],
+            "published": False,
+            "image_attached": True,
+            "error": str(exc)[:220],
+        }
+
+
+def _resolve_image_source(*, image_path: str = "", image_data_url: str = "") -> dict[str, Any] | None:
+    if image_data_url:
+        return _image_source_from_data_url(image_data_url)
+    if image_path:
+        return _image_source_from_path(image_path)
+    return None
+
+
+def _image_source_from_path(image_path: str) -> dict[str, Any] | None:
+    raw = str(image_path or "").strip()
+    if not raw or raw.startswith("data:image/") or raw.startswith(("http://", "https://")):
+        return None
+    relative = raw.lstrip("/").replace("\\", "/")
+    path = (WEB_ROOT / relative).resolve()
+    try:
+        path.relative_to(WEB_ROOT.resolve())
+    except ValueError as exc:
+        raise ValueError("Selected image is outside the publishable web directory") from exc
+    if not path.exists() or not path.is_file():
+        raise ValueError("Selected image file was not found on the server")
+    data = path.read_bytes()
+    if not data:
+        raise ValueError("Selected image file is empty")
+    if len(data) > 8 * 1024 * 1024:
+        raise ValueError("Selected image is larger than 8 MB")
+    mime = mimetypes.guess_type(path.name)[0] or "image/png"
+    if not mime.startswith("image/"):
+        raise ValueError("Selected file is not an image")
+    return {"bytes": data, "mime": mime, "name": path.name}
+
+
+def _image_source_from_data_url(data_url: str) -> dict[str, Any] | None:
+    header, _, encoded = str(data_url or "").partition(",")
+    if not header.startswith("data:image/") or not encoded:
+        return None
+    mime = header[5:].split(";", 1)[0] or "image/png"
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except Exception as exc:
+        raise ValueError("Selected image data is invalid") from exc
+    if not data:
+        raise ValueError("Selected image data is empty")
+    if len(data) > 8 * 1024 * 1024:
+        raise ValueError("Selected image is larger than 8 MB")
+    extension = mimetypes.guess_extension(mime) or ".png"
+    return {"bytes": data, "mime": mime, "name": f"smileup-final{extension}"}
 
 
 def _parse_graph_response(response: Any) -> dict[str, Any]:

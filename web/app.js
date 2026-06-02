@@ -1440,12 +1440,34 @@ function formatFinalFacebookMessage() {
 }
 
 function buildFinalDraftPayload() {
-  return {
+  const selectedAsset = getSelectedFinalCreativeAsset();
+  const payload = {
     title: finalTitleInput.value.trim(),
     body: finalBodyInput.value.trim(),
     call_to_action: finalCtaInput.value.trim(),
     hashtags: normalizeHashtags(finalTagsInput.value),
   };
+  if (selectedAsset?.image_path) {
+    const imagePath = String(selectedAsset.image_path || "");
+    if (imagePath.startsWith("data:image/")) {
+      payload.final_image_data_url = imagePath;
+    } else {
+      payload.final_image_path = imagePath;
+    }
+    payload.final_image_name = selectedAsset.title || selectedAsset.service_line || "SmileUp creative";
+  }
+  return payload;
+}
+
+function getSelectedFinalCreativeAsset() {
+  if (finalImageManuallyDisabled || finalCreativeSelect.value === "-1") {
+    return null;
+  }
+  const selectedIndex = Number(finalCreativeSelect.value);
+  if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= currentCreativeAssets.length) {
+    return null;
+  }
+  return currentCreativeAssets[selectedIndex] || null;
 }
 
 function normalizeHashtags(value) {

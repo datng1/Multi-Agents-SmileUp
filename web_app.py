@@ -193,6 +193,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 "call_to_action": str(payload.get("call_to_action", "")).strip(),
                 "hashtags": [str(tag).strip() for tag in payload.get("hashtags", []) if str(tag).strip()],
             }
+            final_image_path = str(payload.get("final_image_path", "")).strip()
+            final_image_data_url = str(payload.get("final_image_data_url", "")).strip()
             page_ids = [str(page_id).strip() for page_id in payload.get("page_ids", []) if str(page_id).strip()]
             if not any(draft.values()):
                 self._send_json({"ok": False, "error": "Final draft is empty"}, status=400)
@@ -217,6 +219,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 approved=approved,
                 page_ids=page_ids,
                 approval_override=approval_override,
+                image_path=final_image_path,
+                image_data_url=final_image_data_url,
             )
             if not approved and not approval_override:
                 result["reason"] = "Publisher bị chặn: backend chưa xác thực được approval token từ workflow đã được CMO duyệt."
