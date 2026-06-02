@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from copy import deepcopy
 import re
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +50,9 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
     seed_suffix = _slugify(str(context.get("run_seed") or datetime.now().strftime("%H%M%S%f")))[:10]
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     selected_variants = _select_variants_for_creatives(variants, config.OPENAI_IMAGE_MAX_CREATIVES)
+    if image_mode == "top_match_reference" and not config.MOCK_MODE:
+        return _generate_top_match_assets(selected_variants, context, stamp, seed_suffix, image_mode)
+
     for index, variant in selected_variants:
         filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
         output_path = OUTPUT_DIR / filename
@@ -91,6 +96,94 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
     if image_mode == "top_match_reference" and len(assets) != len(selected_variants):
         raise RuntimeError(f"GPT Image 2 generated {len(assets)} of {len(selected_variants)} required images.")
     return assets
+
+
+def _generate_top_match_assets(
+    selected_variants: list[tuple[int, ContentVariant]],
+    context: dict,
+    stamp: str,
+    seed_suffix: str,
+    image_mode: str,
+) -> list[dict[str, str]]:
+    if not selected_variants:
+        return []
+
+    max_workers = min(len(selected_variants), max(1, config.OPENAI_IMAGE_MAX_CREATIVES))
+    assets_by_index: dict[int, dict[str, str]] = {}
+    errors: list[str] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_generate_one_top_match_asset, index, variant, context, stamp, seed_suffix, image_mode): index
+            for index, variant in selected_variants
+        }
+        for future in as_completed(futures):
+            index = futures[future]
+            try:
+                asset = future.result()
+                assets_by_index[index] = asset
+            except Exception as exc:
+                errors.append(f"creative #{index}: {exc}")
+
+    assets = [assets_by_index[index] for index, _ in selected_variants if index in assets_by_index]
+    if len(assets) != len(selected_variants):
+        raise RuntimeError(
+            f"GPT Image 2 generated {len(assets)} of {len(selected_variants)} required images. "
+            + " | ".join(errors[:3])
+        )
+    return assets
+
+
+def _generate_one_top_match_asset(
+    index: int,
+    variant: ContentVariant,
+    context: dict,
+    stamp: str,
+    seed_suffix: str,
+    image_mode: str,
+) -> dict[str, str]:
+    filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
+    output_path = OUTPUT_DIR / filename
+    local_context = deepcopy(context)
+    generated, blueprint, image_model_note = generate_smileup_reference_image(variant, local_context, output_path)
+    if not generated:
+        raise RuntimeError(image_model_note or "GPT Image 2 did not return a usable image.")
+    _normalize_generated_image(output_path, variant)
+    url_path = f"/generated/creatives/{filename}"
+    variant["image_path"] = url_path
+    reference_ad = local_context.get("creative_reference_ad") or {}
+    return _asset_payload(
+        variant=variant,
+        image_mode=image_mode,
+        url_path=url_path,
+        source_policy=_source_policy(image_mode),
+        reference_ad=reference_ad,
+        image_model_note=image_model_note,
+    )
+
+
+def _asset_payload(
+    variant: ContentVariant,
+    image_mode: str,
+    url_path: str,
+    source_policy: str,
+    reference_ad: dict,
+    image_model_note: str,
+) -> dict[str, str]:
+    return {
+        "campaign_track": variant.get("campaign_track", ""),
+        "service_line": variant.get("service_line", ""),
+        "title": variant.get("title", ""),
+        "image_path": url_path,
+        "image_prompt": variant.get("image_prompt", ""),
+        "image_mode": image_mode,
+        "source_image_url": str(reference_ad.get("media_url") or ""),
+        "reference_ad_url": str(reference_ad.get("ad_url") or ""),
+        "reference_page_name": str(reference_ad.get("page_name") or ""),
+        "image_model_note": image_model_note,
+        "openai_image_note": image_model_note,
+        "openai_generated": bool(image_mode == "top_match_reference" and image_model_note),
+        "source_policy": source_policy,
+    }
 
 
 def _select_variants_for_creatives(variants: list[ContentVariant], limit: int) -> list[tuple[int, ContentVariant]]:
