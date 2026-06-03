@@ -123,6 +123,18 @@ jobs:
           .venv/bin/python -m py_compile web_app.py main.py utils/config.py
 
           [ -f "$PRESERVE/.env" ] && cp -a "$PRESERVE/.env" "$STAGE/.env"
+          if [ -f "$STAGE/.env" ]; then
+            if grep -q '^OPENAI_MODEL=' "$STAGE/.env"; then
+              sed -i 's/^OPENAI_MODEL=.*/OPENAI_MODEL=gpt-5.5/' "$STAGE/.env"
+            else
+              printf '\nOPENAI_MODEL=gpt-5.5\n' >> "$STAGE/.env"
+            fi
+            if grep -q '^OPENAI_IMAGE_MAX_CREATIVES=' "$STAGE/.env"; then
+              sed -i 's/^OPENAI_IMAGE_MAX_CREATIVES=.*/OPENAI_IMAGE_MAX_CREATIVES=0/' "$STAGE/.env"
+            else
+              printf 'OPENAI_IMAGE_MAX_CREATIVES=0\n' >> "$STAGE/.env"
+            fi
+          fi
           mkdir -p "$STAGE/data" "$STAGE/reports" "$STAGE/web/generated/uploads" "$STAGE/web/generated/creatives"
           [ -d "$PRESERVE/data" ] && cp -a "$PRESERVE/data/." "$STAGE/data/"
           [ -d "$PRESERVE/reports" ] && cp -a "$PRESERVE/reports/." "$STAGE/reports/"
