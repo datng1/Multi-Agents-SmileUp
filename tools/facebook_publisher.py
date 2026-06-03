@@ -1,5 +1,6 @@
 from typing import Any
 import base64
+import json
 import mimetypes
 from pathlib import Path
 import unicodedata
@@ -19,6 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = ROOT / "web"
 
 
+def json_dumps_compact(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
 def publish_facebook_post(
     draft: DraftContent,
     approved: bool,
@@ -27,6 +32,8 @@ def publish_facebook_post(
     approval_override: bool = False,
     image_path: str = "",
     image_data_url: str = "",
+    image_paths: list[str] | None = None,
+    image_data_urls: list[str] | None = None,
 ) -> dict[str, Any]:
     if not approved and not approval_override:
         return {
@@ -40,6 +47,11 @@ def publish_facebook_post(
 
     message = format_facebook_message(draft)
     image_source = _resolve_image_source(image_path=image_path, image_data_url=image_data_url)
+    image_sources = _resolve_image_sources(
+        image_paths=image_paths,
+        image_data_urls=image_data_urls,
+        fallback=image_source,
+    )
     pages = _select_pages(page_ids)
     if not pages:
         raise ValueError("No selected Facebook pages are configured")
@@ -53,8 +65,9 @@ def publish_facebook_post(
             "target_pages": _safe_pages(pages),
             "scheduled_time": schedule_time,
             "safe_payload_preview": message[:240],
-            "image_attached": bool(image_source),
-            "image_name": image_source.get("name", "") if image_source else "",
+            "image_attached": bool(image_sources),
+            "image_count": len(image_sources),
+            "image_name": image_sources[0].get("name", "") if image_sources else "",
             "safety_checks": _publish_safety_checks(approval_override, "manual_page_selection_required"),
         }
     if config.MOCK_MODE or config.DRY_RUN:
@@ -79,8 +92,9 @@ def publish_facebook_post(
             ],
             "scheduled_time": schedule_time,
             "safe_payload_preview": message[:240],
-            "image_attached": bool(image_source),
-            "image_name": image_source.get("name", "") if image_source else "",
+            "image_attached": bool(image_sources),
+            "image_count": len(image_sources),
+            "image_name": image_sources[0].get("name", "") if image_sources else "",
             "safety_checks": _publish_safety_checks(approval_override, "dry_run_enforced"),
         }
 
@@ -91,8 +105,10 @@ def publish_facebook_post(
 
     page_results = []
     for page in pages:
-        if image_source:
-            page_results.append(_publish_photo_to_page(page, message, image_source, schedule_time))
+        if len(image_sources) > 1:
+            page_results.append(_publish_album_to_page(page, message, image_sources, schedule_time))
+        elif image_sources:
+            page_results.append(_publish_photo_to_page(page, message, image_sources[0], schedule_time))
         else:
             page_results.append(_publish_to_page(page, message, schedule_time))
 
@@ -111,8 +127,9 @@ def publish_facebook_post(
         "page_results": page_results,
         "scheduled_time": schedule_time,
         "safe_payload_preview": message[:240],
-        "image_attached": bool(image_source),
-        "image_name": image_source.get("name", "") if image_source else "",
+        "image_attached": bool(image_sources),
+        "image_count": len(image_sources),
+        "image_name": image_sources[0].get("name", "") if image_sources else "",
         "safety_checks": _publish_safety_checks(approval_override),
     }
 
@@ -221,12 +238,124 @@ def _publish_photo_to_page(page: dict[str, str], message: str, image_source: dic
         }
 
 
+def _publish_album_to_page(page: dict[str, str], message: str, image_sources: list[dict[str, Any]], schedule_time: str | None) -> dict[str, Any]:
+    uploaded_ids: list[str] = []
+    try:
+        for image_source in image_sources[:10]:
+            payload = {
+                "published": "false",
+                "access_token": page["access_token"],
+            }
+            files = {
+                "source": (
+                    image_source.get("name") or "smileup-creative.png",
+                    image_source["bytes"],
+                    image_source.get("mime") or "image/png",
+                )
+            }
+            response = requests.post(
+                f"{GRAPH_URL}/{page['page_id']}/photos",
+                data={key: _normalize_facebook_text(value) for key, value in payload.items()},
+                files=files,
+                timeout=45,
+            )
+            result = _parse_graph_response(response)
+            if not response.ok:
+                return {
+                    "page_id": page["page_id"],
+                    "page_name": page["name"],
+                    "published": False,
+                    "image_attached": True,
+                    "image_count": len(image_sources),
+                    "error": _graph_error_message(response, result),
+                }
+            media_id = str(result.get("id") or "").strip()
+            if media_id:
+                uploaded_ids.append(media_id)
+
+        if not uploaded_ids:
+            raise RuntimeError("No uploaded Facebook media IDs returned")
+
+        payload: dict[str, Any] = {
+            "message": message,
+            "access_token": page["access_token"],
+        }
+        for index, media_id in enumerate(uploaded_ids):
+            payload[f"attached_media[{index}]"] = json_dumps_compact({"media_fbid": media_id})
+        if schedule_time:
+            payload["published"] = "false"
+            payload["scheduled_publish_time"] = schedule_time
+        response = requests.post(
+            f"{GRAPH_URL}/{page['page_id']}/feed",
+            data=_encode_graph_form(payload),
+            headers={"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"},
+            timeout=30,
+        )
+        result = _parse_graph_response(response)
+        if not response.ok:
+            return {
+                "page_id": page["page_id"],
+                "page_name": page["name"],
+                "published": False,
+                "image_attached": True,
+                "image_count": len(uploaded_ids),
+                "uploaded_photo_ids": uploaded_ids,
+                "error": _graph_error_message(response, result),
+            }
+        post_id = result.get("id")
+        return {
+            "page_id": page["page_id"],
+            "page_name": page["name"],
+            "published": True,
+            "image_attached": True,
+            "image_count": len(uploaded_ids),
+            "uploaded_photo_ids": uploaded_ids,
+            "published_post_id": post_id,
+            "published_post_url": _facebook_post_url(post_id),
+        }
+    except Exception as exc:
+        return {
+            "page_id": page["page_id"],
+            "page_name": page["name"],
+            "published": False,
+            "image_attached": True,
+            "image_count": len(image_sources),
+            "uploaded_photo_ids": uploaded_ids,
+            "error": str(exc)[:220],
+        }
+
+
 def _resolve_image_source(*, image_path: str = "", image_data_url: str = "") -> dict[str, Any] | None:
     if image_data_url:
         return _image_source_from_data_url(image_data_url)
     if image_path:
         return _image_source_from_path(image_path)
     return None
+
+
+def _resolve_image_sources(
+    *,
+    image_paths: list[str] | None = None,
+    image_data_urls: list[str] | None = None,
+    fallback: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for image_path in image_paths or []:
+        source = _image_source_from_path(str(image_path or ""))
+        if source and source["name"] not in seen:
+            sources.append(source)
+            seen.add(source["name"])
+    for data_url in image_data_urls or []:
+        source = _image_source_from_data_url(str(data_url or ""))
+        if source:
+            key = f"{source['name']}:{len(source['bytes'])}"
+            if key not in seen:
+                sources.append(source)
+                seen.add(key)
+    if not sources and fallback:
+        sources.append(fallback)
+    return sources[:10]
 
 
 def _image_source_from_path(image_path: str) -> dict[str, Any] | None:

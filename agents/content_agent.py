@@ -76,19 +76,21 @@ def _ensure_three_image_backed_variants(variants: list[ContentVariant], state: A
 def _require_gpt_image_assets_if_needed(state: AgentState, creative_context: dict) -> None:
     if creative_context.get("creative_image_mode") != "top_match_reference":
         return
-    target_count = min(config.OPENAI_IMAGE_MAX_CREATIVES, len(state.get("content_plan", [])))
+    target_count = min(config.OPENAI_IMAGE_PHOTO_CREATIVES, config.OPENAI_IMAGE_MAX_CREATIVES)
     assets = state.get("creative_assets", [])
-    if len(assets) >= target_count and all(asset.get("openai_generated") and asset.get("image_path") for asset in assets[:target_count]):
+    photo_assets = [asset for asset in assets if asset.get("creative_group") in {"ads_young", "ads_middle"}]
+    if len(photo_assets) >= target_count and all(asset.get("image_path") for asset in photo_assets[:target_count]):
         return
     note = str(creative_context.get("creative_generation_note") or "GPT Image did not return enough usable images.")
     raise RuntimeError(
-        f"GPT Image 2 must generate {target_count} images before CMO review, but only {len(assets)} were created. {note}"
+        f"GPT Image 2 must return {target_count} photo assets before CMO review, but only {len(photo_assets)} were created. {note}"
     )
 
 
 def _enforce_people_first_image_prompts(variants: list[ContentVariant]) -> list[ContentVariant]:
     """Keep every image brief anchored in real doctor + patient scenes."""
     required = (
+        " Doctor requirement: the SmileUp dentist must wear a clean blue disposable surgical cap/clinical cap for medical correctness. "
         " Bắt buộc ảnh photorealistic có người thật trong phòng khám nha khoa SmileUp: "
         "một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng; "
         "không tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí; "

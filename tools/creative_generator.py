@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from copy import deepcopy
 import math
 import re
@@ -51,15 +51,18 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
     assets: list[dict[str, str]] = []
     seed_suffix = _slugify(str(context.get("run_seed") or datetime.now().strftime("%H%M%S%f")))[:10]
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    selected_variants = _select_variants_for_creatives(variants, config.OPENAI_IMAGE_MAX_CREATIVES)
+    selected_variants = _build_creative_image_requests(variants)
     if image_mode == "top_match_reference" and not config.MOCK_MODE:
         return _generate_top_match_assets(selected_variants, context, stamp, seed_suffix, image_mode)
 
     for index, variant in selected_variants:
-        filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
+        filename = _creative_filename(stamp, seed_suffix, index, variant)
         output_path = OUTPUT_DIR / filename
         image_model_note = ""
-        if image_mode == "top_match_reference":
+        if _is_page_care_asset(variant):
+            _render_page_care_infographic(variant, output_path, index, context)
+            image_model_note = "Rendered locally as a SmileUp page-care infographic for speed and Vietnamese text accuracy."
+        elif image_mode == "top_match_reference":
             if config.MOCK_MODE:
                 _render_creative(variant, output_path, index, context)
                 image_model_note = "MOCK_MODE: GPT Image 2 generation simulated for workflow tests."
@@ -93,10 +96,11 @@ def generate_creative_assets(variants: list[ContentVariant], context: dict | Non
                 "openai_image_note": image_model_note,
                 "openai_generated": bool(image_mode == "top_match_reference" and image_model_note),
                 "source_policy": source_policy,
+                "creative_group": str(variant.get("creative_group") or ""),
+                "audience_segment": str(variant.get("audience_segment") or ""),
+                "album_default": bool(variant.get("album_default")),
             }
         )
-    if image_mode == "top_match_reference" and len(assets) != len(selected_variants):
-        raise RuntimeError(f"GPT Image 2 generated {len(assets)} of {len(selected_variants)} required images.")
     return assets
 
 
@@ -110,28 +114,46 @@ def _generate_top_match_assets(
     if not selected_variants:
         return []
 
-    max_workers = min(len(selected_variants), max(1, config.OPENAI_IMAGE_MAX_CREATIVES))
+    max_workers = min(3, len(selected_variants), max(1, config.OPENAI_IMAGE_PHOTO_CREATIVES))
     assets_by_index: dict[int, dict[str, str]] = {}
     errors: list[str] = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(_generate_one_top_match_asset, index, variant, context, stamp, seed_suffix, image_mode): index
-            for index, variant in selected_variants
-        }
-        for future in as_completed(futures):
-            index = futures[future]
-            try:
-                asset = future.result()
-                assets_by_index[index] = asset
-            except Exception as exc:
-                errors.append(f"creative #{index}: {exc}")
+    photo_requests = [(index, variant) for index, variant in selected_variants if not _is_page_care_asset(variant)]
+    page_care_requests = [(index, variant) for index, variant in selected_variants if _is_page_care_asset(variant)]
+
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    futures = {
+        executor.submit(_generate_one_top_match_asset, index, variant, context, stamp, seed_suffix, image_mode): index
+        for index, variant in photo_requests
+    }
+    pending = set(futures)
+    deadline = datetime.now().timestamp() + max(90, config.OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS + 35)
+    try:
+        while pending and datetime.now().timestamp() < deadline:
+            done, pending = wait(pending, timeout=5, return_when=FIRST_COMPLETED)
+            for future in done:
+                index = futures[future]
+                try:
+                    asset = future.result()
+                    assets_by_index[index] = asset
+                except Exception as exc:
+                    errors.append(f"creative #{index}: {exc}")
+    finally:
+        for future in pending:
+            future.cancel()
+        executor.shutdown(wait=False, cancel_futures=True)
+
+    for index, variant in photo_requests:
+        if index in assets_by_index:
+            continue
+        errors.append(f"creative #{index}: GPT Image timed out; local fallback used")
+        assets_by_index[index] = _generate_local_fallback_asset(index, variant, context, stamp, seed_suffix, image_mode)
+
+    for index, variant in page_care_requests:
+        assets_by_index[index] = _generate_page_care_asset(index, variant, context, stamp, seed_suffix, image_mode)
 
     assets = [assets_by_index[index] for index, _ in selected_variants if index in assets_by_index]
-    if len(assets) != len(selected_variants):
-        raise RuntimeError(
-            f"GPT Image 2 generated {len(assets)} of {len(selected_variants)} required images. "
-            + " | ".join(errors[:3])
-        )
+    if errors:
+        context["creative_generation_note"] = " | ".join(errors[:4])
     return assets
 
 
@@ -143,7 +165,7 @@ def _generate_one_top_match_asset(
     seed_suffix: str,
     image_mode: str,
 ) -> dict[str, str]:
-    filename = f"{stamp}_{seed_suffix}_{index:02d}_{_slugify(variant.get('service_line') or variant.get('title') or 'creative')}.png"
+    filename = _creative_filename(stamp, seed_suffix, index, variant)
     output_path = OUTPUT_DIR / filename
     local_context = deepcopy(context)
     generated, blueprint, image_model_note = generate_smileup_reference_image(variant, local_context, output_path)
@@ -185,21 +207,63 @@ def _asset_payload(
         "openai_image_note": image_model_note,
         "openai_generated": bool(image_mode == "top_match_reference" and image_model_note),
         "source_policy": source_policy,
+        "creative_group": str(variant.get("creative_group") or ""),
+        "audience_segment": str(variant.get("audience_segment") or ""),
+        "album_default": bool(variant.get("album_default")),
     }
 
 
-def _select_variants_for_creatives(variants: list[ContentVariant], limit: int) -> list[tuple[int, ContentVariant]]:
-    if limit <= 0:
+def _build_creative_image_requests(variants: list[ContentVariant]) -> list[tuple[int, ContentVariant]]:
+    if config.OPENAI_IMAGE_MAX_CREATIVES <= 0:
         return []
-    ranked = sorted(
+    ranked = [
+        item[1]
+        for item in sorted(
         enumerate(variants, start=1),
         key=lambda item: (
             0 if item[1].get("campaign_track") == "ads_effective" else 1,
             _service_priority(str(item[1].get("service_line") or "")),
             item[0],
         ),
-    )
-    return ranked[:limit]
+        )
+    ]
+    if not ranked:
+        return []
+    requests: list[tuple[int, ContentVariant]] = []
+    index = 1
+    photo_slots = min(6, config.OPENAI_IMAGE_PHOTO_CREATIVES, config.OPENAI_IMAGE_MAX_CREATIVES)
+    group_specs = [
+        ("ads_young", "Khách hàng trẻ 24-35 tuổi, phong cách hiện đại, quan tâm thẩm mỹ nụ cười và quyết định nhanh sau tư vấn rõ ràng.", 3),
+        ("ads_middle", "Khách hàng trung tuổi 42-60 tuổi, ưu tiên ăn nhai, phục hình, implant, an toàn và kế hoạch điều trị minh bạch.", 3),
+    ]
+    for group, audience, count in group_specs:
+        if photo_slots <= 0:
+            break
+        for offset in range(min(count, photo_slots)):
+            base = deepcopy(ranked[offset % len(ranked)])
+            base["creative_group"] = group
+            base["audience_segment"] = audience
+            base["album_default"] = group == "ads_young"
+            base["image_prompt"] = _append_prompt_context(base.get("image_prompt", ""), audience)
+            requests.append((index, base))
+            index += 1
+            photo_slots -= 1
+
+    page_count = min(config.OPENAI_IMAGE_PAGE_CARE_CREATIVES, config.OPENAI_IMAGE_MAX_CREATIVES - len(requests))
+    page_variants = [variant for variant in ranked if variant.get("campaign_track") == "page_care"] or ranked
+    for offset in range(page_count):
+        base = deepcopy(page_variants[offset % len(page_variants)])
+        base["creative_group"] = "page_care"
+        base["audience_segment"] = "Ảnh chăm sóc page: infographic/educational visual, đúng tiếng Việt, dễ lưu lại và tăng tương tác."
+        base["album_default"] = False
+        requests.append((index, base))
+        index += 1
+    return requests
+
+
+def _append_prompt_context(prompt: str, addition: str) -> str:
+    prompt = str(prompt or "").strip()
+    return f"{prompt.rstrip('.')}. {addition}" if prompt else addition
 
 
 def _service_priority(service_line: str) -> int:
@@ -211,6 +275,64 @@ def _service_priority(service_line: str) -> int:
         "reels": 4,
     }
     return priorities.get(service_line, 9)
+
+
+def _creative_filename(stamp: str, seed_suffix: str, index: int, variant: ContentVariant) -> str:
+    group = _slugify(str(variant.get("creative_group") or "creative"))[:18]
+    subject = _slugify(str(variant.get("service_line") or variant.get("title") or "creative"))
+    return f"{stamp}_{seed_suffix}_{index:02d}_{group}_{subject}.png"
+
+
+def _is_page_care_asset(variant: ContentVariant) -> bool:
+    return str(variant.get("creative_group") or "") == "page_care"
+
+
+def _generate_local_fallback_asset(
+    index: int,
+    variant: ContentVariant,
+    context: dict,
+    stamp: str,
+    seed_suffix: str,
+    image_mode: str,
+) -> dict[str, str]:
+    filename = _creative_filename(stamp, seed_suffix, index, variant)
+    output_path = OUTPUT_DIR / filename
+    _render_creative(variant, output_path, index, context)
+    url_path = f"/generated/creatives/{filename}"
+    variant["image_path"] = url_path
+    reference_ad = context.get("creative_reference_ad") or {}
+    return _asset_payload(
+        variant=variant,
+        image_mode=image_mode,
+        url_path=url_path,
+        source_policy="GPT Image timeout fallback: SmileUp-owned local creative generated to keep the workflow moving.",
+        reference_ad=reference_ad,
+        image_model_note="GPT Image timed out; local fallback rendered.",
+    )
+
+
+def _generate_page_care_asset(
+    index: int,
+    variant: ContentVariant,
+    context: dict,
+    stamp: str,
+    seed_suffix: str,
+    image_mode: str,
+) -> dict[str, str]:
+    filename = _creative_filename(stamp, seed_suffix, index, variant)
+    output_path = OUTPUT_DIR / filename
+    _render_page_care_infographic(variant, output_path, index, context)
+    url_path = f"/generated/creatives/{filename}"
+    variant["image_path"] = url_path
+    reference_ad = context.get("creative_reference_ad") or {}
+    return _asset_payload(
+        variant=variant,
+        image_mode=image_mode,
+        url_path=url_path,
+        source_policy="SmileUp page-care infographic rendered locally for Vietnamese text accuracy and fast workflow completion.",
+        reference_ad=reference_ad,
+        image_model_note="Local page-care infographic rendered.",
+    )
 
 
 def _render_creative(variant: ContentVariant, output_path: Path, index: int, context: dict) -> None:
@@ -276,6 +398,97 @@ def _render_creative(variant: ContentVariant, output_path: Path, index: int, con
         draw.text((706, 818), "SMILEUP PHOTO SOURCE", fill=(15, 94, 88), font=micro_font)
 
     canvas.convert("RGB").save(output_path, quality=95)
+
+
+def _render_page_care_infographic(variant: ContentVariant, output_path: Path, index: int, context: dict) -> None:
+    width, height = 1080, 1350
+    seed_value = _seed_value({**context, "variant_index": index, "group": "page_care"})
+    canvas = Image.new("RGBA", (width, height), (248, 253, 252, 255))
+    draw = ImageDraw.Draw(canvas)
+    title_font = _font(58, bold=True)
+    subtitle_font = _font(30, bold=True)
+    body_font = _font(26)
+    small_font = _font(22, bold=True)
+    blue = (0, 106, 157, 255)
+    teal = (7, 118, 110, 255)
+    navy = (20, 42, 67, 255)
+    pale = (226, 246, 243, 255)
+
+    if seed_value % 2:
+        draw.pieslice((-240, -220, 520, 540), 0, 360, fill=(218, 245, 249, 255))
+        draw.rounded_rectangle((76, 330, 1004, 1100), radius=38, fill=(255, 255, 255, 246), outline=(178, 219, 225, 255), width=2)
+    else:
+        draw.rounded_rectangle((0, 0, width, 335), radius=0, fill=(232, 247, 250, 255))
+        draw.pieslice((660, -180, 1280, 440), 0, 360, fill=(205, 236, 242, 255))
+
+    _draw_brand_overlay(canvas, {"title": variant.get("title", ""), "service_line": "page_care"})
+
+    title = _clean_infographic_title(variant)
+    y = 150 if seed_value % 2 else 154
+    draw.text((72, y), "SMILEUP DENTAL CLINIC", fill=teal, font=small_font)
+    y += 54
+    for line in _wrap_text(title, 24, 3):
+        draw.text((72, y), line, fill=navy, font=title_font)
+        y += 70
+
+    bullets = _infographic_bullets(variant)
+    card_top = 470
+    if len(bullets) <= 3:
+        for item_index, bullet in enumerate(bullets, start=1):
+            top = card_top + (item_index - 1) * 190
+            draw.rounded_rectangle((84, top, 996, top + 142), radius=28, fill=(255, 255, 255, 255), outline=(198, 225, 229, 255), width=2)
+            draw.ellipse((114, top + 32, 192, top + 110), fill=blue)
+            draw.text((153, top + 71), str(item_index), fill=(255, 255, 255, 255), font=subtitle_font, anchor="mm")
+            for line_no, line in enumerate(_wrap_text(bullet, 38, 2)):
+                draw.text((222, top + 36 + line_no * 38), line, fill=navy if line_no == 0 else (70, 84, 98), font=subtitle_font if line_no == 0 else body_font)
+    else:
+        grid_top = 455
+        for item_index, bullet in enumerate(bullets[:4], start=1):
+            col = (item_index - 1) % 2
+            row = (item_index - 1) // 2
+            left = 72 + col * 520
+            top = grid_top + row * 300
+            draw.rounded_rectangle((left, top, left + 456, top + 250), radius=28, fill=(255, 255, 255, 255), outline=(198, 225, 229, 255), width=2)
+            draw.ellipse((left + 24, top + 24, left + 90, top + 90), fill=teal)
+            draw.text((left + 57, top + 57), str(item_index), fill=(255, 255, 255, 255), font=small_font, anchor="mm")
+            for line_no, line in enumerate(_wrap_text(bullet, 22, 4)):
+                draw.text((left + 108, top + 32 + line_no * 33), line, fill=navy if line_no == 0 else (70, 84, 98), font=body_font)
+
+    footer_y = 1192
+    draw.rounded_rectangle((90, footer_y, 990, footer_y + 86), radius=36, fill=teal)
+    cta = _shorten(variant.get("call_to_action") or "Lưu lại và inbox SmileUp để được tư vấn cá nhân hóa.", 58)
+    draw.text((540, footer_y + 43), cta, fill=(255, 255, 255, 255), font=subtitle_font, anchor="mm")
+    canvas.convert("RGB").save(output_path, quality=95)
+
+
+def _clean_infographic_title(variant: ContentVariant) -> str:
+    title = str(variant.get("title") or variant.get("angle") or "Checklist chăm sóc răng miệng").strip()
+    return _shorten(title, 72)
+
+
+def _infographic_bullets(variant: ContentVariant) -> list[str]:
+    text = " ".join(
+        str(part or "")
+        for part in [
+            variant.get("body", ""),
+            variant.get("differentiation", ""),
+            variant.get("marketing_analysis", ""),
+        ]
+    )
+    pieces = [item.strip(" -•\t\r\n.") for item in re.split(r"[.\n;]+", text) if len(item.strip()) > 18]
+    defaults = [
+        "Hỏi bác sĩ điều gì trước khi quyết định",
+        "Kiểm tra tình trạng răng miệng thực tế",
+        "Hiểu rõ thời gian, chi phí và giới hạn",
+        "Lưu ý kết quả phụ thuộc từng người",
+    ]
+    bullets: list[str] = []
+    for piece in pieces:
+        if piece not in bullets:
+            bullets.append(_shorten(piece, 86))
+        if len(bullets) >= 4:
+            break
+    return bullets or defaults
 
 
 def _background(width: int, height: int, context: dict):

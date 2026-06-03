@@ -17,6 +17,7 @@ class OpenAIImageUnavailable(RuntimeError):
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_DIR = ROOT / "web" / "assets"
 DOCTOR_REFERENCE_IMAGES = [
+    ASSET_DIR / "doctor-huong-surgical-cap.jpg",
     ASSET_DIR / "doctor-huong-portrait.jpg",
     ASSET_DIR / "doctor-huong-consult.jpg",
 ]
@@ -202,8 +203,9 @@ def _reference_blueprint(reference_ad: dict[str, Any], has_image_reference: bool
     if has_doctor_reference:
         return (
             "Use the attached SmileUp doctor photo as the primary identity reference. Preserve the doctor as a real "
-            "Vietnamese SmileUp dentist: facial likeness, hair character, age range, warm expression, and white coat/teal "
-            "clinical uniform should remain recognizable. You may change pose, camera angle, body position, and clinic "
+            "Vietnamese SmileUp dentist: facial likeness, age range, warm expression, white coat/teal "
+            "clinical uniform, and a clean blue disposable surgical cap for proper clinical hygiene should remain recognizable. "
+            "You may change pose, camera angle, body position, and clinic "
             "scene to match the campaign. Do not copy readable text, the large wall logo, documents, background text, "
             "watermarks, or exact pixels from the reference photo. If competitor ad data exists, use it only as weak "
             "marketing context, never as a face or asset reference."
@@ -236,6 +238,7 @@ Absolute visual rules:
 - Do not draw fake logos or brand words inside the image. Leave a clean blank area in the top-left so the real SmileUp logo can be overlaid locally after generation.
 - Do not reproduce source pixels, exact composition, exact colors, exact background, logo, watermark, props, or distinctive assets from any competitor ad.
 - If a SmileUp doctor reference image is attached, the dentist must be that real SmileUp doctor: preserve her recognizable facial likeness, hair character, age range, professional white coat and teal clinical outfit, while placing her into a new natural clinic scene.
+- For all dentist-led photos, the doctor must wear a clean blue disposable surgical cap or equivalent sterile clinical cap. The cap must look physically correct, not like a fashion hat.
 - If no SmileUp doctor reference image is attached, use a realistic Vietnamese dentist, not a generic mannequin-like face.
 - Patient/customer faces should be new Vietnamese subjects with natural styling and realistic anatomy.
 - The image must contain real people in a dental clinic scene in Vietnam: the SmileUp doctor/dentist in clinical attire and at least one Vietnamese patient/customer in consultation or examination.
@@ -252,6 +255,8 @@ SmileUp brand direction:
 
 Freshness requirement:
 - Creative variation for this run: {variation}
+- Audience/image group for this asset: {variant.get("audience_segment", "")}
+- Creative group: {variant.get("creative_group", "")}
 - Even if the keyword and reference ad are the same, change camera angle, lighting, distance, dentist/patient styling, room detail, and pose from previous runs.
 
 Campaign context for visual planning only. Do NOT write any of these words in the image:
@@ -268,6 +273,7 @@ Visual matching requirement:
 - If the post is about implant or missing teeth, show a dentist consultation around implant planning, X-ray/scan discussion, or dental chair consultation. Do not show porcelain shade selection as the main scene.
 - If the post is about porcelain crowns/veneers, show smile design consultation, shade discussion, or patient reviewing smile aesthetics. Do not show surgery.
 - If the post is about restoration after broken/weak teeth, show a careful restorative consultation, tooth model, scan, or dentist explaining treatment options.
+- If the audience group mentions younger customers, use a Vietnamese patient aged about 24-35 with natural modern styling. If it mentions middle-aged customers, use a Vietnamese patient aged about 42-60 with realistic mature features and concerns about chewing function, missing teeth, or long-term safety.
 - The scene must feel like it belongs to the exact post topic, not a generic dental stock photo.
 """.strip()
 

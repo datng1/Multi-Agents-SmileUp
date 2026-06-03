@@ -217,6 +217,35 @@ function syncCreativeImageMode() {
   }
 }
 
+function syncCreativeImageMode() {
+  if (!creativeImageMode.value || creativeImageMode.value === "text_only") {
+    creativeImageMode.value = "top_match_reference";
+  }
+  const mode = creativeImageMode.value || "top_match_reference";
+  const hasUpload = Boolean(uploadedCreativeImage);
+  const labels = {
+    top_match_reference: "Có ảnh GPT Image",
+    auto: "Auto SmileUp",
+    owned: hasUpload ? "Using uploaded image" : "Upload needed",
+    layout_reference: hasUpload ? "Layout reference" : "Upload needed",
+    text_only: "GPT Image bắt buộc",
+  };
+  const hints = {
+    top_match_reference: "GPT Image tạo 6 ảnh ads photorealistic: 3 ảnh cho tệp khách trẻ và 3 ảnh cho tệp khách trung tuổi. Hệ thống cũng tạo thêm 3 ảnh chăm sóc page dạng infographic nội bộ để nhanh và đúng tiếng Việt. Ads match chỉ là tín hiệu bố cục/yếu tố cạnh tranh, không copy người, chữ, logo hay pixel.",
+    auto: "Tạo ảnh mới từ nền phòng khám và logo SmileUp.",
+    owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
+    layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
+    text_only: "Workflow vẫn tạo ảnh để bạn chọn, nhưng bạn có thể bỏ ảnh ở bước final review nếu chỉ muốn đăng bài viết.",
+  };
+  creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
+  creativeImageHint.textContent = hints[mode] || hints.auto;
+  const needsUpload = ["owned", "layout_reference"].includes(mode) && !hasUpload;
+  creativeImageStatus.classList.toggle("warning", needsUpload);
+  if (needsUpload) {
+    creativeImageHint.textContent = "Chọn mode này cần upload ảnh trước khi chạy workflow.";
+  }
+}
+
 function setAgentState(activeStep) {
   const activeIndex = agentOrder.indexOf(activeStep);
   agentCards.forEach((card) => {
@@ -1470,6 +1499,291 @@ function getSelectedFinalCreativeAsset() {
   return currentCreativeAssets[selectedIndex] || null;
 }
 
+function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
+  finalCreativeSelect.innerHTML = "";
+  const noImageOption = document.createElement("option");
+  noImageOption.value = "-1";
+  noImageOption.textContent = "Không dùng ảnh cho bài này";
+  finalCreativeSelect.appendChild(noImageOption);
+
+  if (!currentCreativeAssets.length) {
+    const pendingImageOption = document.createElement("option");
+    pendingImageOption.value = "image-pending";
+    pendingImageOption.disabled = true;
+    pendingImageOption.textContent = "Chưa có ảnh trong lượt chạy này";
+    finalCreativeSelect.appendChild(pendingImageOption);
+    setSelectedFinalCreativeIndexes([]);
+    updateFinalImageControls();
+    return;
+  }
+
+  currentCreativeAssets.forEach((asset, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    const label = imageAssetLabel(asset);
+    option.textContent = `${creativeGroupLabel(asset)} · ${label} ${String(index + 1).padStart(2, "0")} · ${asset.service_line || asset.title || "SmileUp creative"}`;
+    finalCreativeSelect.appendChild(option);
+  });
+
+  const safeIndex = Number(preferredCreativeIndex);
+  if (finalImageManuallyDisabled) {
+    setSelectedFinalCreativeIndexes([]);
+  } else if (safeIndex >= 0 && safeIndex < currentCreativeAssets.length) {
+    setSelectedFinalCreativeIndexes([safeIndex]);
+  } else {
+    selectDefaultFinalCreativeGroup();
+  }
+  updateFinalImageControls();
+}
+
+function updateFacebookPreview() {
+  const message = formatFinalFacebookMessage();
+  fbPreviewText.textContent = message || "Chạy workflow để xem bản preview cuối.";
+  finalCharCount.textContent = `${message.length.toLocaleString("vi-VN")} ký tự`;
+  safePayload.textContent = message || "Payload preview sẽ hiện ở đây.";
+
+  let selectedAssets = getSelectedFinalCreativeAssets();
+  if (!finalImageManuallyDisabled && !selectedAssets.length && currentCreativeAssets.some((asset) => asset?.image_path)) {
+    selectDefaultFinalCreativeGroup();
+    selectedAssets = getSelectedFinalCreativeAssets();
+  }
+
+  if (selectedAssets.length) {
+    const visibleAssets = selectedAssets.slice(0, 4);
+    const extraCount = selectedAssets.length - visibleAssets.length;
+    const label = selectedAssets.length > 1 ? `${selectedAssets.length} ảnh đã chọn` : imageAssetLabel(selectedAssets[0]);
+    fbPreviewImage.className = `fb-preview-image has-image ${selectedAssets.length > 1 ? "multi-image" : ""} count-${Math.min(selectedAssets.length, 4)}`;
+    fbPreviewImage.innerHTML = `
+      ${visibleAssets
+        .map((asset, index) => `
+          <figure>
+            <img src="${escapeHtml(asset.image_path)}" alt="${escapeHtml(asset.title || "SmileUp creative")}" />
+            ${extraCount > 0 && index === visibleAssets.length - 1 ? `<strong>+${extraCount}</strong>` : ""}
+          </figure>
+        `)
+        .join("")}
+      <span>${escapeHtml(label)}</span>
+    `;
+  } else {
+    fbPreviewImage.className = "fb-preview-image empty";
+    fbPreviewImage.textContent = currentCreativeAssets.length
+      ? "Đã có ảnh, hãy chọn một hoặc nhiều ảnh trong mục Ảnh đi kèm để xem trước."
+      : "Chưa có ảnh trong lượt chạy này.";
+  }
+  updateFinalImageControls();
+}
+
+function updateFinalImageControls() {
+  const selectedAssets = getSelectedFinalCreativeAssets();
+  const hasSelectedImage = selectedAssets.length > 0;
+  const firstImageAsset = currentCreativeAssets.find((asset) => asset?.image_path);
+  const firstImageIsModelGenerated = firstImageAsset?.openai_generated || firstImageAsset?.gemini_generated || firstImageAsset?.image_mode === "top_match_reference";
+  finalUseImageButton.disabled = !firstImageAsset;
+  finalUseImageButton.textContent = firstImageIsModelGenerated ? "Dùng nhóm ảnh GPT Image" : "Dùng nhóm ảnh đang có";
+  finalRemoveImageButton.disabled = !hasSelectedImage;
+  finalNoImageButton.classList.toggle("active", finalImageManuallyDisabled || !hasSelectedImage);
+  finalUseImageButton.classList.toggle("active", hasSelectedImage);
+  finalImageStatus.textContent = hasSelectedImage
+    ? `Đang chọn ${selectedAssets.length} ảnh: ${selectedAssets.map((asset) => creativeGroupLabel(asset)).filter(Boolean).slice(0, 3).join(", ")}`
+    : currentCreativeAssets.length
+      ? "Có ảnh trong lượt chạy này. Chọn một hoặc nhiều ảnh trong danh sách để đăng dạng album."
+      : "Chưa có ảnh trong lượt chạy này. Hãy chạy workflow hoặc bấm Thêm / đổi ảnh.";
+}
+
+function useFirstAvailableImage() {
+  const indexes = defaultFinalCreativeIndexes();
+  if (!indexes.length) {
+    finalImageStatus.textContent = "Chưa có ảnh để dùng. Hãy chạy workflow hoặc thêm ảnh thủ công.";
+    return;
+  }
+  finalImageManuallyDisabled = false;
+  setSelectedFinalCreativeIndexes(indexes);
+  updateFacebookPreview();
+}
+
+function removeSelectedFinalImage() {
+  const selectedIndexes = getSelectedFinalCreativeIndexes();
+  if (!selectedIndexes.length) {
+    setSelectedFinalCreativeIndexes([]);
+    updateFacebookPreview();
+    return;
+  }
+  currentCreativeAssets = currentCreativeAssets.filter((_, index) => !selectedIndexes.includes(index));
+  renderFinalCreativeOptions(currentCreativeAssets.length ? 0 : -1);
+  updateFacebookPreview();
+}
+
+function addFinalCreativeFromFile(file, onAdded) {
+  if (!file) {
+    onAdded?.(-1);
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    finalImageStatus.textContent = "File không phải ảnh. Hãy chọn PNG, JPG hoặc WEBP.";
+    onAdded?.(-1);
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    finalImageStatus.textContent = "Ảnh vượt quá 8 MB. Hãy chọn ảnh nhẹ hơn.";
+    onAdded?.(-1);
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = String(reader.result || "");
+    const newIndex = currentCreativeAssets.length;
+    currentCreativeAssets.push({
+      service_line: "Ảnh thủ công",
+      title: file.name,
+      image_path: dataUrl,
+      image_prompt: "Ảnh được thêm thủ công ở bước final review.",
+      image_mode: "manual_final_upload",
+      creative_group: "manual_upload",
+      audience_segment: "Ảnh thủ công",
+      source_policy: "Chỉ dùng nếu ảnh thuộc SmileUp hoặc bạn có quyền sử dụng.",
+    });
+    onAdded?.(newIndex);
+  };
+  reader.onerror = () => {
+    finalImageStatus.textContent = `Không đọc được ảnh ${file.name}.`;
+    onAdded?.(-1);
+  };
+  reader.readAsDataURL(file);
+}
+
+function addFinalCreativesFromFiles(files) {
+  const imageFiles = [...(files || [])].filter(Boolean);
+  if (!imageFiles.length) {
+    return;
+  }
+  let pending = imageFiles.length;
+  const addedIndexes = [];
+  imageFiles.forEach((file) => {
+    addFinalCreativeFromFile(file, (index) => {
+      if (index >= 0) {
+        addedIndexes.push(index);
+      }
+      pending -= 1;
+      if (pending <= 0) {
+        finalImageManuallyDisabled = false;
+        renderFinalCreativeOptions(addedIndexes[0] ?? 0);
+        setSelectedFinalCreativeIndexes(addedIndexes);
+        updateFacebookPreview();
+      }
+    });
+  });
+}
+
+function buildFinalDraftPayload() {
+  const selectedAssets = getSelectedFinalCreativeAssets();
+  const payload = {
+    title: finalTitleInput.value.trim(),
+    body: finalBodyInput.value.trim(),
+    call_to_action: finalCtaInput.value.trim(),
+    hashtags: normalizeHashtags(finalTagsInput.value),
+  };
+  const imagePaths = [];
+  const imageDataUrls = [];
+  selectedAssets.forEach((asset) => {
+    const imagePath = String(asset.image_path || "");
+    if (imagePath.startsWith("data:image/")) {
+      imageDataUrls.push(imagePath);
+    } else if (imagePath) {
+      imagePaths.push(imagePath);
+    }
+  });
+  if (imagePaths.length || imageDataUrls.length) {
+    payload.final_image_paths = imagePaths;
+    payload.final_image_data_urls = imageDataUrls;
+    const firstAsset = selectedAssets[0];
+    const firstImage = String(firstAsset?.image_path || "");
+    if (firstImage.startsWith("data:image/")) {
+      payload.final_image_data_url = firstImage;
+    } else if (firstImage) {
+      payload.final_image_path = firstImage;
+    }
+    payload.final_image_name = firstAsset?.title || firstAsset?.service_line || "SmileUp creative";
+  }
+  return payload;
+}
+
+function getSelectedFinalCreativeAsset() {
+  return getSelectedFinalCreativeAssets()[0] || null;
+}
+
+function getSelectedFinalCreativeAssets() {
+  return getSelectedFinalCreativeIndexes()
+    .map((index) => currentCreativeAssets[index])
+    .filter((asset) => asset?.image_path)
+    .slice(0, 10);
+}
+
+function getSelectedFinalCreativeIndexes() {
+  if (finalImageManuallyDisabled) {
+    return [];
+  }
+  return [...finalCreativeSelect.selectedOptions]
+    .map((option) => Number(option.value))
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < currentCreativeAssets.length);
+}
+
+function setSelectedFinalCreativeIndexes(indexes) {
+  const selectedSet = new Set((indexes || []).filter((index) => Number.isInteger(index) && index >= 0));
+  [...finalCreativeSelect.options].forEach((option) => {
+    const index = Number(option.value);
+    option.selected = selectedSet.has(index);
+  });
+  finalImageManuallyDisabled = selectedSet.size === 0;
+  const noImageOption = [...finalCreativeSelect.options].find((option) => option.value === "-1");
+  if (noImageOption) {
+    noImageOption.selected = selectedSet.size === 0;
+  }
+}
+
+function defaultFinalCreativeIndexes() {
+  const albumDefaults = currentCreativeAssets
+    .map((asset, index) => ({ asset, index }))
+    .filter(({ asset }) => asset?.image_path && asset.album_default)
+    .map(({ index }) => index);
+  if (albumDefaults.length) {
+    return albumDefaults.slice(0, 10);
+  }
+  const firstGroup = currentCreativeAssets.find((asset) => asset?.image_path)?.creative_group || "";
+  const sameGroup = currentCreativeAssets
+    .map((asset, index) => ({ asset, index }))
+    .filter(({ asset }) => asset?.image_path && (!firstGroup || asset.creative_group === firstGroup))
+    .map(({ index }) => index);
+  return sameGroup.slice(0, 10);
+}
+
+function selectDefaultFinalCreativeGroup() {
+  setSelectedFinalCreativeIndexes(defaultFinalCreativeIndexes());
+}
+
+function creativeGroupLabel(asset) {
+  const group = String(asset?.creative_group || "").toLowerCase();
+  if (group === "ads_young") {
+    return "Ads · tệp trẻ";
+  }
+  if (group === "ads_middle") {
+    return "Ads · trung tuổi";
+  }
+  if (group === "page_care") {
+    return "Chăm sóc page";
+  }
+  if (group === "manual_upload") {
+    return "Ảnh thủ công";
+  }
+  return "Ảnh đăng bài";
+}
+
+function imageAssetLabel(asset) {
+  return asset?.openai_generated || asset?.image_mode === "top_match_reference"
+    ? "Ảnh GPT Image"
+    : creativeGroupLabel(asset);
+}
+
 function normalizeHashtags(value) {
   return String(value || "")
     .split(/[\s,]+/)
@@ -1641,20 +1955,28 @@ finalBodyInput.addEventListener("input", updateFacebookPreview);
 finalCtaInput.addEventListener("input", updateFacebookPreview);
 finalTagsInput.addEventListener("input", updateFacebookPreview);
 finalCreativeSelect.addEventListener("change", () => {
-  finalImageManuallyDisabled = finalCreativeSelect.value === "-1";
+  const selectedImageIndexes = [...finalCreativeSelect.selectedOptions]
+    .map((option) => Number(option.value))
+    .filter((index) => Number.isInteger(index) && index >= 0);
+  finalImageManuallyDisabled = selectedImageIndexes.length === 0;
+  if (selectedImageIndexes.length) {
+    setSelectedFinalCreativeIndexes(selectedImageIndexes);
+  } else {
+    setSelectedFinalCreativeIndexes([]);
+  }
   updateFacebookPreview();
 });
 finalUseImageButton.addEventListener("click", useFirstAvailableImage);
 finalNoImageButton.addEventListener("click", () => {
   finalImageManuallyDisabled = true;
-  finalCreativeSelect.value = "-1";
+  setSelectedFinalCreativeIndexes([]);
   updateFacebookPreview();
 });
 finalRemoveImageButton.addEventListener("click", removeSelectedFinalImage);
 finalAddImageButton.addEventListener("click", openFinalImagePicker);
 finalAddImagePreviewButton.addEventListener("click", openFinalImagePicker);
 finalCreativeUpload.addEventListener("change", () => {
-  addFinalCreativeFromFile(finalCreativeUpload.files?.[0]);
+  addFinalCreativesFromFiles(finalCreativeUpload.files);
   finalCreativeUpload.value = "";
 });
 resetFinalButton.addEventListener("click", () => {

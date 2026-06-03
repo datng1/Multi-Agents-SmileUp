@@ -132,7 +132,9 @@ Workflow hiện có thêm:
 - Mỗi biến thể có `campaign_track`, `monthly_role` và `differentiation` để làm rõ vai trò trong chiến lược tháng và SmileUp khác gì so với ads đối thủ.
 - Mỗi lượt chạy có `run_seed` và `creative_variation_profile` riêng để CMO Campaign Plan đổi hook/góc kể/lead magnet/CTA/visual mood; cùng một keyword chạy lại vẫn phải sinh caption và ảnh khác nhau, không tái dùng cùng câu mở đầu hoặc cùng bối cảnh ảnh. Trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
 - Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode **Tạo ảnh GPT Image cho bài đăng**, hệ thống lấy media của ad match cao nhất làm reference khi có ảnh hợp lệ; nếu ads tham chiếu không có ảnh hoặc ảnh lỗi tải, GPT Image bắt buộc tạo ảnh mới theo bài viết, bối cảnh bác sĩ và bệnh nhân trong phòng khám Việt Nam, ảnh photorealistic không chữ/banner/watermark; sau đó overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
-- Ảnh bác sĩ SmileUp trong `web/assets/doctor-huong-portrait.jpg` và `web/assets/doctor-huong-consult.jpg` được dùng làm reference chính cho GPT Image để hình ảnh có bác sĩ thật, nhất quán gương mặt và tăng độ tin cậy. Khi có ảnh bác sĩ, ảnh ads đối thủ chỉ còn là tín hiệu ngữ cảnh/bố cục yếu, không dùng làm mặt người hay tài sản thương hiệu.
+- Mỗi lượt chạy mặc định tạo tối đa 9 ảnh theo 3 nhóm: 3 ảnh ads cho tệp khách trẻ, 3 ảnh ads cho tệp khách trung tuổi và 3 ảnh chăm sóc page dạng infographic giáo dục. 6 ảnh ads dùng GPT Image 2; nhóm chăm sóc page render nội bộ để tiếng Việt chính xác và không làm workflow bị treo quá lâu.
+- Final review cho phép chọn nhiều ảnh trong cùng một bài viết. Khi chọn nhiều ảnh, preview Facebook hiển thị dạng album và Publisher đăng bằng Graph API `attached_media` thay vì chỉ gửi một ảnh đơn.
+- Ảnh bác sĩ SmileUp trong `web/assets/doctor-huong-surgical-cap.jpg`, `web/assets/doctor-huong-portrait.jpg` và `web/assets/doctor-huong-consult.jpg` được dùng làm reference chính cho GPT Image để hình ảnh có bác sĩ thật, nhất quán gương mặt và tăng độ tin cậy. Prompt bắt buộc bác sĩ trong ảnh ads đội mũ y khoa/mũ phẫu thuật xanh sạch, đúng bối cảnh khám chữa bệnh. Khi có ảnh bác sĩ, ảnh ads đối thủ chỉ còn là tín hiệu ngữ cảnh/bố cục yếu, không dùng làm mặt người hay tài sản thương hiệu.
 - Prompt ảnh đã được khóa theo hướng people-first: ảnh GPT Image phải là cảnh photorealistic trong phòng khám có bác sĩ Việt Nam và bệnh nhân/khách hàng đang tư vấn hoặc thăm khám; không tạo ảnh chỉ có logo, icon răng, banner chữ, infographic, phòng khám trống hoặc layout trang trí; tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, bảng giá, khuyến mãi hoặc banner trong ảnh.
 
 Lưu ý: mode rewrite ảnh dùng ảnh ads gốc như reference để xào lại bố cục ở mức cao. Output vẫn phải là ảnh mới của SmileUp: không dùng lại pixel, logo, watermark, mặt người, text gốc, nền đặc trưng hoặc tài sản nhận diện của đối thủ.
@@ -188,8 +190,10 @@ GEMINI_MODEL=gemini-3.1-pro-preview
 GEMINI_FALLBACK_MODELS=gemini-3.1-pro-preview,gemini-3-pro,gemini-2.5-pro,gemini-2.5-flash
 OPENAI_MODEL=gpt-5.4-mini
 OPENAI_IMAGE_MODEL=gpt-image-2
-OPENAI_IMAGE_MAX_CREATIVES=3
-OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS=300
+OPENAI_IMAGE_MAX_CREATIVES=9
+OPENAI_IMAGE_PHOTO_CREATIVES=6
+OPENAI_IMAGE_PAGE_CARE_CREATIVES=3
+OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS=180
 ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
 CMO_JURY_ENABLED=true
 AGENT_API_REASONING_ENABLED=true

@@ -195,6 +195,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             }
             final_image_path = str(payload.get("final_image_path", "")).strip()
             final_image_data_url = str(payload.get("final_image_data_url", "")).strip()
+            final_image_paths = [str(path).strip() for path in payload.get("final_image_paths", []) if str(path).strip()]
+            final_image_data_urls = [str(url).strip() for url in payload.get("final_image_data_urls", []) if str(url).strip()]
             page_ids = [str(page_id).strip() for page_id in payload.get("page_ids", []) if str(page_id).strip()]
             if not any(draft.values()):
                 self._send_json({"ok": False, "error": "Final draft is empty"}, status=400)
@@ -221,6 +223,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 approval_override=approval_override,
                 image_path=final_image_path,
                 image_data_url=final_image_data_url,
+                image_paths=final_image_paths,
+                image_data_urls=final_image_data_urls,
             )
             if not approved and not approval_override:
                 result["reason"] = "Publisher bị chặn: backend chưa xác thực được approval token từ workflow đã được CMO duyệt."
