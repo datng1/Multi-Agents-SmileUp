@@ -418,21 +418,31 @@
                   <input id="finalTagsInput" class="final-input" type="text" placeholder="#SmileUp #RangSu #Implant" />
                 </label>
               </div>
-              <label class="final-image-select">
-                <span class="label">Media đi kèm</span>
-                <select id="finalCreativeSelect" class="mode-select" multiple size="8" aria-describedby="finalImageStatus">
-                  <option value="-1">Không dùng ảnh/video cho bài này</option>
-                </select>
-                <small class="input-help">Giữ Ctrl/Shift để chọn nhiều ảnh. Nếu chọn video, hệ thống sẽ đăng một video cho bài đó.</small>
-              </label>
-              <div class="final-image-actions">
-                <button id="finalUseImageButton" class="secondary-button" type="button">Dùng media đã upload</button>
-                <button id="finalNoImageButton" class="secondary-button" type="button">Chỉ đăng bài viết</button>
-                <button id="finalRemoveImageButton" class="secondary-button danger" type="button">Xóa media đang chọn</button>
-                <button id="finalAddImageButton" class="secondary-button" type="button">Thêm ảnh/video</button>
-                <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden />
-              </div>
-              <p id="finalImageStatus" class="final-image-status">Upload ảnh/video của SmileUp trước khi đăng. Tối đa 80 MB mỗi file.</p>
+              <section class="media-workbench" aria-label="Chọn media đăng Facebook">
+                <div class="media-workbench-head">
+                  <div>
+                    <span class="label">Media đi kèm</span>
+                    <strong>Upload ảnh/video của SmileUp</strong>
+                  </div>
+                  <button id="finalAddImageButton" class="secondary-button compact media-upload-button" type="button">Thêm ảnh/video</button>
+                  <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden />
+                </div>
+                <div class="media-workbench-body">
+                  <label class="final-image-select">
+                    <span class="label">Danh sách media</span>
+                    <select id="finalCreativeSelect" class="mode-select" multiple size="7" aria-describedby="finalImageStatus">
+                      <option value="-1">Không dùng ảnh/video cho bài này</option>
+                    </select>
+                    <small class="input-help">Chọn nhiều ảnh để đăng album. Nếu chọn video, bài đăng sẽ dùng một video.</small>
+                  </label>
+                  <div class="media-action-rail">
+                    <button id="finalUseImageButton" class="secondary-button" type="button">Dùng media đã upload</button>
+                    <button id="finalNoImageButton" class="secondary-button" type="button">Chỉ đăng bài viết</button>
+                    <button id="finalRemoveImageButton" class="secondary-button danger" type="button">Xóa media đang chọn</button>
+                  </div>
+                </div>
+                <p id="finalImageStatus" class="final-image-status">Upload ảnh/video của SmileUp trước khi đăng. Tối đa 80 MB mỗi file.</p>
+              </section>
               <div class="publish-page-box">
                 <div class="publish-page-heading">
                   <div>
@@ -486,7 +496,12 @@
                   <button id="copyCreativePromptButton" class="secondary-button compact" type="button">Copy prompt</button>
                 </div>
                 <textarea id="finalCreativePrompt" class="final-textarea creative-prompt-textarea" rows="9" spellcheck="false" placeholder="Prompt sẽ hiện sau khi chạy workflow."></textarea>
-                <p class="input-help">Hệ thống không gen ảnh trong app nữa. Dùng prompt này để tạo ảnh ở công cụ ngoài, rồi upload media vào phần bên trái.</p>
+                <div class="prompt-handoff">
+                  <span>1. Copy prompt</span>
+                  <span>2. Gen ở tool ngoài</span>
+                  <span>3. Upload media để đăng</span>
+                </div>
+                <p class="input-help">App không gen ảnh/video để tránh tốn chi phí. Prompt này bám sát bài viết, dùng để tạo media ở công cụ ngoài rồi upload lại ở bước final review.</p>
               </section>
             </div>
           </div>
