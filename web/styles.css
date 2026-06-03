@@ -2115,6 +2115,29 @@ pre {
   gap: 12px;
 }
 
+.final-preview-stack {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.creative-prompt-panel {
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 14px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 251, 250, 0.98)),
+    #fff;
+  box-shadow: 0 18px 44px rgba(17, 27, 49, 0.08);
+}
+
+.creative-prompt-textarea {
+  min-height: 190px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .final-editor label {
   display: grid;
   gap: 8px;
@@ -2478,6 +2501,20 @@ pre {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+.fb-preview-image video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(680px, 78vh);
+  aspect-ratio: 4 / 5;
+  object-fit: contain;
+  background: #050505;
+}
+
+.fb-preview-image.has-video {
+  background: #050505;
 }
 
 .fb-preview-image.has-image span {

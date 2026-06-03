@@ -34,6 +34,8 @@ def publish_facebook_post(
     image_data_url: str = "",
     image_paths: list[str] | None = None,
     image_data_urls: list[str] | None = None,
+    video_paths: list[str] | None = None,
+    video_data_urls: list[str] | None = None,
 ) -> dict[str, Any]:
     if not approved and not approval_override:
         return {
@@ -52,6 +54,7 @@ def publish_facebook_post(
         image_data_urls=image_data_urls,
         fallback=image_source,
     )
+    video_sources = _resolve_video_sources(video_paths=video_paths, video_data_urls=video_data_urls)
     pages = _select_pages(page_ids)
     if not pages:
         raise ValueError("No selected Facebook pages are configured")
@@ -67,6 +70,8 @@ def publish_facebook_post(
             "safe_payload_preview": message[:240],
             "image_attached": bool(image_sources),
             "image_count": len(image_sources),
+            "video_attached": bool(video_sources),
+            "video_count": len(video_sources),
             "image_name": image_sources[0].get("name", "") if image_sources else "",
             "safety_checks": _publish_safety_checks(approval_override, "manual_page_selection_required"),
         }
@@ -94,6 +99,8 @@ def publish_facebook_post(
             "safe_payload_preview": message[:240],
             "image_attached": bool(image_sources),
             "image_count": len(image_sources),
+            "video_attached": bool(video_sources),
+            "video_count": len(video_sources),
             "image_name": image_sources[0].get("name", "") if image_sources else "",
             "safety_checks": _publish_safety_checks(approval_override, "dry_run_enforced"),
         }
@@ -105,7 +112,9 @@ def publish_facebook_post(
 
     page_results = []
     for page in pages:
-        if len(image_sources) > 1:
+        if video_sources:
+            page_results.append(_publish_video_to_page(page, message, video_sources[0], schedule_time))
+        elif len(image_sources) > 1:
             page_results.append(_publish_album_to_page(page, message, image_sources, schedule_time))
         elif image_sources:
             page_results.append(_publish_photo_to_page(page, message, image_sources[0], schedule_time))
@@ -129,6 +138,8 @@ def publish_facebook_post(
         "safe_payload_preview": message[:240],
         "image_attached": bool(image_sources),
         "image_count": len(image_sources),
+        "video_attached": bool(video_sources),
+        "video_count": len(video_sources),
         "image_name": image_sources[0].get("name", "") if image_sources else "",
         "safety_checks": _publish_safety_checks(approval_override),
     }
@@ -325,6 +336,58 @@ def _publish_album_to_page(page: dict[str, str], message: str, image_sources: li
         }
 
 
+def _publish_video_to_page(page: dict[str, str], message: str, video_source: dict[str, Any], schedule_time: str | None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "description": message,
+        "access_token": page["access_token"],
+    }
+    if schedule_time:
+        payload["published"] = "false"
+        payload["scheduled_publish_time"] = schedule_time
+
+    files = {
+        "source": (
+            video_source.get("name") or "smileup-video.mp4",
+            video_source["bytes"],
+            video_source.get("mime") or "video/mp4",
+        )
+    }
+    try:
+        response = requests.post(
+            f"{GRAPH_URL}/{page['page_id']}/videos",
+            data={key: _normalize_facebook_text(value) for key, value in payload.items()},
+            files=files,
+            timeout=180,
+        )
+        result = _parse_graph_response(response)
+        if not response.ok:
+            return {
+                "page_id": page["page_id"],
+                "page_name": page["name"],
+                "published": False,
+                "video_attached": True,
+                "error": _graph_error_message(response, result),
+            }
+        video_id = result.get("id")
+        return {
+            "page_id": page["page_id"],
+            "page_name": page["name"],
+            "published": True,
+            "video_attached": True,
+            "published_video_id": video_id,
+            "published_post_id": video_id,
+            "published_post_url": _facebook_post_url(video_id),
+        }
+    except Exception as exc:
+        return {
+            "page_id": page["page_id"],
+            "page_name": page["name"],
+            "published": False,
+            "video_attached": True,
+            "error": str(exc)[:220],
+        }
+
+
 def _resolve_image_source(*, image_path: str = "", image_data_url: str = "") -> dict[str, Any] | None:
     if image_data_url:
         return _image_source_from_data_url(image_data_url)
@@ -358,6 +421,28 @@ def _resolve_image_sources(
     return sources[:10]
 
 
+def _resolve_video_sources(
+    *,
+    video_paths: list[str] | None = None,
+    video_data_urls: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for video_path in video_paths or []:
+        source = _video_source_from_path(str(video_path or ""))
+        if source and source["name"] not in seen:
+            sources.append(source)
+            seen.add(source["name"])
+    for data_url in video_data_urls or []:
+        source = _video_source_from_data_url(str(data_url or ""))
+        if source:
+            key = f"{source['name']}:{len(source['bytes'])}"
+            if key not in seen:
+                sources.append(source)
+                seen.add(key)
+    return sources[:1]
+
+
 def _image_source_from_path(image_path: str) -> dict[str, Any] | None:
     raw = str(image_path or "").strip()
     if not raw or raw.startswith("data:image/") or raw.startswith(("http://", "https://")):
@@ -373,8 +458,8 @@ def _image_source_from_path(image_path: str) -> dict[str, Any] | None:
     data = path.read_bytes()
     if not data:
         raise ValueError("Selected image file is empty")
-    if len(data) > 8 * 1024 * 1024:
-        raise ValueError("Selected image is larger than 8 MB")
+    if len(data) > 80 * 1024 * 1024:
+        raise ValueError("Selected image is larger than 80 MB")
     mime = mimetypes.guess_type(path.name)[0] or "image/png"
     if not mime.startswith("image/"):
         raise ValueError("Selected file is not an image")
@@ -392,10 +477,49 @@ def _image_source_from_data_url(data_url: str) -> dict[str, Any] | None:
         raise ValueError("Selected image data is invalid") from exc
     if not data:
         raise ValueError("Selected image data is empty")
-    if len(data) > 8 * 1024 * 1024:
-        raise ValueError("Selected image is larger than 8 MB")
+    if len(data) > 80 * 1024 * 1024:
+        raise ValueError("Selected image is larger than 80 MB")
     extension = mimetypes.guess_extension(mime) or ".png"
     return {"bytes": data, "mime": mime, "name": f"smileup-final{extension}"}
+
+
+def _video_source_from_path(video_path: str) -> dict[str, Any] | None:
+    raw = str(video_path or "").strip()
+    if not raw or raw.startswith("data:video/") or raw.startswith(("http://", "https://")):
+        return None
+    relative = raw.lstrip("/").replace("\\", "/")
+    path = (WEB_ROOT / relative).resolve()
+    try:
+        path.relative_to(WEB_ROOT.resolve())
+    except ValueError as exc:
+        raise ValueError("Selected video is outside the publishable web directory") from exc
+    if not path.exists() or not path.is_file():
+        raise ValueError("Selected video file was not found on the server")
+    data = path.read_bytes()
+    return _validate_video_source(data, mimetypes.guess_type(path.name)[0] or "video/mp4", path.name)
+
+
+def _video_source_from_data_url(data_url: str) -> dict[str, Any] | None:
+    header, _, encoded = str(data_url or "").partition(",")
+    if not header.startswith("data:video/") or not encoded:
+        return None
+    mime = header[5:].split(";", 1)[0] or "video/mp4"
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except Exception as exc:
+        raise ValueError("Selected video data is invalid") from exc
+    extension = mimetypes.guess_extension(mime) or ".mp4"
+    return _validate_video_source(data, mime, f"smileup-final{extension}")
+
+
+def _validate_video_source(data: bytes, mime: str, name: str) -> dict[str, Any]:
+    if not data:
+        raise ValueError("Selected video file is empty")
+    if len(data) > 80 * 1024 * 1024:
+        raise ValueError("Selected video is larger than 80 MB")
+    if not str(mime or "").startswith("video/"):
+        raise ValueError("Selected file is not a video")
+    return {"bytes": data, "mime": mime or "video/mp4", "name": name}
 
 
 def _parse_graph_response(response: Any) -> dict[str, Any]:

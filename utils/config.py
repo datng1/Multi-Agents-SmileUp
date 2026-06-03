@@ -122,10 +122,10 @@ class Settings:
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
     gemini_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_FALLBACK_MODELS") or ["gemini-3.1-pro-preview", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"])
     competitor_page_ids: list[str] = field(default_factory=lambda: _list("COMPETITOR_PAGE_IDS"))
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.5")
     openai_image_model: str = "gpt-image-2"
     openai_image_fallback_models: list[str] = field(default_factory=list)
-    openai_image_max_creatives: int = int(os.getenv("OPENAI_IMAGE_MAX_CREATIVES", "9"))
+    openai_image_max_creatives: int = int(os.getenv("OPENAI_IMAGE_MAX_CREATIVES", "0"))
     openai_image_photo_creatives: int = int(os.getenv("OPENAI_IMAGE_PHOTO_CREATIVES", "6"))
     openai_image_page_care_creatives: int = int(os.getenv("OPENAI_IMAGE_PAGE_CARE_CREATIVES", "3"))
     openai_image_max_model_attempts: int = 1

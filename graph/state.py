@@ -163,7 +163,7 @@ def create_initial_state() -> AgentState:
         "draft_content": None,
         "content_plan": [],
         "creative_assets": [],
-        "creative_image_mode": "top_match_reference",
+        "creative_image_mode": "upload_only",
         "creative_upload_path": "",
         "creative_upload_url": "",
         "creative_reference_note": "",

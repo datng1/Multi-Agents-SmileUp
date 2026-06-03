@@ -29,7 +29,7 @@ UPLOAD_ROOT = WEB_ROOT / "generated" / "uploads"
 WORKFLOW_CONTEXT_CACHE_PATH = ROOT / "data" / "workflow_context_cache.json"
 HOST = "127.0.0.1"
 PORT = 8765
-MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+MAX_UPLOAD_BYTES = 80 * 1024 * 1024
 JOB_LOCK = threading.Lock()
 CACHE_LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
@@ -98,8 +98,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "dry_run": config.DRY_RUN,
                     "ai_provider": config.AI_PROVIDER,
                     "ai_model": _model_status_label(),
-                    "image_model": config.OPENAI_IMAGE_MODEL,
-                    "openai_image_model": config.OPENAI_IMAGE_MODEL,
+                    "image_model": "disabled",
+                    "openai_image_model": "disabled",
                     "cmo_jury_enabled": config.CMO_JURY_ENABLED,
                     "ad_library_enabled": config.AD_LIBRARY_ENABLED,
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
@@ -197,6 +197,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             final_image_data_url = str(payload.get("final_image_data_url", "")).strip()
             final_image_paths = [str(path).strip() for path in payload.get("final_image_paths", []) if str(path).strip()]
             final_image_data_urls = [str(url).strip() for url in payload.get("final_image_data_urls", []) if str(url).strip()]
+            final_video_paths = [str(path).strip() for path in payload.get("final_video_paths", []) if str(path).strip()]
+            final_video_data_urls = [str(url).strip() for url in payload.get("final_video_data_urls", []) if str(url).strip()]
             page_ids = [str(page_id).strip() for page_id in payload.get("page_ids", []) if str(page_id).strip()]
             if not any(draft.values()):
                 self._send_json({"ok": False, "error": "Final draft is empty"}, status=400)
@@ -225,6 +227,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                 image_data_url=final_image_data_url,
                 image_paths=final_image_paths,
                 image_data_urls=final_image_data_urls,
+                video_paths=final_video_paths,
+                video_data_urls=final_video_data_urls,
             )
             if not approved and not approval_override:
                 result["reason"] = "Publisher bị chặn: backend chưa xác thực được approval token từ workflow đã được CMO duyệt."
@@ -485,6 +489,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length", "0") or "0")
         if content_length <= 0:
             return {}
+        if content_length > MAX_UPLOAD_BYTES * 2:
+            raise ValueError("Request body is too large. Maximum media upload is 80 MB.")
         raw_body = self.rfile.read(content_length).decode("utf-8")
         return json.loads(raw_body or "{}")
 
@@ -642,7 +648,6 @@ def _verify_publish_approval_payload(payload: dict, session_id: str, username: s
 
 def _workflow_context_cache_key(request_payload: dict) -> str:
     ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip() or config.AD_LIBRARY_KEYWORDS
-    creative_image_data_url = str(request_payload.get("creative_image_data_url", "") or "")
     scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
     payload = {
         "version": WORKFLOW_CONTEXT_CACHE_VERSION,
@@ -654,8 +659,7 @@ def _workflow_context_cache_key(request_payload: dict) -> str:
         "manual_competitor_posts": str(request_payload.get("manual_competitor_posts", "")).strip(),
         "manual_visual_notes": str(request_payload.get("manual_visual_notes", "")).strip(),
         "manual_video_notes": str(request_payload.get("manual_video_notes", "")).strip(),
-        "creative_image_name": str(request_payload.get("creative_image_name", "")).strip(),
-        "creative_image_sha1": hashlib.sha1(creative_image_data_url.encode("utf-8")).hexdigest() if creative_image_data_url else "",
+        "creative_mode": "upload_only_prompt",
         "settings": {
             "mock_mode": config.MOCK_MODE,
             "dry_run": config.DRY_RUN,
@@ -843,9 +847,7 @@ def _build_initial_state(request_payload: dict) -> dict:
     video_notes = str(request_payload.get("manual_video_notes", "")).strip()
     ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
     scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
-    creative_image_mode = _normalize_creative_image_mode(request_payload.get("creative_image_mode", "top_match_reference"))
-    creative_image_name = str(request_payload.get("creative_image_name", "")).strip()
-    creative_image_data_url = str(request_payload.get("creative_image_data_url", "")).strip()
+    creative_image_mode = _normalize_creative_image_mode(request_payload.get("creative_image_mode", "upload_only"))
 
     initial_state = create_initial_state()
     run_seed = _build_run_seed(ad_library_keywords or config.AD_LIBRARY_KEYWORDS, scan_mode)
@@ -860,14 +862,7 @@ def _build_initial_state(request_payload: dict) -> dict:
     initial_state["competitor_visual_notes"] = visual_notes
     initial_state["competitor_video_notes"] = video_notes
     initial_state["creative_image_mode"] = creative_image_mode
-    if creative_image_data_url and creative_image_mode in {"owned", "layout_reference"}:
-        upload_path, upload_url = _save_uploaded_creative(creative_image_data_url, creative_image_name)
-        initial_state["creative_upload_path"] = upload_path
-        initial_state["creative_upload_url"] = upload_url
-        if creative_image_mode == "owned":
-            initial_state["creative_reference_note"] = "Using uploaded SmileUp-owned/licensed image as creative source."
-        else:
-            initial_state["creative_reference_note"] = "Using uploaded image as layout reference only; original pixels are not reused."
+    initial_state["creative_reference_note"] = "Image/video generation is disabled; media must be uploaded manually in final review."
     if manual_text:
         manual_insights = parse_manual_competitor_posts(manual_text)
         if manual_insights:
@@ -944,20 +939,7 @@ def _scan_settings(request_payload: dict) -> tuple[str, int, int]:
 
 
 def _normalize_creative_image_mode(value: object) -> str:
-    mode = str(value or "top_match_reference").strip()
-    aliases = {
-        "text_only": "top_match_reference",
-        "no_image": "top_match_reference",
-        "owned": "top_match_reference",
-        "layout_reference": "top_match_reference",
-        "auto": "top_match_reference",
-        "rewrite_top_ad": "top_match_reference",
-        "rewrite_reference": "top_match_reference",
-        "rewrite_image": "top_match_reference",
-    }
-    mode = aliases.get(mode, mode)
-    allowed = {"top_match_reference"}
-    return mode if mode in allowed else "top_match_reference"
+    return "upload_only"
 
 
 def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str]:
@@ -972,7 +954,7 @@ def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str
     except Exception as exc:
         raise ValueError("Image upload is not valid base64.") from exc
     if len(raw) > MAX_UPLOAD_BYTES:
-        raise ValueError("Image upload is too large. Maximum size is 8 MB.")
+        raise ValueError("Image upload is too large. Maximum size is 80 MB.")
 
     safe_name = re.sub(r"[^a-zA-Z0-9]+", "-", Path(original_name).stem).strip("-").lower()[:36]
     digest = hashlib.sha1(raw).hexdigest()[:10]

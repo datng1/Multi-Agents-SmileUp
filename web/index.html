@@ -173,7 +173,7 @@
             </div>
           </section>
 
-          <section class="creative-source-panel" aria-label="Creative image source">
+          <section class="creative-source-panel hidden-panel" aria-label="Creative image source" aria-hidden="true">
             <div class="panel-header compact">
               <div>
                 <span class="label">Ảnh bài đăng</span>
@@ -194,10 +194,10 @@
                 <label>
                   <span class="label">Chế độ ảnh</span>
                   <select id="creativeImageMode" class="mode-select">
-                    <option value="top_match_reference" selected>Có ảnh GPT Image cho bài đăng</option>
+                    <option value="upload_only" selected>Chỉ upload ảnh/video thủ công</option>
                   </select>
                 </label>
-                <p id="creativeImageHint">Mặc định GPT Image sẽ tạo ảnh mới cho bài đăng. Nếu ads match có ảnh thì chỉ lấy bố cục làm tham chiếu; nếu không có ảnh thì tự gen ảnh phòng khám Việt Nam phù hợp nội dung, không chữ/banner/watermark.</p>
+                <p id="creativeImageHint">Gen ảnh/video trong app đã tắt. Agent chỉ viết prompt creative, media đăng cuối được upload ở bước final review.</p>
               </div>
               <div id="creativeImagePreview" class="creative-image-preview empty">Text only</div>
             </div>
@@ -419,20 +419,20 @@
                 </label>
               </div>
               <label class="final-image-select">
-                <span class="label">Ảnh đi kèm</span>
+                <span class="label">Media đi kèm</span>
                 <select id="finalCreativeSelect" class="mode-select" multiple size="8" aria-describedby="finalImageStatus">
-                  <option value="-1">Không dùng ảnh cho bài này</option>
+                  <option value="-1">Không dùng ảnh/video cho bài này</option>
                 </select>
-                <small class="input-help">Giữ Ctrl/Shift để chọn nhiều ảnh trong cùng một bài đăng.</small>
+                <small class="input-help">Giữ Ctrl/Shift để chọn nhiều ảnh. Nếu chọn video, hệ thống sẽ đăng một video cho bài đó.</small>
               </label>
               <div class="final-image-actions">
-                <button id="finalUseImageButton" class="secondary-button" type="button">Dùng ảnh đang có</button>
+                <button id="finalUseImageButton" class="secondary-button" type="button">Dùng media đã upload</button>
                 <button id="finalNoImageButton" class="secondary-button" type="button">Chỉ đăng bài viết</button>
-                <button id="finalRemoveImageButton" class="secondary-button danger" type="button">Xóa ảnh đang chọn</button>
-                <button id="finalAddImageButton" class="secondary-button" type="button">Thêm / đổi ảnh</button>
-                <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
+                <button id="finalRemoveImageButton" class="secondary-button danger" type="button">Xóa media đang chọn</button>
+                <button id="finalAddImageButton" class="secondary-button" type="button">Thêm ảnh/video</button>
+                <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden />
               </div>
-              <p id="finalImageStatus" class="final-image-status">Bạn có thể bỏ ảnh, đổi ảnh hoặc thêm ảnh mới trước khi đăng.</p>
+              <p id="finalImageStatus" class="final-image-status">Upload ảnh/video của SmileUp trước khi đăng. Tối đa 80 MB mỗi file.</p>
               <div class="publish-page-box">
                 <div class="publish-page-heading">
                   <div>
@@ -459,23 +459,36 @@
               </div>
             </div>
 
-            <article class="facebook-preview" aria-label="Facebook post preview">
-              <div class="fb-preview-top">
-                <img src="/assets/smileup-logo.jfif" alt="SmileUp Dental Clinic" />
-                <div>
-                  <strong>SmileUp Dental Clinic</strong>
-                  <span>Được tài trợ · Công khai</span>
+            <div class="final-preview-stack">
+              <article class="facebook-preview" aria-label="Facebook post preview">
+                <div class="fb-preview-top">
+                  <img src="/assets/smileup-logo.jfif" alt="SmileUp Dental Clinic" />
+                  <div>
+                    <strong>SmileUp Dental Clinic</strong>
+                    <span>Được tài trợ · Công khai</span>
+                  </div>
+                  <button type="button" aria-label="Facebook options">•••</button>
                 </div>
-                <button type="button" aria-label="Facebook options">•••</button>
-              </div>
-              <div id="fbPreviewText" class="fb-preview-text">Chạy workflow để xem bản preview cuối.</div>
-              <div id="fbPreviewImage" class="fb-preview-image empty">Ảnh creative sẽ hiện ở đây.</div>
-              <div class="fb-image-footer">
-                <button id="finalAddImagePreviewButton" class="secondary-button" type="button">+ Thêm ảnh</button>
-              </div>
-              <div class="fb-preview-stats"><span>Thích 0</span><span>0 bình luận · 0 lượt chia sẻ</span></div>
-              <div class="fb-preview-actions"><span>Thích</span><span>Bình luận</span><span>Chia sẻ</span></div>
-            </article>
+                <div id="fbPreviewText" class="fb-preview-text">Chạy workflow để xem bản preview cuối.</div>
+                <div id="fbPreviewImage" class="fb-preview-image empty">Media upload sẽ hiện ở đây.</div>
+                <div class="fb-image-footer">
+                  <button id="finalAddImagePreviewButton" class="secondary-button" type="button">+ Thêm ảnh/video</button>
+                </div>
+                <div class="fb-preview-stats"><span>Thích 0</span><span>0 bình luận · 0 lượt chia sẻ</span></div>
+                <div class="fb-preview-actions"><span>Thích</span><span>Bình luận</span><span>Chia sẻ</span></div>
+              </article>
+              <section class="creative-prompt-panel" aria-label="Creative prompt copy">
+                <div class="panel-header compact">
+                  <div>
+                    <span class="label">Prompt creative</span>
+                    <h2>Prompt để copy sang tool ảnh/video</h2>
+                  </div>
+                  <button id="copyCreativePromptButton" class="secondary-button compact" type="button">Copy prompt</button>
+                </div>
+                <textarea id="finalCreativePrompt" class="final-textarea creative-prompt-textarea" rows="9" spellcheck="false" placeholder="Prompt sẽ hiện sau khi chạy workflow."></textarea>
+                <p class="input-help">Hệ thống không gen ảnh trong app nữa. Dùng prompt này để tạo ảnh ở công cụ ngoài, rồi upload media vào phần bên trái.</p>
+              </section>
+            </div>
           </div>
         </section>
 

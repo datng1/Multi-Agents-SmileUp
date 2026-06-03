@@ -40,6 +40,8 @@ const finalNoImageButton = document.querySelector("#finalNoImageButton");
 const finalRemoveImageButton = document.querySelector("#finalRemoveImageButton");
 const finalAddImageButton = document.querySelector("#finalAddImageButton");
 const finalAddImagePreviewButton = document.querySelector("#finalAddImagePreviewButton");
+const finalCreativePrompt = document.querySelector("#finalCreativePrompt");
+const copyCreativePromptButton = document.querySelector("#copyCreativePromptButton");
 const finalImageStatus = document.querySelector("#finalImageStatus");
 const finalCharCount = document.querySelector("#finalCharCount");
 const resetFinalButton = document.querySelector("#resetFinalButton");
@@ -110,6 +112,7 @@ let activeSourceMode = "auto";
 let uploadedCreativeImage = null;
 let originalFinalDraft = null;
 let currentCreativeAssets = [];
+let currentPromptAssets = [];
 let currentContentPlan = [];
 let currentResult = null;
 let publishPages = [];
@@ -195,18 +198,18 @@ function syncCreativeImageMode() {
   const mode = creativeImageMode.value || "top_match_reference";
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
-    top_match_reference: "Có ảnh GPT Image",
+    top_match_reference: "Upload only",
     auto: "Auto SmileUp",
     owned: hasUpload ? "Using uploaded image" : "Upload needed",
     layout_reference: hasUpload ? "Layout reference" : "Upload needed",
-    text_only: "GPT Image bắt buộc",
+    text_only: "Upload only",
   };
   const hints = {
-    top_match_reference: "GPT Image quét tối đa 14 ads match/mới nhất. Nếu có ảnh ads thì chỉ lấy bố cục làm reference; nếu không có ảnh hoặc ảnh lỗi tải thì tự gen ảnh mới theo bài viết, bối cảnh bác sĩ và bệnh nhân trong phòng khám Việt Nam, photorealistic, không chữ/banner/watermark.",
-    auto: "Mặc định tạo ảnh mới từ nền phòng khám và logo SmileUp.",
+    top_match_reference: "Gen ảnh/video trong app đã tắt. Agent chỉ viết prompt creative, bạn upload media thủ công ở final review.",
+    auto: "Gen ảnh/video trong app đã tắt. Hãy upload media ở final review.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
-    text_only: "Workflow hiện bắt buộc gen 3 ảnh GPT Image 2; bạn vẫn có thể bỏ ảnh ở bước final review nếu không muốn đăng kèm ảnh.",
+    text_only: "Workflow chỉ tạo prompt creative để copy ra công cụ ngoài.",
   };
   creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
   creativeImageHint.textContent = hints[mode] || hints.auto;
@@ -224,18 +227,18 @@ function syncCreativeImageMode() {
   const mode = creativeImageMode.value || "top_match_reference";
   const hasUpload = Boolean(uploadedCreativeImage);
   const labels = {
-    top_match_reference: "Có ảnh GPT Image",
+    top_match_reference: "Upload only",
     auto: "Auto SmileUp",
     owned: hasUpload ? "Using uploaded image" : "Upload needed",
     layout_reference: hasUpload ? "Layout reference" : "Upload needed",
-    text_only: "GPT Image bắt buộc",
+    text_only: "Upload only",
   };
   const hints = {
-    top_match_reference: "GPT Image tạo 6 ảnh ads photorealistic: 3 ảnh cho tệp khách trẻ và 3 ảnh cho tệp khách trung tuổi. Hệ thống cũng tạo thêm 3 ảnh chăm sóc page dạng infographic nội bộ để nhanh và đúng tiếng Việt. Ads match chỉ là tín hiệu bố cục/yếu tố cạnh tranh, không copy người, chữ, logo hay pixel.",
-    auto: "Tạo ảnh mới từ nền phòng khám và logo SmileUp.",
+    top_match_reference: "Gen ảnh/video trong app đã tắt. Agent chỉ viết prompt creative, bạn upload media thủ công ở final review.",
+    auto: "Gen ảnh/video trong app đã tắt. Hãy upload media ở final review.",
     owned: "Dùng khi ảnh là của SmileUp hoặc ảnh bạn có quyền sử dụng.",
     layout_reference: "Chỉ lấy bố cục tổng quát; không dùng pixel, logo, mặt người hay tài sản gốc của ads.",
-    text_only: "Workflow vẫn tạo ảnh để bạn chọn, nhưng bạn có thể bỏ ảnh ở bước final review nếu chỉ muốn đăng bài viết.",
+    text_only: "Workflow chỉ tạo prompt creative để copy ra công cụ ngoài.",
   };
   creativeImageStatus.textContent = labels[mode] || "Auto SmileUp";
   creativeImageHint.textContent = hints[mode] || hints.auto;
@@ -539,7 +542,7 @@ async function runWorkflow(scanMode = "deep") {
 }
 
 async function waitForWorkflowJob(jobId) {
-  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con có thể gọi GPT/Gemini; ảnh GPT Image chỉ gen tối đa 3 creative ưu tiên tuyến ads để tránh chờ quá lâu.`;
+  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con có thể gọi GPT/Gemini; app chỉ tạo prompt creative và không gen ảnh/video.`;
   let attempt = 0;
   while (true) {
     await sleep(3000);
@@ -1333,7 +1336,7 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
     const pendingImageOption = document.createElement("option");
     pendingImageOption.value = "image-pending";
     pendingImageOption.disabled = true;
-    pendingImageOption.textContent = "Chưa có ảnh GPT Image trong lượt chạy này";
+    pendingImageOption.textContent = "Chưa có media upload trong lượt chạy này";
     finalCreativeSelect.appendChild(pendingImageOption);
     finalCreativeSelect.value = "-1";
     updateFinalImageControls();
@@ -1344,7 +1347,7 @@ function renderFinalCreativeOptions(preferredCreativeIndex = 0) {
     const option = document.createElement("option");
     option.value = String(index);
     const isModelRewrite = asset.image_mode === "top_match_reference" || asset.openai_generated || asset.gemini_generated;
-    const label = isModelRewrite ? "Có ảnh GPT Image" : "Ảnh SmileUp";
+    const label = isModelRewrite ? "Media upload" : "Ảnh SmileUp";
     option.textContent = `${label} · ${String(index + 1).padStart(2, "0")} · ${asset.service_line || asset.title || "SmileUp creative"}`;
     finalCreativeSelect.appendChild(option);
   });
@@ -1370,7 +1373,7 @@ function updateFacebookPreview() {
   }
   const selectedAsset = Number.isInteger(selectedIndex) ? currentCreativeAssets[selectedIndex] : null;
   if (selectedAsset?.image_path) {
-    const label = selectedAsset.openai_generated || selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Ảnh GPT Image" : "Ảnh đính kèm";
+    const label = selectedAsset.openai_generated || selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Media upload" : "Ảnh đính kèm";
     fbPreviewImage.className = "fb-preview-image has-image";
     fbPreviewImage.innerHTML = `
       <img src="${escapeHtml(selectedAsset.image_path)}" alt="${escapeHtml(selectedAsset.title || "SmileUp creative")}" />
@@ -1380,7 +1383,7 @@ function updateFacebookPreview() {
     fbPreviewImage.className = "fb-preview-image empty";
     fbPreviewImage.textContent = currentCreativeAssets.length
       ? "Đã có ảnh, hãy chọn trong mục Ảnh đi kèm để xem trước."
-      : "Chưa có ảnh GPT Image trong lượt chạy này.";
+      : "Chưa có media upload trong lượt chạy này.";
   }
   updateFinalImageControls();
 }
@@ -1392,15 +1395,15 @@ function updateFinalImageControls() {
   const firstImageAsset = currentCreativeAssets.find((asset) => asset?.image_path);
   const firstImageIsModelGenerated = firstImageAsset?.openai_generated || firstImageAsset?.gemini_generated || firstImageAsset?.image_mode === "top_match_reference";
   finalUseImageButton.disabled = !firstImageAsset;
-  finalUseImageButton.textContent = firstImageIsModelGenerated ? "Dùng ảnh GPT Image" : "Dùng ảnh đang có";
+  finalUseImageButton.textContent = firstImageIsModelGenerated ? "Dùng media upload" : "Dùng ảnh đang có";
   finalRemoveImageButton.disabled = !hasSelectedImage;
   finalNoImageButton.classList.toggle("active", selectedIndex === -1);
   finalUseImageButton.classList.toggle("active", hasSelectedImage);
   finalImageStatus.textContent = hasSelectedImage
-    ? `${selectedAsset.openai_generated || selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Đang chọn ảnh GPT Image" : "Đang chọn ảnh"}: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
+    ? `${selectedAsset.openai_generated || selectedAsset.gemini_generated || selectedAsset.image_mode === "top_match_reference" ? "Đang chọn media" : "Đang chọn ảnh"}: ${selectedAsset.title || selectedAsset.service_line || "SmileUp creative"}`
     : currentCreativeAssets.length
       ? "Có ảnh trong lượt chạy này. Bấm “Dùng ảnh đang có” hoặc chọn ảnh trong dropdown để xem trước."
-      : "Chưa có ảnh trong lượt chạy này. Hãy chạy workflow ở chế độ “Có ảnh GPT Image” hoặc bấm “Thêm / đổi ảnh”.";
+      : "Chưa có media upload. Hãy bấm “Thêm ảnh/video”.";
 }
 
 function useFirstAvailableImage() {
@@ -1579,7 +1582,7 @@ function updateFinalImageControls() {
   const firstImageAsset = currentCreativeAssets.find((asset) => asset?.image_path);
   const firstImageIsModelGenerated = firstImageAsset?.openai_generated || firstImageAsset?.gemini_generated || firstImageAsset?.image_mode === "top_match_reference";
   finalUseImageButton.disabled = !firstImageAsset;
-  finalUseImageButton.textContent = firstImageIsModelGenerated ? "Dùng nhóm ảnh GPT Image" : "Dùng nhóm ảnh đang có";
+  finalUseImageButton.textContent = firstImageIsModelGenerated ? "Dùng nhóm media upload" : "Dùng nhóm ảnh đang có";
   finalRemoveImageButton.disabled = !hasSelectedImage;
   finalNoImageButton.classList.toggle("active", finalImageManuallyDisabled || !hasSelectedImage);
   finalUseImageButton.classList.toggle("active", hasSelectedImage);
@@ -1780,8 +1783,518 @@ function creativeGroupLabel(asset) {
 
 function imageAssetLabel(asset) {
   return asset?.openai_generated || asset?.image_mode === "top_match_reference"
-    ? "Ảnh GPT Image"
+    ? "Media upload"
     : creativeGroupLabel(asset);
+}
+
+function syncCreativeImageMode() {
+  if (creativeImageMode) {
+    creativeImageMode.value = "upload_only";
+  }
+  if (creativeImageStatus) {
+    creativeImageStatus.textContent = "Upload only";
+    creativeImageStatus.classList.remove("warning");
+  }
+  if (creativeImageHint) {
+    creativeImageHint.textContent =
+      "Hệ thống đã tắt gen ảnh/video để giảm chi phí. Agent chỉ viết prompt creative bằng GPT-5.5, bạn upload media ở bước final review.";
+  }
+}
+
+function resetFinalReview() {
+  originalFinalDraft = null;
+  currentCreativeAssets = [];
+  currentPromptAssets = [];
+  finalImageManuallyDisabled = true;
+  finalTitleInput.value = "";
+  finalBodyInput.value = "";
+  finalCtaInput.value = "";
+  finalTagsInput.value = "";
+  if (finalCreativePrompt) {
+    finalCreativePrompt.value = "";
+  }
+  renderFinalCreativeOptions(-1);
+  updateFacebookPreview();
+  publishPageStatus.textContent = "Publisher chỉ chạy khi CMO đã duyệt và bạn bấm đăng.";
+  renderPublishedPostLink({});
+}
+
+async function runWorkflow(scanMode = "deep") {
+  clearCompletionNotice();
+  setRunButtons(true, scanMode);
+  showProcessingScreen(scanMode);
+  homeButton.classList.add("hidden-panel");
+  resetAgents();
+  resetRunOutputs();
+  setAgentState("crawler");
+  safePayload.textContent =
+    scanMode === "deep"
+      ? "Đã tạo job quét sâu 14 ads. App không gen ảnh/video; agent sẽ viết prompt creative để bạn copy và upload media thủ công."
+      : "Đã tạo job chạy nhanh 5 ads. App không gen ảnh/video; agent sẽ viết prompt creative để bạn copy và upload media thủ công.";
+
+  try {
+    const response = await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        manual_competitor_posts: activeSourceMode === "manual" ? manualInput.value.trim() : "",
+        manual_visual_notes: activeSourceMode === "manual" ? visualInput.value.trim() : "",
+        manual_video_notes: activeSourceMode === "manual" ? videoInput.value.trim() : "",
+        ad_library_keywords: keywordValue.value.trim(),
+        scan_mode: scanMode,
+        creative_image_mode: "upload_only",
+      }),
+    });
+    const payload = await response.json();
+    if (!payload.ok) {
+      throw new Error(payload.error || "Workflow failed");
+    }
+    if (payload.job_id) {
+      safePayload.textContent = `Job ${payload.job_id} đã nhận. Bạn có thể theo dõi từng agent ngay trên màn hình này.`;
+    }
+    const completedPayload = payload.job_id ? await waitForWorkflowJob(payload.job_id) : payload;
+
+    renderResult(completedPayload.result, completedPayload.logs || "", completedPayload.duration_ms, completedPayload.history_hit);
+    notifyWorkflowComplete();
+    completeAgents();
+    lastRunValue.textContent = new Date().toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch (error) {
+    approvalValue.textContent = "Error";
+    connectionState.textContent = "Needs attention";
+    connectionState.classList.remove("ready");
+    safePayload.textContent = error.message;
+    logOutput.textContent = error.stack || error.message;
+  } finally {
+    hideProcessingScreen();
+    runButton.disabled = false;
+    deepRunButton.disabled = false;
+    runButton.querySelector(".button-icon").textContent = "▶";
+    runButton.lastChild.textContent = " Quét sâu 14 ads";
+    deepRunButton.textContent = "Chạy nhanh 5 ads";
+  }
+}
+
+async function waitForWorkflowJob(jobId) {
+  safePayload.textContent = `Job ${jobId} đang chạy nền. Các agent con dùng GPT/Gemini để phân tích và viết prompt creative; app không gen ảnh/video.`;
+  let attempt = 0;
+  while (true) {
+    await sleep(3000);
+    attempt += 1;
+    const response = await fetch(`/api/job?id=${encodeURIComponent(jobId)}`, { cache: "no-store" });
+    const payload = await response.json();
+    if (!payload.ok) {
+      throw new Error(payload.error || "Workflow job failed");
+    }
+    const elapsed = payload.started_at ? Math.round(Date.now() / 1000 - payload.started_at) : attempt * 3;
+    if (payload.status === "completed") {
+      applyAgentProgress(payload.agent_statuses || {}, payload.current_step || "");
+      updateProcessingScreen(payload.agent_statuses || {}, payload.current_step || "", elapsed);
+      return payload;
+    }
+    if (payload.status === "error") {
+      throw new Error(payload.error || "Workflow job failed");
+    }
+    durationValue.textContent = `${elapsed}s`;
+    applyAgentProgress(payload.agent_statuses || {}, payload.current_step || "");
+    const currentLabel = agentLabel(payload.current_step);
+    updateProcessingScreen(payload.agent_statuses || {}, payload.current_step || "", elapsed);
+    safePayload.textContent = `Job ${jobId} đang chạy (${elapsed}s). Agent hiện tại: ${currentLabel}.`;
+    logOutput.textContent = payload.logs || "Workflow đang chạy...";
+  }
+}
+
+function setFinalDraft(draft, assets, preferredCreativeIndex = 0) {
+  finalImageManuallyDisabled = true;
+  originalFinalDraft = {
+    title: draft.title || "",
+    body: draft.body || "",
+    call_to_action: draft.call_to_action || "",
+    hashtags: Array.isArray(draft.hashtags) ? draft.hashtags : [],
+  };
+  currentPromptAssets = Array.isArray(assets) ? assets : [];
+  currentCreativeAssets = currentCreativeAssets.filter((asset) => isUserMediaAsset(asset));
+  finalTitleInput.value = originalFinalDraft.title;
+  finalBodyInput.value = originalFinalDraft.body;
+  finalCtaInput.value = originalFinalDraft.call_to_action;
+  finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
+  if (finalCreativePrompt) {
+    finalCreativePrompt.value = promptForDraft(draft, preferredCreativeIndex);
+  }
+  renderFinalCreativeOptions(-1);
+  updateFacebookPreview();
+}
+
+function useVariantAsFinal(index) {
+  const variant = currentContentPlan[index];
+  if (!variant) {
+    return;
+  }
+  originalFinalDraft = {
+    title: variant.title || "",
+    body: variant.body || "",
+    call_to_action: variant.call_to_action || "",
+    hashtags: Array.isArray(variant.hashtags) ? variant.hashtags : [],
+  };
+  finalTitleInput.value = originalFinalDraft.title;
+  finalBodyInput.value = originalFinalDraft.body;
+  finalCtaInput.value = originalFinalDraft.call_to_action;
+  finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
+  if (finalCreativePrompt) {
+    finalCreativePrompt.value = promptForDraft(variant, index);
+  }
+  finalImageManuallyDisabled = true;
+  setSelectedFinalCreativeIndexes([]);
+  updateFacebookPreview();
+  document.querySelector(".post-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function promptForDraft(draft = {}, preferredIndex = 0) {
+  const assetPrompt =
+    currentPromptAssets?.[preferredIndex]?.prompt_text ||
+    currentPromptAssets?.[preferredIndex]?.image_prompt ||
+    currentPromptAssets?.find((asset) => asset?.prompt_text || asset?.image_prompt)?.prompt_text ||
+    currentPromptAssets?.find((asset) => asset?.prompt_text || asset?.image_prompt)?.image_prompt;
+  if (assetPrompt) {
+    return String(assetPrompt).trim();
+  }
+  return buildLocalCreativePrompt(draft);
+}
+
+function buildLocalCreativePrompt(draft = {}) {
+  const title = draft.title || finalTitleInput.value || "bài đăng SmileUp";
+  const body = draft.body || finalBodyInput.value || "";
+  const cta = draft.call_to_action || finalCtaInput.value || "inbox SmileUp để được tư vấn cá nhân hóa";
+  return [
+    "Tạo một ảnh/video visual cao cấp cho bài Facebook của SmileUp Dental Clinic.",
+    `Chủ đề bài viết: ${title}.`,
+    `Thông điệp chính: ${body.slice(0, 600) || "tư vấn nha khoa cá nhân hóa, minh bạch chỉ định, an toàn y khoa"}.`,
+    `CTA hỗ trợ: ${cta}.`,
+    "Bối cảnh nên là phòng khám nha khoa hiện đại tại Việt Nam, ánh sáng thật, màu sắc sạch, chuyên nghiệp.",
+    "Ưu tiên người thật: bác sĩ SmileUp tư vấn với bệnh nhân, biểu cảm tự nhiên, không tạo cảm giác AI.",
+    "Không chèn chữ, không banner, không watermark, không fake logo trong ảnh. Chừa khoảng trống sạch để hậu kỳ gắn logo thật nếu cần.",
+    "Ảnh/video phải phù hợp Facebook feed, không bị cắt chủ thể chính, không dùng hình ảnh gây sốc hoặc before-after gây hiểu nhầm.",
+  ].join("\n");
+}
+
+function renderFinalCreativeOptions(preferredCreativeIndex = -1) {
+  finalCreativeSelect.innerHTML = "";
+  const noMediaOption = document.createElement("option");
+  noMediaOption.value = "-1";
+  noMediaOption.textContent = "Không dùng ảnh/video cho bài này";
+  finalCreativeSelect.appendChild(noMediaOption);
+
+  const mediaAssets = currentCreativeAssets.filter((asset) => isUserMediaAsset(asset));
+  if (!mediaAssets.length) {
+    const pendingMediaOption = document.createElement("option");
+    pendingMediaOption.value = "media-pending";
+    pendingMediaOption.disabled = true;
+    pendingMediaOption.textContent = "Chưa có media upload";
+    finalCreativeSelect.appendChild(pendingMediaOption);
+    setSelectedFinalCreativeIndexes([]);
+    updateFinalImageControls();
+    return;
+  }
+
+  currentCreativeAssets = mediaAssets;
+  currentCreativeAssets.forEach((asset, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = `${mediaAssetLabel(asset)} · ${String(index + 1).padStart(2, "0")} · ${asset.title || "SmileUp media"}`;
+    finalCreativeSelect.appendChild(option);
+  });
+
+  const safeIndex = Number(preferredCreativeIndex);
+  if (!finalImageManuallyDisabled && safeIndex >= 0 && safeIndex < currentCreativeAssets.length) {
+    setSelectedFinalCreativeIndexes([safeIndex]);
+  } else {
+    setSelectedFinalCreativeIndexes([]);
+  }
+  updateFinalImageControls();
+}
+
+function updateFacebookPreview() {
+  const message = formatFinalFacebookMessage();
+  fbPreviewText.textContent = message || "Chạy workflow để xem bản preview cuối.";
+  finalCharCount.textContent = `${message.length.toLocaleString("vi-VN")} ký tự`;
+  safePayload.textContent = message || "Payload preview sẽ hiện ở đây.";
+
+  const selectedAssets = getSelectedFinalCreativeAssets();
+  const selectedVideo = selectedAssets.find((asset) => asset.media_type === "video");
+  if (selectedVideo) {
+    fbPreviewImage.className = "fb-preview-image has-image has-video";
+    fbPreviewImage.innerHTML = `
+      <video src="${escapeHtml(selectedVideo.image_path)}" controls muted playsinline preload="metadata"></video>
+      <span>${escapeHtml(selectedVideo.title || "Video upload")}</span>
+    `;
+  } else if (selectedAssets.length) {
+    const visibleAssets = selectedAssets.slice(0, 4);
+    const extraCount = selectedAssets.length - visibleAssets.length;
+    const label = selectedAssets.length > 1 ? `${selectedAssets.length} ảnh đã chọn` : mediaAssetLabel(selectedAssets[0]);
+    fbPreviewImage.className = `fb-preview-image has-image ${selectedAssets.length > 1 ? "multi-image" : ""} count-${Math.min(selectedAssets.length, 4)}`;
+    fbPreviewImage.innerHTML = `
+      ${visibleAssets
+        .map((asset, index) => `
+          <figure>
+            <img src="${escapeHtml(asset.image_path)}" alt="${escapeHtml(asset.title || "SmileUp media")}" />
+            ${extraCount > 0 && index === visibleAssets.length - 1 ? `<strong>+${extraCount}</strong>` : ""}
+          </figure>
+        `)
+        .join("")}
+      <span>${escapeHtml(label)}</span>
+    `;
+  } else {
+    fbPreviewImage.className = "fb-preview-image empty";
+    fbPreviewImage.textContent = "Bài viết đang ở chế độ không kèm media. Bấm Thêm ảnh/video để upload trước khi đăng.";
+  }
+  updateFinalImageControls();
+}
+
+function updateFinalImageControls() {
+  const selectedAssets = getSelectedFinalCreativeAssets();
+  const hasSelectedMedia = selectedAssets.length > 0;
+  const firstMediaAsset = currentCreativeAssets.find((asset) => isUserMediaAsset(asset));
+  finalUseImageButton.disabled = !firstMediaAsset;
+  finalUseImageButton.textContent = "Dùng media đã upload";
+  finalRemoveImageButton.disabled = !hasSelectedMedia;
+  finalNoImageButton.classList.toggle("active", finalImageManuallyDisabled || !hasSelectedMedia);
+  finalUseImageButton.classList.toggle("active", hasSelectedMedia);
+  finalImageStatus.textContent = hasSelectedMedia
+    ? `Đang chọn ${selectedAssets.map(mediaAssetLabel).join(", ")}.`
+    : currentCreativeAssets.length
+      ? "Đã upload media. Chọn một hoặc nhiều ảnh, hoặc chọn một video để đăng."
+      : "Chưa có media upload. Hãy bấm Thêm ảnh/video để chọn file từ máy, tối đa 80 MB mỗi file.";
+}
+
+function useFirstAvailableImage() {
+  const firstIndex = currentCreativeAssets.findIndex((asset) => isUserMediaAsset(asset));
+  if (firstIndex < 0) {
+    finalImageStatus.textContent = "Chưa có media upload. Hãy bấm Thêm ảnh/video trước.";
+    return;
+  }
+  finalImageManuallyDisabled = false;
+  setSelectedFinalCreativeIndexes([firstIndex]);
+  updateFacebookPreview();
+}
+
+function removeSelectedFinalImage() {
+  const selectedIndexes = getSelectedFinalCreativeIndexes();
+  if (!selectedIndexes.length) {
+    setSelectedFinalCreativeIndexes([]);
+    updateFacebookPreview();
+    return;
+  }
+  currentCreativeAssets = currentCreativeAssets.filter((_, index) => !selectedIndexes.includes(index));
+  renderFinalCreativeOptions(-1);
+  updateFacebookPreview();
+}
+
+function addFinalCreativeFromFile(file, onAdded) {
+  if (!file) {
+    onAdded?.(-1);
+    return;
+  }
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+  if (!isImage && !isVideo) {
+    finalImageStatus.textContent = "File không hợp lệ. Hãy chọn ảnh PNG/JPG/WEBP hoặc video MP4/MOV/WEBM.";
+    onAdded?.(-1);
+    return;
+  }
+  if (file.size > 80 * 1024 * 1024) {
+    finalImageStatus.textContent = "File vượt quá 80 MB. Hãy chọn file nhẹ hơn.";
+    onAdded?.(-1);
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = String(reader.result || "");
+    const newIndex = currentCreativeAssets.length;
+    currentCreativeAssets.push({
+      service_line: isVideo ? "Video upload" : "Ảnh upload",
+      title: file.name,
+      image_path: dataUrl,
+      media_type: isVideo ? "video" : "image",
+      image_prompt: "Media được upload thủ công ở bước final review.",
+      image_mode: "manual_final_upload",
+      creative_group: "manual_upload",
+      source_policy: "Chỉ dùng nếu media thuộc SmileUp hoặc bạn có quyền sử dụng.",
+    });
+    onAdded?.(newIndex);
+  };
+  reader.onerror = () => {
+    finalImageStatus.textContent = `Không đọc được file ${file.name}.`;
+    onAdded?.(-1);
+  };
+  reader.readAsDataURL(file);
+}
+
+function addFinalCreativesFromFiles(files) {
+  const selectedFiles = [...(files || [])].filter(Boolean);
+  if (!selectedFiles.length) {
+    return;
+  }
+  const videoFiles = selectedFiles.filter((file) => file.type.startsWith("video/"));
+  const filesToRead = videoFiles.length ? [videoFiles[0]] : selectedFiles;
+  let pending = filesToRead.length;
+  const addedIndexes = [];
+  filesToRead.forEach((file) => {
+    addFinalCreativeFromFile(file, (index) => {
+      if (index >= 0) {
+        addedIndexes.push(index);
+      }
+      pending -= 1;
+      if (pending <= 0) {
+        finalImageManuallyDisabled = false;
+        renderFinalCreativeOptions(addedIndexes[0] ?? -1);
+        setSelectedFinalCreativeIndexes(addedIndexes);
+        if (videoFiles.length && selectedFiles.length > 1) {
+          finalImageStatus.textContent = "Đã chọn video; mỗi bài chỉ đăng một video, các ảnh đi kèm trong lần chọn này được bỏ qua.";
+        }
+        updateFacebookPreview();
+      }
+    });
+  });
+}
+
+function buildFinalDraftPayload() {
+  const selectedAssets = getSelectedFinalCreativeAssets();
+  const payload = {
+    title: finalTitleInput.value.trim(),
+    body: finalBodyInput.value.trim(),
+    call_to_action: finalCtaInput.value.trim(),
+    hashtags: normalizeHashtags(finalTagsInput.value),
+  };
+  const selectedVideo = selectedAssets.find((asset) => asset.media_type === "video");
+  if (selectedVideo) {
+    const videoPath = String(selectedVideo.image_path || "");
+    if (videoPath.startsWith("data:video/")) {
+      payload.final_video_data_urls = [videoPath];
+    } else if (videoPath) {
+      payload.final_video_paths = [videoPath];
+    }
+    payload.final_image_name = selectedVideo.title || "SmileUp video";
+    return payload;
+  }
+
+  const imagePaths = [];
+  const imageDataUrls = [];
+  selectedAssets.forEach((asset) => {
+    const imagePath = String(asset.image_path || "");
+    if (imagePath.startsWith("data:image/")) {
+      imageDataUrls.push(imagePath);
+    } else if (imagePath) {
+      imagePaths.push(imagePath);
+    }
+  });
+  if (imagePaths.length || imageDataUrls.length) {
+    payload.final_image_paths = imagePaths;
+    payload.final_image_data_urls = imageDataUrls;
+    const firstAsset = selectedAssets[0];
+    const firstImage = String(firstAsset?.image_path || "");
+    if (firstImage.startsWith("data:image/")) {
+      payload.final_image_data_url = firstImage;
+    } else if (firstImage) {
+      payload.final_image_path = firstImage;
+    }
+    payload.final_image_name = firstAsset?.title || "SmileUp image";
+  }
+  return payload;
+}
+
+function getSelectedFinalCreativeAsset() {
+  return getSelectedFinalCreativeAssets()[0] || null;
+}
+
+function getSelectedFinalCreativeAssets() {
+  return getSelectedFinalCreativeIndexes()
+    .map((index) => currentCreativeAssets[index])
+    .filter(isUserMediaAsset)
+    .slice(0, 10);
+}
+
+function getSelectedFinalCreativeIndexes() {
+  if (finalImageManuallyDisabled) {
+    return [];
+  }
+  return [...finalCreativeSelect.selectedOptions]
+    .map((option) => Number(option.value))
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < currentCreativeAssets.length);
+}
+
+function setSelectedFinalCreativeIndexes(indexes) {
+  const selectedSet = new Set((indexes || []).filter((index) => Number.isInteger(index) && index >= 0));
+  const selectedAssets = [...selectedSet].map((index) => currentCreativeAssets[index]).filter(isUserMediaAsset);
+  const firstVideo = selectedAssets.findIndex((asset) => asset.media_type === "video");
+  if (firstVideo >= 0) {
+    const videoAsset = selectedAssets[firstVideo];
+    selectedSet.clear();
+    selectedSet.add(currentCreativeAssets.indexOf(videoAsset));
+  }
+  [...finalCreativeSelect.options].forEach((option) => {
+    const index = Number(option.value);
+    option.selected = selectedSet.has(index);
+  });
+  finalImageManuallyDisabled = selectedSet.size === 0;
+  const noMediaOption = [...finalCreativeSelect.options].find((option) => option.value === "-1");
+  if (noMediaOption) {
+    noMediaOption.selected = selectedSet.size === 0;
+  }
+}
+
+function defaultFinalCreativeIndexes() {
+  return currentCreativeAssets
+    .map((asset, index) => ({ asset, index }))
+    .filter(({ asset }) => isUserMediaAsset(asset))
+    .slice(0, 10)
+    .map(({ index }) => index);
+}
+
+function selectDefaultFinalCreativeGroup() {
+  setSelectedFinalCreativeIndexes(defaultFinalCreativeIndexes());
+}
+
+function creativeGroupLabel(asset) {
+  return mediaAssetLabel(asset);
+}
+
+function imageAssetLabel(asset) {
+  return mediaAssetLabel(asset);
+}
+
+function mediaAssetLabel(asset) {
+  if (asset?.media_type === "video" || String(asset?.image_path || "").startsWith("data:video/")) {
+    return `Video upload · ${asset?.title || "file video"}`;
+  }
+  return `Ảnh upload · ${asset?.title || "file ảnh"}`;
+}
+
+function isUserMediaAsset(asset) {
+  if (!asset || !asset.image_path) {
+    return false;
+  }
+  const path = String(asset.image_path);
+  return asset.media_type === "video" || asset.media_type === "image" || path.startsWith("data:image/") || path.startsWith("data:video/");
+}
+
+async function copyCreativePrompt() {
+  const promptText = finalCreativePrompt?.value.trim();
+  if (!promptText) {
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(promptText);
+    copyCreativePromptButton.textContent = "Đã copy";
+    setTimeout(() => {
+      copyCreativePromptButton.textContent = "Copy prompt";
+    }, 1200);
+  } catch {
+    safePayload.textContent = promptText;
+  }
 }
 
 function normalizeHashtags(value) {
@@ -1987,11 +2500,15 @@ resetFinalButton.addEventListener("click", () => {
   finalBodyInput.value = originalFinalDraft.body;
   finalCtaInput.value = originalFinalDraft.call_to_action;
   finalTagsInput.value = originalFinalDraft.hashtags.join(" ");
+  if (finalCreativePrompt) {
+    finalCreativePrompt.value = promptForDraft(originalFinalDraft);
+  }
   finalImageManuallyDisabled = false;
-  renderFinalCreativeOptions(currentCreativeAssets.length ? 0 : -1);
+  renderFinalCreativeOptions(-1);
   updateFacebookPreview();
 });
 copyFinalButton.addEventListener("click", copyFinalCaption);
+copyCreativePromptButton?.addEventListener("click", copyCreativePrompt);
 selectAllPagesButton.addEventListener("click", () => {
   publishPageList.querySelectorAll('input[type="checkbox"]').forEach((input) => {
     input.checked = true;

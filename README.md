@@ -125,30 +125,28 @@ Workflow hiện có thêm:
 - Tuyến bài ads hiệu quả chỉ ưu tiên các ads có keyword match từ 95% trở lên; nếu chưa đủ nguồn 95%, hệ thống vẫn báo rõ và dùng phần còn lại làm tín hiệu phụ.
 - Phân tích trend Facebook từ bài đối thủ bạn dán vào.
 - Ưu tiên nội dung cho răng sứ thẩm mỹ, phục hình răng sứ và cấy ghép Implant.
-- Tạo visual creative brief an toàn cho ảnh gốc của SmileUp, ảnh có license, ảnh AI tạo mới hoặc rewrite từ ad match cao nhất.
+- Tạo visual creative brief an toàn và prompt creative tương ứng với từng bài để copy sang công cụ ảnh/video bên ngoài.
 - Tạo `content_plan` theo 2 tuyến chính:
   - `ads_effective`: bài ads chuyển đổi, viết để khách hàng để lại SĐT/inbox ngay nhưng vẫn an toàn y khoa.
   - `page_care`: bài chăm sóc page, nuôi niềm tin, tăng bình luận/lưu/chia sẻ và làm nền cho chuyển đổi.
 - Mỗi biến thể có `campaign_track`, `monthly_role` và `differentiation` để làm rõ vai trò trong chiến lược tháng và SmileUp khác gì so với ads đối thủ.
-- Mỗi lượt chạy có `run_seed` và `creative_variation_profile` riêng để CMO Campaign Plan đổi hook/góc kể/lead magnet/CTA/visual mood; cùng một keyword chạy lại vẫn phải sinh caption và ảnh khác nhau, không tái dùng cùng câu mở đầu hoặc cùng bối cảnh ảnh. Trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
-- Sinh ảnh PNG branded trong `web/generated/creatives/`, dùng ảnh nền phòng khám và logo SmileUp. Nếu chọn mode **Tạo ảnh GPT Image cho bài đăng**, hệ thống lấy media của ad match cao nhất làm reference khi có ảnh hợp lệ; nếu ads tham chiếu không có ảnh hoặc ảnh lỗi tải, GPT Image bắt buộc tạo ảnh mới theo bài viết, bối cảnh bác sĩ và bệnh nhân trong phòng khám Việt Nam, ảnh photorealistic không chữ/banner/watermark; sau đó overlay logo local. Thư mục này bị ignore vì là output hằng ngày.
-- Mỗi lượt chạy mặc định tạo tối đa 9 ảnh theo 3 nhóm: 3 ảnh ads cho tệp khách trẻ, 3 ảnh ads cho tệp khách trung tuổi và 3 ảnh chăm sóc page dạng infographic giáo dục. 6 ảnh ads dùng GPT Image 2; nhóm chăm sóc page render nội bộ để tiếng Việt chính xác và không làm workflow bị treo quá lâu.
-- Final review cho phép chọn nhiều ảnh trong cùng một bài viết. Khi chọn nhiều ảnh, preview Facebook hiển thị dạng album và Publisher đăng bằng Graph API `attached_media` thay vì chỉ gửi một ảnh đơn.
-- Ảnh bác sĩ SmileUp trong `web/assets/doctor-huong-surgical-cap.jpg`, `web/assets/doctor-huong-portrait.jpg` và `web/assets/doctor-huong-consult.jpg` được dùng làm reference chính cho GPT Image để hình ảnh có bác sĩ thật, nhất quán gương mặt và tăng độ tin cậy. Prompt bắt buộc bác sĩ trong ảnh ads đội mũ y khoa/mũ phẫu thuật xanh sạch, đúng bối cảnh khám chữa bệnh. Khi có ảnh bác sĩ, ảnh ads đối thủ chỉ còn là tín hiệu ngữ cảnh/bố cục yếu, không dùng làm mặt người hay tài sản thương hiệu.
-- Prompt ảnh đã được khóa theo hướng people-first: ảnh GPT Image phải là cảnh photorealistic trong phòng khám có bác sĩ Việt Nam và bệnh nhân/khách hàng đang tư vấn hoặc thăm khám; không tạo ảnh chỉ có logo, icon răng, banner chữ, infographic, phòng khám trống hoặc layout trang trí; tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, bảng giá, khuyến mãi hoặc banner trong ảnh.
+- Mỗi lượt chạy có `run_seed` và `creative_variation_profile` riêng để CMO Campaign Plan đổi hook/góc kể/lead magnet/CTA/visual mood; cùng một keyword chạy lại vẫn phải sinh caption và prompt creative khác nhau, không tái dùng cùng câu mở đầu hoặc cùng bối cảnh hình ảnh. Trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
+- App đã tắt hoàn toàn gen ảnh/video trong workflow để giảm chi phí và tránh kẹt job dài. Content Agent dùng GPT-5.5 để viết `creative_assets` dạng prompt text-only, không tạo file ảnh.
+- Final review cho phép upload ảnh hoặc video thủ công. Ảnh có thể chọn nhiều file để đăng dạng album bằng Graph API `attached_media`; video đăng qua endpoint `/{page_id}/videos` và nên chọn một video cho một bài.
+- Giới hạn upload hiện tại là 80 MB mỗi file cho ảnh/video. Preview Facebook hiển thị đúng media đã chọn trước khi đăng.
+- Prompt creative ở cạnh khung preview phải đủ rõ để copy sang công cụ ảnh/video bên ngoài: bối cảnh phòng khám Việt Nam, bác sĩ/bệnh nhân thật, không chữ, không banner, không watermark, không fake logo; sau đó người dùng upload media đã tạo hoặc media SmileUp sở hữu vào final review.
 
-Lưu ý: mode rewrite ảnh dùng ảnh ads gốc như reference để xào lại bố cục ở mức cao. Output vẫn phải là ảnh mới của SmileUp: không dùng lại pixel, logo, watermark, mặt người, text gốc, nền đặc trưng hoặc tài sản nhận diện của đối thủ.
+Lưu ý: hệ thống không còn rebrand hoặc rewrite ảnh đối thủ tự động. Ads đối thủ chỉ được dùng làm tín hiệu chiến lược, nội dung và góc creative; media đăng cuối phải do SmileUp upload hoặc có quyền sử dụng.
 
 ## Taste Skill UI Guardrails
 
 Dashboard áp dụng hướng “anti-slop frontend” kiểu Taste Skill cho các màn CMO/final review:
 
 - Audit trước khi thêm UI: ưu tiên sửa điểm gây nhầm lẫn trong workflow thay vì thêm card/trang trí.
-- Một quyết định phải có một primary action rõ. Ví dụ phần ảnh có lựa chọn **Có ảnh GPT Image cho bài đăng**/**Dùng ảnh đang có**, còn **Chỉ đăng bài viết** là lựa chọn phụ có chủ đích.
+- Một quyết định phải có một primary action rõ. Phần media chỉ có hai hướng: **upload ảnh/video để đăng** hoặc **chỉ đăng bài viết**; prompt creative nằm cạnh preview để copy ra công cụ ngoài.
 - Preview phải phản ánh payload thật: nếu chọn ảnh thì khung Facebook hiển thị ảnh ngay; nếu không có ảnh thì nêu rõ lý do và bước tiếp theo.
-- Không dùng placeholder giả cho trạng thái quan trọng. Ảnh GPT Image chỉ được đưa vào final review khi model thật sự trả file ảnh; nếu không có ảnh ads usable thì phải chuyển sang generate ảnh mới từ bài viết.
-- Khi chọn mode ảnh GPT Image từ ads, hệ thống không dừng ở 1-2 ads đầu. Crawler xếp hạng ads theo nguồn đối thủ, keyword match và độ mới, quét tối đa 14 ads để lấy ảnh hợp lệ đầu tiên làm reference; nếu toàn bộ ads không có ảnh hoặc media lỗi tải thì tự chuyển sang text-to-image dựa trên caption ads, bài final và visual brief. Ảnh cuối vẫn được post-process để gắn logo SmileUp local.
-- Nút chính **Quét sâu 14 ads** tạo job nền ngay để ưu tiên đủ dữ liệu và ảnh reference rộng hơn; `/api/job` trả trạng thái từng agent (`running`/`done`) cho dashboard. Nút phụ **Chạy nhanh 5 ads** dùng khi cần ra bản nháp nhanh.
+- Không dùng placeholder giả cho trạng thái quan trọng. Media chỉ xuất hiện trong final review khi người dùng thật sự upload file.
+- Nút chính **Quét sâu 14 ads** tạo job nền ngay để ưu tiên đủ dữ liệu; `/api/job` trả trạng thái từng agent (`running`/`done`) cho dashboard. Nút phụ **Chạy nhanh 5 ads** dùng khi cần ra bản nháp nhanh.
 - Copy UI phải là tiếng Việt tự nhiên, ngắn, đúng ngữ cảnh marketing nha khoa.
 - Layout ưu tiên mật độ làm việc: ít hero/card trang trí, nhiều trạng thái có ích, spacing đều, button không chen chữ.
 
@@ -188,12 +186,8 @@ ANTHROPIC_API_KEY=
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.1-pro-preview
 GEMINI_FALLBACK_MODELS=gemini-3.1-pro-preview,gemini-3-pro,gemini-2.5-pro,gemini-2.5-flash
-OPENAI_MODEL=gpt-5.4-mini
-OPENAI_IMAGE_MODEL=gpt-image-2
-OPENAI_IMAGE_MAX_CREATIVES=9
-OPENAI_IMAGE_PHOTO_CREATIVES=6
-OPENAI_IMAGE_PAGE_CARE_CREATIVES=3
-OPENAI_IMAGE_REQUEST_TIMEOUT_SECONDS=180
+OPENAI_MODEL=gpt-5.5
+OPENAI_IMAGE_MAX_CREATIVES=0
 ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
 CMO_JURY_ENABLED=true
 AGENT_API_REASONING_ENABLED=true

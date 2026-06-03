@@ -1,5 +1,4 @@
 from graph.state import AgentState, ContentVariant, DraftContent
-from tools.creative_generator import generate_creative_assets
 from tools.gemini_client import GeminiUnavailable, generate_content_plan_with_gemini, generate_draft_with_gemini
 from tools.openai_client import generate_text_with_openai
 from utils import config
@@ -29,29 +28,20 @@ def run_content_agent(state: AgentState) -> AgentState:
 
     variants = _enforce_people_first_image_prompts(variants)
     variants = _ensure_three_image_backed_variants(variants, state)
+    prompt_assets = _build_creative_prompt_assets(variants, state)
     state["content_plan"] = variants
     state["draft_content"] = _draft_from_variant(variants[0]) if variants else _offline_draft(state)
-    creative_context = {
-        "creative_image_mode": state.get("creative_image_mode", "auto"),
-        "creative_upload_path": state.get("creative_upload_path", ""),
-        "creative_upload_url": state.get("creative_upload_url", ""),
-        "creative_reference_note": state.get("creative_reference_note", ""),
-        "creative_reference_ad": state.get("creative_reference_ad", {}),
-        "creative_reference_blueprint": state.get("creative_reference_blueprint", ""),
-        "run_seed": state.get("run_seed", ""),
-        "creative_variation_profile": state.get("creative_variation_profile", {}),
-    }
-    state["creative_assets"] = generate_creative_assets(variants, creative_context)
-    _require_gpt_image_assets_if_needed(state, creative_context)
-    if creative_context.get("creative_reference_blueprint"):
-        state["creative_reference_blueprint"] = str(creative_context.get("creative_reference_blueprint") or "")
-    if state["creative_assets"]:
-        state["messages"].append({"role": "content", "content": f"Generated {len(state['creative_assets'])} branded SmileUp creative images"})
-    elif creative_context["creative_image_mode"] == "text_only":
-        state["messages"].append({"role": "content", "content": "Text-only mode selected; skipped creative image generation"})
-    else:
-        note = str(creative_context.get("creative_generation_note") or "Creative image generation did not return a usable image.")
-        state["messages"].append({"role": "content", "content": note})
+    state["creative_assets"] = prompt_assets
+    state["creative_image_mode"] = "upload_only"
+    state["messages"].append(
+        {
+            "role": "content",
+            "content": (
+                f"Generated {len(prompt_assets)} copyable creative prompts; "
+                "image/video generation is disabled and final media must be uploaded manually."
+            ),
+        }
+    )
 
     state["approval_status"] = "pending"
     state["current_step"] = "content_creator"
@@ -73,17 +63,89 @@ def _ensure_three_image_backed_variants(variants: list[ContentVariant], state: A
     return variants
 
 
-def _require_gpt_image_assets_if_needed(state: AgentState, creative_context: dict) -> None:
-    if creative_context.get("creative_image_mode") != "top_match_reference":
-        return
-    target_count = min(config.OPENAI_IMAGE_PHOTO_CREATIVES, config.OPENAI_IMAGE_MAX_CREATIVES)
-    assets = state.get("creative_assets", [])
-    photo_assets = [asset for asset in assets if asset.get("creative_group") in {"ads_young", "ads_middle"}]
-    if len(photo_assets) >= target_count and all(asset.get("image_path") for asset in photo_assets[:target_count]):
-        return
-    note = str(creative_context.get("creative_generation_note") or "GPT Image did not return enough usable images.")
-    raise RuntimeError(
-        f"GPT Image 2 must return {target_count} photo assets before CMO review, but only {len(photo_assets)} were created. {note}"
+def _build_creative_prompt_assets(variants: list[ContentVariant], state: AgentState) -> list[dict[str, str]]:
+    if not variants:
+        return []
+    prompts = _generate_prompt_texts_with_openai(variants, state)
+    assets: list[dict[str, str]] = []
+    for index, variant in enumerate(variants):
+        prompt_text = prompts[index] if index < len(prompts) and prompts[index].strip() else _local_creative_prompt(variant, state)
+        variant["image_prompt"] = prompt_text
+        assets.append(
+            {
+                "campaign_track": variant.get("campaign_track", ""),
+                "service_line": variant.get("service_line", ""),
+                "title": variant.get("title", ""),
+                "image_path": "",
+                "media_type": "prompt",
+                "image_mode": "upload_only",
+                "prompt_text": prompt_text,
+                "image_prompt": prompt_text,
+                "source_policy": "No AI image/video generation. Use this prompt outside the app, then upload owned media in final review.",
+            }
+        )
+    return assets
+
+
+def _generate_prompt_texts_with_openai(variants: list[ContentVariant], state: AgentState) -> list[str]:
+    if config.MOCK_MODE or not config.AGENT_API_REASONING_ENABLED or not config.OPENAI_API_KEY:
+        return []
+    payload = [
+        {
+            "title": variant.get("title", ""),
+            "body": variant.get("body", ""),
+            "cta": variant.get("call_to_action", ""),
+            "service_line": variant.get("service_line", ""),
+            "campaign_track": variant.get("campaign_track", ""),
+            "differentiation": variant.get("differentiation", ""),
+            "trend_angle": variant.get("trend_angle", ""),
+        }
+        for variant in variants[:8]
+    ]
+    prompt = (
+        "Viết prompt tạo ảnh/video cho từng bài Facebook của SmileUp Dental Clinic.\n"
+        "Không tạo ảnh. Chỉ trả JSON array các chuỗi prompt.\n"
+        "Yêu cầu prompt: tiếng Việt rõ ràng, có thể copy sang công cụ tạo ảnh/video; "
+        "bám sát bài viết; ưu tiên ảnh/video thật trong phòng khám Việt Nam; không chữ, không banner, không watermark; "
+        "nếu là ads thì có bác sĩ SmileUp và bệnh nhân phù hợp tệp khách; nếu là chăm sóc page thì có thể là infographic sạch hoặc cảnh bác sĩ giải thích.\n"
+        "Mỗi prompt 120-180 từ, có bố cục, ánh sáng, nhân vật, bối cảnh, điều cần tránh.\n\n"
+        f"Creative variation: {state.get('creative_variation_profile', {})}\n"
+        f"Variants: {payload}"
+    )
+    try:
+        text, _model = generate_text_with_openai(
+            prompt,
+            system="You are GPT-5.5 acting as a senior dental creative prompt director. Return only valid JSON array of strings.",
+            temperature=0.45,
+            timeout=90,
+        )
+        import json
+
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed]
+    except Exception as exc:
+        logger.warning("GPT creative prompt generation failed, using local prompts: %s", exc)
+    return []
+
+
+def _local_creative_prompt(variant: ContentVariant, state: AgentState) -> str:
+    service = variant.get("service_line", "nha khoa")
+    track = variant.get("campaign_track", "ads_effective")
+    audience = (
+        "khách hàng đang cân nhắc để lại số điện thoại để được tư vấn cá nhân hóa"
+        if track == "ads_effective"
+        else "người theo dõi page cần nội dung dễ lưu lại, dễ bình luận"
+    )
+    mood = (state.get("creative_variation_profile") or {}).get("visual_mood", "ánh sáng phòng khám trắng xanh, sạch và thật")
+    return (
+        f"Tạo một visual cho bài Facebook SmileUp Dental Clinic về {service}. "
+        f"Nội dung cần bám sát hook: {variant.get('title', '')}. "
+        f"Tệp người xem: {audience}. Bối cảnh: phòng khám nha khoa Việt Nam hiện đại, {mood}. "
+        "Nếu dùng ảnh người, cần có bác sĩ Việt Nam mặc áo blouse/đồ lâm sàng, tư vấn tôn trọng với bệnh nhân, biểu cảm tự nhiên, không nhựa AI. "
+        "Nếu dùng infographic chăm sóc page, bố cục sạch, dễ đọc, màu trắng/teal/navy, icon nha khoa tinh tế. "
+        "Tuyệt đối tránh: chữ sai chính tả, logo giả, watermark, banner khuyến mãi quá lớn, claim y khoa tuyệt đối, before-after gây hiểu nhầm, hình răng miệng gây sốc. "
+        "Ảnh/video cần phục vụ ý định booking hoặc tăng niềm tin, không chỉ đẹp trang trí."
     )
 
 
