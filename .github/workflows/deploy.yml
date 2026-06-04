@@ -134,6 +134,19 @@ jobs:
             else
               printf 'OPENAI_IMAGE_MAX_CREATIVES=0\n' >> "$STAGE/.env"
             fi
+            if grep -q '^AD_LIBRARY_MAX_ADS=' "$STAGE/.env"; then
+              sed -i 's/^AD_LIBRARY_MAX_ADS=.*/AD_LIBRARY_MAX_ADS=15/' "$STAGE/.env"
+            else
+              printf 'AD_LIBRARY_MAX_ADS=15\n' >> "$STAGE/.env"
+            fi
+            NEW_COMPETITOR_AD_URL='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=100304372631888'
+            if grep -q '^AD_LIBRARY_COMPETITOR_URLS=' "$STAGE/.env"; then
+              if ! grep '^AD_LIBRARY_COMPETITOR_URLS=' "$STAGE/.env" | grep -q 'view_all_page_id=100304372631888'; then
+                sed -i "s|^AD_LIBRARY_COMPETITOR_URLS=.*|&,$NEW_COMPETITOR_AD_URL|" "$STAGE/.env"
+              fi
+            else
+              printf 'AD_LIBRARY_COMPETITOR_URLS=%s\n' "$NEW_COMPETITOR_AD_URL" >> "$STAGE/.env"
+            fi
           fi
           mkdir -p "$STAGE/data" "$STAGE/reports" "$STAGE/web/generated/uploads" "$STAGE/web/generated/creatives"
           [ -d "$PRESERVE/data" ] && cp -a "$PRESERVE/data/." "$STAGE/data/"

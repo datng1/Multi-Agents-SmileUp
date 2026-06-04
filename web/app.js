@@ -281,10 +281,10 @@ function showProcessingScreen(scanMode = "deep") {
     return;
   }
   document.body.classList.add("is-running");
-  processingMode.textContent = scanMode === "deep" ? "Deep scan 14 ads" : "Quick scan 5 ads";
+  processingMode.textContent = scanMode === "deep" ? "Deep scan 15 ads" : "Quick scan 5 ads";
   processingNote.textContent =
     scanMode === "deep"
-      ? "Đang quét sâu 14 ads để có thêm tín hiệu và ảnh reference rộng hơn."
+      ? "Đang quét sâu 15 ads để có thêm tín hiệu và ảnh reference rộng hơn."
       : "Đang chạy nhanh 5 ads để ra chiến lược sớm hơn.";
   processingScreen.classList.remove("hidden-panel");
   updateProcessingScreen({}, "crawler", 0);
@@ -476,7 +476,7 @@ function setRunButtons(isRunning, scanMode = "deep") {
   runButton.disabled = true;
   deepRunButton.disabled = true;
   runButton.querySelector(".button-icon").textContent = isRunning ? "..." : "▶";
-  runButton.lastChild.textContent = isRunning && scanMode === "deep" ? " Đang quét sâu" : " Quét sâu 14 ads";
+  runButton.lastChild.textContent = isRunning && scanMode === "deep" ? " Đang quét sâu" : " Quét sâu 15 ads";
   deepRunButton.textContent = isRunning && scanMode === "quick" ? "Đang chạy nhanh..." : "Chạy nhanh 5 ads";
 }
 
@@ -490,7 +490,7 @@ async function runWorkflow(scanMode = "deep") {
   setAgentState("crawler");
   safePayload.textContent =
     scanMode === "deep"
-      ? "Đã tạo job quét sâu 14 ads. UI sẽ cập nhật từng agent khi backend chạy."
+      ? "Đã tạo job quét sâu 15 ads. UI sẽ cập nhật từng agent khi backend chạy."
       : "Đã tạo job chạy nhanh 5 ads. UI sẽ cập nhật từng agent khi backend chạy.";
 
   try {
@@ -536,7 +536,7 @@ async function runWorkflow(scanMode = "deep") {
     runButton.disabled = false;
     deepRunButton.disabled = false;
     runButton.querySelector(".button-icon").textContent = "▶";
-    runButton.lastChild.textContent = " Quét sâu 14 ads";
+    runButton.lastChild.textContent = " Quét sâu 15 ads";
     deepRunButton.textContent = "Chạy nhanh 5 ads";
   }
 }
@@ -1829,7 +1829,7 @@ async function runWorkflow(scanMode = "deep") {
   setAgentState("crawler");
   safePayload.textContent =
     scanMode === "deep"
-      ? "Đã tạo job quét sâu 14 ads. App không gen ảnh/video; agent sẽ viết prompt creative để bạn copy và upload media thủ công."
+      ? "Đã tạo job quét sâu 15 ads. App không gen ảnh/video; agent sẽ viết prompt creative để bạn copy và upload media thủ công."
       : "Đã tạo job chạy nhanh 5 ads. App không gen ảnh/video; agent sẽ viết prompt creative để bạn copy và upload media thủ công.";
 
   try {
@@ -1873,7 +1873,7 @@ async function runWorkflow(scanMode = "deep") {
     runButton.disabled = false;
     deepRunButton.disabled = false;
     runButton.querySelector(".button-icon").textContent = "▶";
-    runButton.lastChild.textContent = " Quét sâu 14 ads";
+    runButton.lastChild.textContent = " Quét sâu 15 ads";
     deepRunButton.textContent = "Chạy nhanh 5 ads";
   }
 }

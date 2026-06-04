@@ -139,7 +139,7 @@ def create_initial_state() -> AgentState:
         "ad_library_report": "",
         "ad_library_keywords": "",
         "ad_library_max_ads": 12,
-        "ad_library_reference_scan_limit": 14,
+        "ad_library_reference_scan_limit": 15,
         "ad_library_scan_mode": "quick",
         "ad_library_competitor_urls": [],
         "ad_library_competitor_ratio": 0.8,

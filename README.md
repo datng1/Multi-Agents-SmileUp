@@ -146,7 +146,7 @@ Dashboard áp dụng hướng “anti-slop frontend” kiểu Taste Skill cho c�
 - Một quyết định phải có một primary action rõ. Phần media chỉ có hai hướng: **upload ảnh/video để đăng** hoặc **chỉ đăng bài viết**; prompt creative nằm cạnh preview để copy ra công cụ ngoài.
 - Preview phải phản ánh payload thật: nếu chọn ảnh thì khung Facebook hiển thị ảnh ngay; nếu không có ảnh thì nêu rõ lý do và bước tiếp theo.
 - Không dùng placeholder giả cho trạng thái quan trọng. Media chỉ xuất hiện trong final review khi người dùng thật sự upload file.
-- Nút chính **Quét sâu 14 ads** tạo job nền ngay để ưu tiên đủ dữ liệu; `/api/job` trả trạng thái từng agent (`running`/`done`) cho dashboard. Nút phụ **Chạy nhanh 5 ads** dùng khi cần ra bản nháp nhanh.
+- Nút chính **Quét sâu 15 ads** tạo job nền ngay để ưu tiên đủ dữ liệu; `/api/job` trả trạng thái từng agent (`running`/`done`) cho dashboard. Nút phụ **Chạy nhanh 5 ads** dùng khi cần ra bản nháp nhanh.
 - Copy UI phải là tiếng Việt tự nhiên, ngắn, đúng ngữ cảnh marketing nha khoa.
 - Layout ưu tiên mật độ làm việc: ít hero/card trang trí, nhiều trạng thái có ích, spacing đều, button không chen chữ.
 
@@ -170,10 +170,10 @@ Biến cấu hình:
 AD_LIBRARY_ENABLED=true
 AD_LIBRARY_KEYWORDS=nha khoa răng sứ răng đẹp cấy implant
 AD_LIBRARY_COUNTRY=VN
-AD_LIBRARY_MAX_ADS=14
+AD_LIBRARY_MAX_ADS=15
 AD_LIBRARY_CACHE_TTL_HOURS=24
 AD_LIBRARY_COMPETITOR_RATIO=0.8
-AD_LIBRARY_COMPETITOR_URLS=https://www.facebook.com/ads/library/?...view_all_page_id=110734571784682,https://www.facebook.com/ads/library/?...view_all_page_id=787928884397319,https://www.facebook.com/ads/library/?...view_all_page_id=183094894877720,https://www.facebook.com/ads/library/?...view_all_page_id=141815746680256
+AD_LIBRARY_COMPETITOR_URLS=https://www.facebook.com/ads/library/?...view_all_page_id=110734571784682,https://www.facebook.com/ads/library/?...view_all_page_id=787928884397319,https://www.facebook.com/ads/library/?...view_all_page_id=183094894877720,https://www.facebook.com/ads/library/?...view_all_page_id=141815746680256,https://www.facebook.com/ads/library/?...view_all_page_id=100304372631888
 ```
 
 ## Cấu Hình Thật
