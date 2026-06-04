@@ -19,9 +19,20 @@ def _list(name: str) -> list[str]:
     return [item.strip() for item in os.getenv(name, "").split(",") if item.strip()]
 
 
-def _multi_list(name: str, default: str = "") -> list[str]:
-    raw = os.getenv(name, default)
+def _split_multi(raw: str) -> list[str]:
     return [item.strip() for item in re.split(r"[\n,]+", raw) if item.strip()]
+
+
+def _multi_list(name: str, default: str = "") -> list[str]:
+    return _split_multi(os.getenv(name, default))
+
+
+def _merged_multi_list(name: str, default: str = "") -> list[str]:
+    merged: list[str] = []
+    for item in _split_multi(default) + _multi_list(name, ""):
+        if item and item not in merged:
+            merged.append(item)
+    return merged
 
 
 def _json_object(name: str) -> dict:
@@ -143,7 +154,7 @@ class Settings:
     ad_library_country: str = os.getenv("AD_LIBRARY_COUNTRY", "VN")
     ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "15"))
     ad_library_cache_ttl_hours: float = float(os.getenv("AD_LIBRARY_CACHE_TTL_HOURS", "24"))
-    ad_library_competitor_urls: list[str] = field(default_factory=lambda: _multi_list("AD_LIBRARY_COMPETITOR_URLS", DEFAULT_COMPETITOR_AD_LIBRARY_URLS))
+    ad_library_competitor_urls: list[str] = field(default_factory=lambda: _merged_multi_list("AD_LIBRARY_COMPETITOR_URLS", DEFAULT_COMPETITOR_AD_LIBRARY_URLS))
     ad_library_competitor_ratio: float = float(os.getenv("AD_LIBRARY_COMPETITOR_RATIO", "0.8"))
     auth_enabled: bool = _bool("AUTH_ENABLED", False)
     admin_username: str = os.getenv("ADMIN_USERNAME", "")
