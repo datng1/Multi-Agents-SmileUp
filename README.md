@@ -116,6 +116,8 @@ Các agent phân tích chính được phép dùng LLM API để suy nghĩ theo 
 Workflow hiện có thêm:
 
 - Tự động quét Meta Ad Library theo tỷ trọng nguồn: khoảng 80% ads từ các page đối thủ ưu tiên và 20% từ keyword scan mở rộng để vẫn bắt được tín hiệu thị trường mới.
+- Luồng live scan chạy theo thứ tự cứng: quét đủ nhóm page đối thủ trước, sau đó mới quét keyword cho phần 20%. Với cấu hình mặc định `AD_LIBRARY_MAX_ADS=15` và `AD_LIBRARY_COMPETITOR_RATIO=0.8`, workflow yêu cầu đủ 12 ads đối thủ + 3 ads keyword.
+- Production không dùng fallback benchmark cho Ad Library. Nếu live scan không đủ quota hoặc Facebook Ad Library không trả dữ liệu, workflow dừng và báo lỗi thật để người vận hành sửa nguồn/cấu hình thay vì dùng dữ liệu giả.
 - Các page đối thủ ưu tiên được cấu hình bằng link Ad Library có `view_all_page_id`; hệ thống tự parse page ID, lấy ads công khai rồi trộn với keyword scan.
 - Keyword mặc định `nha khoa răng sứ răng đẹp cấy implant` vẫn dùng cho phần 20% scan mở rộng và để tính độ match của tất cả ads.
 - Trên giao diện có thể sửa keyword quét; nếu để trống sẽ dùng keyword mặc định trong `.env`.
@@ -133,6 +135,7 @@ Workflow hiện có thêm:
 - Mỗi lượt chạy có `run_seed` và `creative_variation_profile` riêng để CMO Campaign Plan đổi hook/góc kể/lead magnet/CTA/visual mood; cùng một keyword chạy lại vẫn phải sinh caption và prompt creative khác nhau, không tái dùng cùng câu mở đầu hoặc cùng bối cảnh hình ảnh. Trên UI có nút **Dùng làm bài viết** để đưa một campaign variant vào bản final review ngay.
 - App đã tắt hoàn toàn gen ảnh/video trong workflow để giảm chi phí và tránh kẹt job dài. Content Agent dùng GPT-5.5 để viết `creative_assets` dạng prompt text-only, không tạo file ảnh.
 - Final review cho phép upload ảnh hoặc video thủ công. Ảnh có thể chọn nhiều file để đăng dạng album bằng Graph API `attached_media`; video đăng qua endpoint `/{page_id}/videos` và nên chọn một video cho một bài.
+- Ảnh upload ở Final review được đóng watermark SmileUp ngay trong trình duyệt trước khi hiển thị preview và trước khi gửi payload publish. Watermark dùng cho nhận diện thương hiệu và quyền sử dụng media; nhãn AI của nền tảng vẫn do Facebook quyết định.
 - Giới hạn upload hiện tại là 80 MB mỗi file cho ảnh/video. Preview Facebook hiển thị đúng media đã chọn trước khi đăng.
 - Prompt creative ở cạnh khung preview phải đủ rõ để copy sang công cụ ảnh/video bên ngoài: bối cảnh phòng khám Việt Nam, bác sĩ/bệnh nhân thật, không chữ, không banner, không watermark, không fake logo; sau đó người dùng upload media đã tạo hoặc media SmileUp sở hữu vào final review.
 

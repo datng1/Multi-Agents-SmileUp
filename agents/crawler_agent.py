@@ -4,7 +4,6 @@ from tools.ad_library_scraper import (
     build_ad_library_report,
     build_ad_visual_notes,
     collect_ad_library_ads,
-    fallback_weighted_ad_library_ads,
     filter_high_match_ads,
 )
 from tools.facebook_crawler import crawl_facebook_posts
@@ -23,10 +22,10 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         logger.info("Crawler Agent using manual competitor input")
         state["messages"].append({"role": "crawler", "content": f"Used {len(insights)} manual competitor posts plus media notes"})
     elif config.AD_LIBRARY_ENABLED and not config.MOCK_MODE:
+        keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
+        max_ads = int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS)
+        reference_scan_limit = int(state.get("ad_library_reference_scan_limit") or max_ads)
         try:
-            keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
-            max_ads = int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS)
-            reference_scan_limit = int(state.get("ad_library_reference_scan_limit") or max_ads)
             ads = collect_ad_library_ads(
                 keywords=keywords,
                 country=config.AD_LIBRARY_COUNTRY,
@@ -36,100 +35,64 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                 competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
                 competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
             )
-            high_match_ads = filter_high_match_ads(ads, threshold=0.95)
-            strategy_ads = high_match_ads or ads
-            insights = ads_to_competitor_insights(strategy_ads)
-            state["ad_library_ads"] = ads
-            state["high_match_ads"] = high_match_ads
-            state["high_match_threshold"] = 0.95
-            state["ad_library_keywords"] = keywords
-            state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
-            state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
-            state["ad_library_report"] = build_ad_library_report(
-                ads,
-                keywords,
-                high_match_ads=high_match_ads,
-                threshold=0.95,
-                competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
-                competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
-            )
-            state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
-            reference_ad = _top_match_reference_ad(strategy_ads, fallback_ads=ads, scan_limit=reference_scan_limit)
-            if reference_ad:
-                state["creative_reference_ad"] = reference_ad
-                if state.get("creative_image_mode") == "top_match_reference":
-                    selection_note = reference_ad.get("selection_note") or "Selected the best-ranked Ad Library creative with usable media."
-                    state["creative_reference_note"] = (
-                        f"{selection_note} "
-                        "Output must be a new SmileUp image with no reused pixels, faces, logos, or original text."
-                    )
-                    state["messages"].append(
-                        {
-                            "role": "crawler",
-                            "content": (
-                                "Creative reference selected: "
-                                f"{reference_ad.get('page_name', 'Ad Library')} "
-                                f"rank #{reference_ad.get('selected_rank', '-')}, "
-                                f"{len(reference_ad.get('media_candidates', []))} media candidate(s)."
-                            ),
-                        }
-                    )
-            state["data_source"] = "ad_library"
-            competitor_count = sum(1 for ad in ads if ad.get("source_type") == "competitor_page")
-            keyword_count = sum(1 for ad in ads if ad.get("source_type") == "keyword_scan")
-            state["messages"].append(
-                {
-                    "role": "crawler",
-                    "content": (
-                        f"Collected {len(insights)} Ad Library insights; {len(high_match_ads)} ads match >=95%; "
-                        f"scan mode {state.get('ad_library_scan_mode', 'quick')} ({max_ads} ads); "
-                        f"source mix {competitor_count} competitor ads / {keyword_count} keyword ads"
-                    ),
-                }
-            )
         except Exception as exc:
-            logger.warning("Ad Library scan failed, using controlled fallback ads: %s", exc)
-            keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
-            max_ads = int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS)
-            reference_scan_limit = int(state.get("ad_library_reference_scan_limit") or max_ads)
-            ads = fallback_weighted_ad_library_ads(
-                keywords=keywords,
-                max_ads=max_ads,
-                competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
-            )
-            high_match_ads = filter_high_match_ads(ads, threshold=0.95)
-            strategy_ads = high_match_ads or ads
-            insights = ads_to_competitor_insights(strategy_ads)
-            state["ad_library_ads"] = ads
-            state["high_match_ads"] = high_match_ads
-            state["high_match_threshold"] = 0.95
-            state["ad_library_keywords"] = keywords
-            state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
-            state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
-            state["ad_library_report"] = (
-                "Ad Library Agent: live scan tam thoi khong kha dung tren server, "
-                "he thong dung fallback benchmark noi bo de workflow khong bi dung. "
-                "Can chay lai scan khi Chrome/Ad Library san sang.\n\n"
-                + build_ad_library_report(
-                    ads,
-                    keywords,
-                    high_match_ads=high_match_ads,
-                    threshold=0.95,
-                    competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
-                    competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
+            message = f"Ad Library live scan failed with fallback disabled: {exc}"
+            logger.exception(message)
+            state["current_step"] = "error"
+            state["error"] = message
+            state["messages"].append({"role": "crawler", "content": message})
+            raise RuntimeError(message) from exc
+        high_match_ads = filter_high_match_ads(ads, threshold=0.95)
+        strategy_ads = high_match_ads or ads
+        insights = ads_to_competitor_insights(strategy_ads)
+        state["ad_library_ads"] = ads
+        state["high_match_ads"] = high_match_ads
+        state["high_match_threshold"] = 0.95
+        state["ad_library_keywords"] = keywords
+        state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
+        state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
+        state["ad_library_report"] = build_ad_library_report(
+            ads,
+            keywords,
+            high_match_ads=high_match_ads,
+            threshold=0.95,
+            competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
+            competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
+        )
+        state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
+        reference_ad = _top_match_reference_ad(strategy_ads, fallback_ads=ads, scan_limit=reference_scan_limit)
+        if reference_ad:
+            state["creative_reference_ad"] = reference_ad
+            if state.get("creative_image_mode") == "top_match_reference":
+                selection_note = reference_ad.get("selection_note") or "Selected the best-ranked Ad Library creative with usable media."
+                state["creative_reference_note"] = (
+                    f"{selection_note} "
+                    "Output must be a new SmileUp image with no reused pixels, faces, logos, or original text."
                 )
-            )
-            state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
-            reference_ad = _top_match_reference_ad(strategy_ads, fallback_ads=ads, scan_limit=reference_scan_limit)
-            if reference_ad:
-                state["creative_reference_ad"] = reference_ad
-                if state.get("creative_image_mode") == "top_match_reference":
-                    state["creative_reference_note"] = (
-                        f"{reference_ad.get('selection_note') or 'Fallback benchmark selected for image reference.'} "
-                        "Output must be a new SmileUp image with no reused pixels, faces, logos, or original text."
-                    )
-            state["data_source"] = "ad_library_fallback"
-            state["messages"].append({"role": "crawler", "content": f"Ad Library failed safely, used {len(insights)} fallback benchmark insights"})
+                state["messages"].append(
+                    {
+                        "role": "crawler",
+                        "content": (
+                            "Creative reference selected: "
+                            f"{reference_ad.get('page_name', 'Ad Library')} "
+                            f"rank #{reference_ad.get('selected_rank', '-')}, "
+                            f"{len(reference_ad.get('media_candidates', []))} media candidate(s)."
+                        ),
+                    }
+                )
+        state["data_source"] = "ad_library"
+        competitor_count = sum(1 for ad in ads if ad.get("source_type") == "competitor_page")
+        keyword_count = sum(1 for ad in ads if ad.get("source_type") == "keyword_scan")
+        state["messages"].append(
+            {
+                "role": "crawler",
+                "content": (
+                    f"Collected {len(insights)} live Ad Library insights; {len(high_match_ads)} ads match >=95%; "
+                    f"scan mode {state.get('ad_library_scan_mode', 'quick')} ({max_ads} ads); "
+                    f"source mix {competitor_count} competitor ads / {keyword_count} keyword ads; fallback disabled"
+                ),
+            }
+        )
     else:
         try:
             insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)

@@ -170,7 +170,7 @@ const agentDescriptions = {
 
 const sourceLabels = {
   ad_library: "Auto Ad Library",
-  ad_library_fallback: "Auto fallback",
+  ad_library_fallback: "Live scan error",
   manual: "Manual override",
   facebook: "Facebook Graph API",
   mock: "Demo data",
@@ -1636,13 +1636,15 @@ function addFinalCreativeFromFile(file, onAdded) {
   }
 
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const dataUrl = String(reader.result || "");
+    const processed = await addSmileUpWatermarkToImage(dataUrl);
     const newIndex = currentCreativeAssets.length;
     currentCreativeAssets.push({
       service_line: "Ảnh thủ công",
       title: file.name,
-      image_path: dataUrl,
+      image_path: processed.dataUrl,
+      original_image_path: dataUrl,
       image_prompt: "Ảnh được thêm thủ công ở bước final review.",
       image_mode: "manual_final_upload",
       creative_group: "manual_upload",
@@ -2165,6 +2167,73 @@ function removeSelectedFinalImage() {
   updateFacebookPreview();
 }
 
+function loadWatermarkImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function drawRoundRect(ctx, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+}
+
+async function addSmileUpWatermarkToImage(dataUrl) {
+  try {
+    const [sourceImage, logoImage] = await Promise.all([
+      loadWatermarkImage(dataUrl),
+      loadWatermarkImage("/assets/smileup-logo.jfif"),
+    ]);
+    const maxSide = 1800;
+    const baseWidth = sourceImage.naturalWidth || sourceImage.width;
+    const baseHeight = sourceImage.naturalHeight || sourceImage.height;
+    const scale = Math.min(1, maxSide / Math.max(baseWidth, baseHeight));
+    const width = Math.max(1, Math.round(baseWidth * scale));
+    const height = Math.max(1, Math.round(baseHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(sourceImage, 0, 0, width, height);
+
+    const margin = Math.max(18, Math.round(Math.min(width, height) * 0.025));
+    const logoRatio = (logoImage.naturalHeight || logoImage.height) / Math.max(1, logoImage.naturalWidth || logoImage.width);
+    const logoWidth = Math.round(Math.min(width * 0.24, Math.max(140, width * 0.14)));
+    const logoHeight = Math.round(logoWidth * logoRatio);
+    const padX = Math.round(logoWidth * 0.12);
+    const padY = Math.round(logoHeight * 0.18);
+    const boxWidth = logoWidth + padX * 2;
+    const boxHeight = logoHeight + padY * 2;
+
+    ctx.save();
+    ctx.globalAlpha = 0.86;
+    ctx.fillStyle = "#ffffff";
+    drawRoundRect(ctx, margin, margin, boxWidth, boxHeight, Math.max(12, Math.round(boxHeight * 0.18)));
+    ctx.fill();
+    ctx.globalAlpha = 0.96;
+    ctx.drawImage(logoImage, margin + padX, margin + padY, logoWidth, logoHeight);
+    ctx.restore();
+
+    return { dataUrl: canvas.toDataURL("image/jpeg", 0.92), watermarkApplied: true };
+  } catch (error) {
+    console.warn("SmileUp watermark failed", error);
+    return { dataUrl, watermarkApplied: false };
+  }
+}
+
 function addFinalCreativeFromFile(file, onAdded) {
   if (!file) {
     onAdded?.(-1);
@@ -2184,17 +2253,22 @@ function addFinalCreativeFromFile(file, onAdded) {
   }
 
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const dataUrl = String(reader.result || "");
+    const processed = isImage
+      ? await addSmileUpWatermarkToImage(dataUrl)
+      : { dataUrl, watermarkApplied: false };
     const newIndex = currentCreativeAssets.length;
     currentCreativeAssets.push({
       service_line: isVideo ? "Video upload" : "Ảnh upload",
       title: file.name,
-      image_path: dataUrl,
+      image_path: processed.dataUrl,
+      original_image_path: dataUrl,
       media_type: isVideo ? "video" : "image",
       image_prompt: "Media được upload thủ công ở bước final review.",
       image_mode: "manual_final_upload",
       creative_group: "manual_upload",
+      watermark_applied: processed.watermarkApplied,
       source_policy: "Chỉ dùng nếu media thuộc SmileUp hoặc bạn có quyền sử dụng.",
     });
     onAdded?.(newIndex);

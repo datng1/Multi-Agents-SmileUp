@@ -10,17 +10,18 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from tools.offline_fixtures import fallback_ad_library_ads
 from tools.summarizer import extract_topics, summarize_text
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_PATH = ROOT / "data" / "ad_library_cache.json"
-CACHE_VERSION = 6
+CACHE_VERSION = 7
 HIGH_MATCH_THRESHOLD = 0.95
 PAGE_WAIT_SECONDS = float(os.getenv("AD_LIBRARY_PAGE_WAIT_SECONDS", "8"))
 PAGE_LOAD_TIMEOUT_SECONDS = float(os.getenv("AD_LIBRARY_PAGE_LOAD_TIMEOUT_SECONDS", "25"))
 KEYWORD_QUERY_LIMIT = int(os.getenv("AD_LIBRARY_KEYWORD_QUERY_LIMIT", "3"))
+SCROLL_ATTEMPTS = int(os.getenv("AD_LIBRARY_SCROLL_ATTEMPTS", "8"))
+SCROLL_WAIT_SECONDS = float(os.getenv("AD_LIBRARY_SCROLL_WAIT_SECONDS", "2.2"))
 
 
 @dataclass
@@ -191,34 +192,17 @@ def _collect_weighted_ads(
     keyword_ranked = _rank_ads(keyword_ads)
     selected = _dedupe_ads(competitor_ranked[:competitor_target] + keyword_ranked[:keyword_target])
 
-    missing_keyword = keyword_target - sum(1 for ad in selected if ad.get("source_type") == "keyword_scan")
-    if missing_keyword > 0:
-        selected = _dedupe_ads(
-            selected
-            + _fallback_ads_for_source(
-                keywords=keywords,
-                needed=missing_keyword,
-                source_type="keyword_scan",
-                source_weight=0.2,
-                page_name="Fallback Keyword Benchmark",
-            )
+    competitor_count = sum(1 for ad in selected if ad.get("source_type") == "competitor_page")
+    keyword_count = sum(1 for ad in selected if ad.get("source_type") == "keyword_scan")
+    if competitor_count < competitor_target or keyword_count < keyword_target or len(selected) < max_ads:
+        raise RuntimeError(
+            "Ad Library live scan did not return enough ads "
+            f"(need {competitor_target} competitor + {keyword_target} keyword = {max_ads}; "
+            f"got {competitor_count} competitor + {keyword_count} keyword = {len(selected)}). "
+            "Fallback is disabled by configuration, so the workflow is stopped instead of using synthetic benchmark ads."
         )
 
-    if len(selected) < max_ads:
-        selected = _dedupe_ads(
-            selected
-            + competitor_ranked[competitor_target:]
-            + keyword_ranked[keyword_target:]
-            + _fallback_ads_for_source(
-                keywords=keywords,
-                needed=max_ads - len(selected),
-                source_type="competitor_page",
-                source_weight=0.8,
-                page_name="Fallback Competitor Benchmark",
-            )
-        )
-
-    return _dedupe_ads(selected)[:max_ads]
+    return selected[:max_ads]
 
 
 def _collect_keyword_scan_ads(keywords: str, country: str, max_ads: int) -> list[dict]:
@@ -257,61 +241,6 @@ def _keyword_scan_queries(keywords: str) -> list[str]:
         if normalized and normalized not in queries:
             queries.append(normalized)
     return queries
-
-
-def _fallback_ads_for_source(
-    keywords: str,
-    needed: int,
-    source_type: str,
-    source_weight: float,
-    page_name: str,
-) -> list[dict]:
-    if needed <= 0:
-        return []
-
-    base_ads = fallback_ad_library_ads(keywords)
-    if not base_ads:
-        return []
-
-    ads: list[dict] = []
-    for index in range(needed):
-        source = dict(base_ads[index % len(base_ads)])
-        source["library_id"] = f"{source_type}-fallback-fill-{index + 1}-{source.get('library_id', 'ad')}"
-        source["page_name"] = page_name
-        source["source_type"] = source_type
-        source["source_weight"] = source_weight
-        source["source_page_id"] = ""
-        source["started_running"] = source.get("started_running") or "Fallback benchmark"
-        source["ad_url"] = source.get("ad_url") or "https://www.facebook.com/ads/library/"
-        source["is_fallback_fill"] = True
-        ads.append(source)
-    return ads
-
-
-def fallback_weighted_ad_library_ads(
-    keywords: str,
-    max_ads: int,
-    competitor_ratio: float = 0.8,
-) -> list[dict]:
-    competitor_ratio = min(1.0, max(0.0, competitor_ratio))
-    competitor_target = min(max_ads, max(1, math.ceil(max_ads * competitor_ratio)))
-    keyword_target = max(0, max_ads - competitor_target)
-    return _dedupe_ads(
-        _fallback_ads_for_source(
-            keywords=keywords,
-            needed=competitor_target,
-            source_type="competitor_page",
-            source_weight=0.8,
-            page_name="Fallback Competitor Benchmark",
-        )
-        + _fallback_ads_for_source(
-            keywords=keywords,
-            needed=keyword_target,
-            source_type="keyword_scan",
-            source_weight=0.2,
-            page_name="Fallback Keyword Benchmark",
-        )
-    )[:max_ads]
 
 
 def _scrape_ad_library(keywords: str, country: str, max_ads: int) -> list[dict]:
@@ -361,11 +290,7 @@ def _scrape_ad_library_url(
         driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT_SECONDS)
         driver.implicitly_wait(3)
         driver.get(url)
-        time.sleep(PAGE_WAIT_SECONDS)
-        body = driver.find_element(By.TAG_NAME, "body").text
-        media_urls = _extract_media_urls(driver)
-        ads = _parse_ad_cards(body, media_urls, keywords, source_type, source_page_id, source_weight)
-        return ads[:max_ads]
+        return _collect_ads_from_current_page(driver, keywords, max_ads, source_type, source_page_id, source_weight, By)
     finally:
         driver.quit()
 
@@ -384,24 +309,65 @@ def _scrape_ad_library_urls(specs: list[dict], keywords: str, stop_after: int) -
         driver.implicitly_wait(3)
         for spec in specs:
             driver.get(str(spec["url"]))
-            time.sleep(PAGE_WAIT_SECONDS)
-            body = driver.find_element(By.TAG_NAME, "body").text
-            media_urls = _extract_media_urls(driver)
-            page_ads = _parse_ad_cards(
-                body,
-                media_urls,
+            page_ads = _collect_ads_from_current_page(
+                driver,
                 keywords,
+                int(spec.get("max_ads") or stop_after),
                 str(spec.get("source_type") or "keyword_scan"),
                 str(spec.get("source_page_id") or ""),
                 float(spec.get("source_weight") or 0.2),
+                By,
             )
-            ads.extend(page_ads[: int(spec.get("max_ads") or stop_after)])
+            ads.extend(page_ads)
             ads = _dedupe_ads(ads)
             if len(ads) >= stop_after:
                 break
         return ads[:stop_after]
     finally:
         driver.quit()
+
+
+def _collect_ads_from_current_page(
+    driver,
+    keywords: str,
+    max_ads: int,
+    source_type: str,
+    source_page_id: str,
+    source_weight: float,
+    by,
+) -> list[dict]:
+    ads: list[dict] = []
+    last_height = 0
+    stagnant_rounds = 0
+    time.sleep(PAGE_WAIT_SECONDS)
+    for _attempt in range(max(1, SCROLL_ATTEMPTS)):
+        body = driver.find_element(by.TAG_NAME, "body").text
+        media_urls = _extract_media_urls(driver)
+        ads = _dedupe_ads(
+            ads
+            + _parse_ad_cards(
+                body,
+                media_urls,
+                keywords,
+                source_type,
+                source_page_id,
+                source_weight,
+            )
+        )
+        if len(ads) >= max_ads:
+            return ads[:max_ads]
+
+        height = int(driver.execute_script("return document.body.scrollHeight || 0") or 0)
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(SCROLL_WAIT_SECONDS)
+        if height <= last_height:
+            stagnant_rounds += 1
+        else:
+            stagnant_rounds = 0
+        last_height = max(last_height, height)
+        if stagnant_rounds >= 2:
+            break
+    return ads[:max_ads]
 
 
 def _chrome_options():
