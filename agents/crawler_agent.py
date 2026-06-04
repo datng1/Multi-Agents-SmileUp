@@ -4,6 +4,7 @@ from tools.ad_library_scraper import (
     build_ad_library_report,
     build_ad_visual_notes,
     collect_ad_library_ads,
+    fallback_weighted_ad_library_ads,
     filter_high_match_ads,
 )
 from tools.facebook_crawler import crawl_facebook_posts
@@ -91,7 +92,11 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
             max_ads = int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS)
             reference_scan_limit = int(state.get("ad_library_reference_scan_limit") or max_ads)
-            ads = fallback_ad_library_ads(keywords)[:max_ads]
+            ads = fallback_weighted_ad_library_ads(
+                keywords=keywords,
+                max_ads=max_ads,
+                competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
+            )
             high_match_ads = filter_high_match_ads(ads, threshold=0.95)
             strategy_ads = high_match_ads or ads
             insights = ads_to_competitor_insights(strategy_ads)
