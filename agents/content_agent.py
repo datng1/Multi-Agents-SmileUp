@@ -66,11 +66,14 @@ def _ensure_three_image_backed_variants(variants: list[ContentVariant], state: A
 def _build_creative_prompt_assets(variants: list[ContentVariant], state: AgentState) -> list[dict[str, str]]:
     if not variants:
         return []
-    prompts = _generate_prompt_texts_with_openai(variants, state)
+    prompts = _generate_creative_prompts_with_openai(variants, state)
     assets: list[dict[str, str]] = []
     for index, variant in enumerate(variants):
-        prompt_text = prompts[index] if index < len(prompts) and prompts[index].strip() else _local_creative_prompt(variant, state)
-        variant["image_prompt"] = prompt_text
+        prompt_pair = prompts[index] if index < len(prompts) else {}
+        image_prompt = str(prompt_pair.get("image_prompt") or "").strip() or _local_image_prompt(variant, state)
+        video_prompt = str(prompt_pair.get("video_prompt") or "").strip() or _local_video_prompt(variant, state)
+        variant["image_prompt"] = image_prompt
+        variant["video_prompt"] = video_prompt
         assets.append(
             {
                 "campaign_track": variant.get("campaign_track", ""),
@@ -79,15 +82,16 @@ def _build_creative_prompt_assets(variants: list[ContentVariant], state: AgentSt
                 "image_path": "",
                 "media_type": "prompt",
                 "image_mode": "upload_only",
-                "prompt_text": prompt_text,
-                "image_prompt": prompt_text,
+                "prompt_text": image_prompt,
+                "image_prompt": image_prompt,
+                "video_prompt": video_prompt,
                 "source_policy": "No AI image/video generation. Use this prompt outside the app, then upload owned media in final review.",
             }
         )
     return assets
 
 
-def _generate_prompt_texts_with_openai(variants: list[ContentVariant], state: AgentState) -> list[str]:
+def _generate_creative_prompts_with_openai(variants: list[ContentVariant], state: AgentState) -> list[dict[str, str]]:
     if config.MOCK_MODE or not config.AGENT_API_REASONING_ENABLED or not config.OPENAI_API_KEY:
         return []
     payload = [
@@ -112,10 +116,24 @@ def _generate_prompt_texts_with_openai(variants: list[ContentVariant], state: Ag
         f"Creative variation: {state.get('creative_variation_profile', {})}\n"
         f"Variants: {payload}"
     )
+    prompt = (
+        "Write separate creative prompts for each Facebook post of SmileUp Dental Clinic.\n"
+        "Do not generate media. Return only a valid JSON array of objects.\n"
+        "Each object must have exactly two string fields: image_prompt and video_prompt.\n"
+        "image_prompt must be detailed English, 160-230 words, photorealistic, suitable for image-generation tools. "
+        "It must match the post, use a real Vietnamese dental clinic context, include doctor/patient when relevant, avoid plastic AI look, "
+        "and avoid all text, banners, fake logos, watermark, pricing, claims, before-after, or typography inside the image. "
+        "If logo is needed, reserve clean negative space for adding the real SmileUp logo later; do not ask the image model to draw text/logo.\n"
+        "video_prompt must be Vietnamese and design a 40-second vertical Facebook/Reels video. "
+        "Split it into timed scenes with camera angle, shot size, motion, facial expression, clinic action, visual pacing, and final CTA behavior. "
+        "No unsafe medical claims, no shame language, no fake before-after. Mention that text overlays should be added in editing, not generated inside raw footage.\n\n"
+        f"Creative variation: {state.get('creative_variation_profile', {})}\n"
+        f"Variants: {payload}"
+    )
     try:
         text, _model = generate_text_with_openai(
             prompt,
-            system="You are GPT-5.5 acting as a senior dental creative prompt director. Return only valid JSON array of strings.",
+            system="You are GPT-5.5 acting as a senior dental creative prompt director. Return only valid JSON array of objects with image_prompt and video_prompt.",
             temperature=0.45,
             timeout=90,
         )
@@ -123,7 +141,16 @@ def _generate_prompt_texts_with_openai(variants: list[ContentVariant], state: Ag
 
         parsed = json.loads(text)
         if isinstance(parsed, list):
-            return [str(item).strip() for item in parsed]
+            normalized = []
+            for item in parsed:
+                if isinstance(item, dict):
+                    normalized.append(
+                        {
+                            "image_prompt": str(item.get("image_prompt") or "").strip(),
+                            "video_prompt": str(item.get("video_prompt") or "").strip(),
+                        }
+                    )
+            return normalized
     except Exception as exc:
         logger.warning("GPT creative prompt generation failed, using local prompts: %s", exc)
     return []
@@ -147,6 +174,69 @@ def _local_creative_prompt(variant: ContentVariant, state: AgentState) -> str:
         "Tuyệt đối tránh: chữ sai chính tả, logo giả, watermark, banner khuyến mãi quá lớn, claim y khoa tuyệt đối, before-after gây hiểu nhầm, hình răng miệng gây sốc. "
         "Ảnh/video cần phục vụ ý định booking hoặc tăng niềm tin, không chỉ đẹp trang trí."
     )
+
+
+def _local_image_prompt(variant: ContentVariant, state: AgentState) -> str:
+    service = variant.get("service_line", "nha khoa")
+    track = variant.get("campaign_track", "ads_effective")
+    title = variant.get("title", "")
+    audience = (
+        "prospective Vietnamese patients who are considering leaving their phone number for personalized dental consultation"
+        if track == "ads_effective"
+        else "existing page followers who need a trustworthy, educational dental care visual"
+    )
+    mood = (state.get("creative_variation_profile") or {}).get("visual_mood", "clean white and teal dental clinic lighting")
+    scene = _image_scene_for_service(service)
+    return (
+        f"Create a premium photorealistic Facebook feed image for SmileUp Dental Clinic about {service}. "
+        f"The visual must support this post hook: {title}. Audience: {audience}. "
+        f"Scene direction: {scene}. The setting is a modern Vietnamese dental clinic with real-world lighting, {mood}, clean clinical surfaces, soft depth of field, and a calm premium atmosphere. "
+        "Use a real-looking Vietnamese female dentist wearing a white coat or clinical uniform and a clean blue disposable surgical cap when the scene is clinical. "
+        "The dentist should look warm, focused, and trustworthy; the patient should look comfortable, listened to, and never embarrassed. "
+        "Camera style: natural 35mm editorial healthcare photography, eye-level or slight three-quarter angle, realistic skin texture, natural hands, correct dental tools, no distorted faces, no plastic AI gloss. "
+        "Composition must leave clean negative space in one corner for adding the real SmileUp logo later. "
+        "Do not generate any text, typography, headline, banner, CTA, price tag, fake logo, watermark, QR code, before-after comparison, exaggerated smile transformation, or shocking mouth close-up. "
+        "Keep the image safe for dental advertising and suitable for Facebook preview without cropping the main faces."
+    )
+
+
+def _local_video_prompt(variant: ContentVariant, state: AgentState) -> str:
+    service = variant.get("service_line", "nha khoa")
+    title = variant.get("title", "bài đăng SmileUp")
+    track = variant.get("campaign_track", "ads_effective")
+    cta = variant.get("call_to_action", "inbox hoặc để lại SĐT để SmileUp tư vấn cá nhân hóa")
+    focus = "lấy SĐT/inbox chất lượng" if track == "ads_effective" else "nuôi niềm tin, tăng lưu và bình luận"
+    return (
+        f"Prompt video dọc 9:16 dài 40 giây cho SmileUp Dental Clinic, chủ đề: {title}. Mục tiêu: {focus}. "
+        "Tạo video dạng footage thật, không để AI tự sinh chữ trong khung hình; mọi text overlay/CTA sẽ thêm ở bước dựng hậu kỳ.\n\n"
+        "0-4s | Hook mở đầu: cận trung bác sĩ nữ Việt Nam đội mũ phẫu thuật xanh, áo blouse trắng, đứng trong phòng tư vấn nha khoa sáng sạch. "
+        "Góc máy eye-level, dolly-in rất nhẹ. Bác sĩ nhìn bệnh nhân rồi quay nhẹ về camera, nét mặt bình tĩnh, tin cậy, như đang đặt một câu hỏi quan trọng.\n\n"
+        f"4-10s | Bối cảnh vấn đề {service}: shot qua vai bệnh nhân, bác sĩ chỉ nhẹ vào phim chụp/tablet hoặc mô hình răng. "
+        "Máy lia chậm từ tay bác sĩ sang gương mặt bệnh nhân. Bệnh nhân lắng nghe, hơi băn khoăn nhưng không xấu hổ, ánh mắt tập trung.\n\n"
+        "10-17s | Giải thích cá nhân hóa: medium two-shot bác sĩ và bệnh nhân ngồi đối diện. "
+        "Bác sĩ dùng cử chỉ tay chậm, thân thiện; bệnh nhân gật đầu nhẹ. Ánh sáng trắng xanh, nền phòng khám Việt Nam hiện đại, không có banner quảng cáo.\n\n"
+        "17-24s | Tín hiệu chuyên môn: close-up tay bác sĩ ghi chú kế hoạch/đánh dấu trên tablet, chuyển sang shot thiết bị nha khoa sạch hoặc màn hình X-quang mờ nền. "
+        "Chuyển động camera pan nhẹ, không quay cận cảnh miệng gây khó chịu, không before-after.\n\n"
+        "24-31s | Niềm tin và cảm xúc: medium close-up bệnh nhân mỉm cười nhẹ vì được giải thích rõ. "
+        "Bác sĩ giữ biểu cảm ấm, chuyên nghiệp, không khoa trương. Nhịp dựng chậm vừa, mỗi shot 2-3 giây, cảm giác premium healthcare.\n\n"
+        f"31-37s | CTA mềm: bác sĩ đưa lại tài liệu/tư vấn bước tiếp theo, bệnh nhân cầm điện thoại như chuẩn bị inbox hoặc để lại số. "
+        f"Text overlay hậu kỳ nên truyền tải ngắn: {cta}. Không hứa kết quả tuyệt đối.\n\n"
+        "37-40s | Kết thúc: wide shot phòng tư vấn SmileUp sạch, bác sĩ và bệnh nhân đứng dậy bắt tay/cúi chào nhẹ. "
+        "Chừa khoảng trống góc trên để đặt logo SmileUp thật bằng hậu kỳ. Mood cuối: an tâm, được tôn trọng, sẵn sàng đặt lịch tư vấn."
+    )
+
+
+def _image_scene_for_service(service: str) -> str:
+    normalized = str(service or "").lower()
+    if "implant" in normalized:
+        return "a dentist consulting an adult patient about implant evaluation beside a softly blurred panoramic X-ray monitor and a dental model"
+    if "rang_su" in normalized or "răng" in normalized:
+        return "a dentist explaining natural-looking porcelain restoration options to a patient using a mirror and a shade guide"
+    if "phuc" in normalized or "phục" in normalized:
+        return "a dentist reviewing a restoration plan with a patient on a tablet, with clean dental instruments in the background"
+    if "page" in normalized or "trust" in normalized or "reels" in normalized:
+        return "a friendly educational consultation moment between dentist and patient, suitable for page care content"
+    return "a respectful dental consultation between a SmileUp dentist and a Vietnamese patient"
 
 
 def _enforce_people_first_image_prompts(variants: list[ContentVariant]) -> list[ContentVariant]:

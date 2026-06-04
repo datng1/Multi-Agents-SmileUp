@@ -62,6 +62,7 @@ class ContentVariant(TypedDict, total=False):
     hashtags: list[str]
     call_to_action: str
     image_prompt: str
+    video_prompt: str
     image_path: str
 
 

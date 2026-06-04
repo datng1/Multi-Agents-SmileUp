@@ -42,6 +42,8 @@ const finalAddImageButton = document.querySelector("#finalAddImageButton");
 const finalAddImagePreviewButton = document.querySelector("#finalAddImagePreviewButton");
 const finalCreativePrompt = document.querySelector("#finalCreativePrompt");
 const copyCreativePromptButton = document.querySelector("#copyCreativePromptButton");
+const imagePromptTab = document.querySelector("#imagePromptTab");
+const videoPromptTab = document.querySelector("#videoPromptTab");
 const finalImageStatus = document.querySelector("#finalImageStatus");
 const finalCharCount = document.querySelector("#finalCharCount");
 const resetFinalButton = document.querySelector("#resetFinalButton");
@@ -118,6 +120,7 @@ let currentResult = null;
 let publishPages = [];
 let finalImageManuallyDisabled = false;
 let pendingCompletionNotice = false;
+let activePromptType = "image";
 
 const defaultDocumentTitle = document.title;
 const defaultFaviconHref = "/assets/favicon.png";
@@ -1980,6 +1983,76 @@ function buildLocalCreativePrompt(draft = {}) {
   ].join("\n");
 }
 
+function promptForDraft(draft = {}, preferredIndex = 0, promptType = activePromptType) {
+  const promptKey = promptType === "video" ? "video_prompt" : "image_prompt";
+  const fallbackKey = promptType === "video" ? "image_prompt" : "video_prompt";
+  const selectedAsset = currentPromptAssets?.[preferredIndex] || {};
+  const firstAsset = currentPromptAssets?.find((asset) => asset?.[promptKey] || asset?.prompt_text || asset?.[fallbackKey]) || {};
+  const assetPrompt =
+    selectedAsset[promptKey] ||
+    (promptType === "image" ? selectedAsset.prompt_text : "") ||
+    firstAsset[promptKey] ||
+    (promptType === "image" ? firstAsset.prompt_text : "") ||
+    selectedAsset[fallbackKey] ||
+    firstAsset[fallbackKey];
+  if (assetPrompt) {
+    return String(assetPrompt).trim();
+  }
+  return promptType === "video" ? buildLocalVideoPrompt(draft) : buildLocalImagePrompt(draft);
+}
+
+function buildLocalImagePrompt(draft = {}) {
+  const title = draft.title || finalTitleInput.value || "SmileUp Facebook post";
+  const body = draft.body || finalBodyInput.value || "";
+  const cta = draft.call_to_action || finalCtaInput.value || "inbox SmileUp for personalized dental consultation";
+  return [
+    "Create a premium photorealistic Facebook feed image for SmileUp Dental Clinic.",
+    `Post topic: ${title}.`,
+    `Main message to support: ${body.slice(0, 600) || "personalized dental consultation, transparent indication, medical safety"}.`,
+    `CTA context for the creative team only, not text inside image: ${cta}.`,
+    "Scene: modern Vietnamese dental clinic, clean white and teal color palette, natural daylight, realistic healthcare atmosphere.",
+    "Use real-looking Vietnamese people: a SmileUp dentist in clinical uniform and blue disposable surgical cap consulting a patient respectfully.",
+    "Camera: 35mm editorial healthcare photography, eye-level or three-quarter angle, natural skin texture, realistic hands, correct dental tools, shallow depth of field.",
+    "Do not generate text, headline, banner, fake logo, watermark, price, QR code, before-after, shocking mouth close-up, or exaggerated perfect-smile claim inside the image.",
+    "Leave clean negative space in one corner so the real SmileUp logo can be added later in editing. Keep faces and main action inside a Facebook-safe crop.",
+  ].join("\n");
+}
+
+function buildLocalVideoPrompt(draft = {}) {
+  const title = draft.title || finalTitleInput.value || "bài đăng SmileUp";
+  const cta = draft.call_to_action || finalCtaInput.value || "inbox hoặc để lại SĐT để SmileUp tư vấn cá nhân hóa";
+  return [
+    `Prompt video dọc 9:16 dài 40 giây cho SmileUp Dental Clinic. Chủ đề: ${title}.`,
+    "Yêu cầu chung: footage thật, không để AI sinh chữ trong khung hình; text overlay, logo và CTA sẽ thêm ở hậu kỳ.",
+    "0-4s: Hook mở đầu. Cận trung bác sĩ nữ Việt Nam đội mũ phẫu thuật xanh, áo blouse trắng trong phòng tư vấn sáng sạch. Góc eye-level, dolly-in nhẹ, nét mặt bình tĩnh và tin cậy.",
+    "4-10s: Shot qua vai bệnh nhân. Bác sĩ chỉ nhẹ vào phim chụp/tablet hoặc mô hình răng. Máy lia từ tay bác sĩ sang gương mặt bệnh nhân đang lắng nghe, hơi băn khoăn nhưng không xấu hổ.",
+    "10-17s: Medium two-shot bác sĩ và bệnh nhân ngồi đối diện. Bác sĩ giải thích bằng cử chỉ tay chậm, bệnh nhân gật đầu nhẹ. Ánh sáng trắng xanh, nền phòng khám Việt Nam hiện đại.",
+    "17-24s: Close-up tay bác sĩ ghi chú kế hoạch hoặc đánh dấu trên tablet, chuyển sang thiết bị nha khoa sạch/màn hình X-quang mờ nền. Không quay cận miệng gây khó chịu, không before-after.",
+    "24-31s: Medium close-up bệnh nhân mỉm cười nhẹ vì được giải thích rõ. Bác sĩ giữ biểu cảm ấm, chuyên nghiệp, không khoa trương. Nhịp dựng 2-3 giây mỗi shot.",
+    `31-37s: CTA mềm. Bác sĩ đưa lại tài liệu/tư vấn bước tiếp theo, bệnh nhân cầm điện thoại như chuẩn bị inbox hoặc để lại số. Overlay hậu kỳ nên truyền tải: ${cta}.`,
+    "37-40s: Wide shot phòng tư vấn SmileUp sạch, bác sĩ và bệnh nhân đứng dậy bắt tay/cúi chào nhẹ. Chừa khoảng trống góc trên để đặt logo SmileUp thật. Mood cuối: an tâm, được tôn trọng, sẵn sàng đặt lịch tư vấn.",
+  ].join("\n\n");
+}
+
+function setPromptType(promptType) {
+  activePromptType = promptType === "video" ? "video" : "image";
+  imagePromptTab?.classList.toggle("active", activePromptType === "image");
+  videoPromptTab?.classList.toggle("active", activePromptType === "video");
+  imagePromptTab?.setAttribute("aria-selected", String(activePromptType === "image"));
+  videoPromptTab?.setAttribute("aria-selected", String(activePromptType === "video"));
+  if (finalCreativePrompt) {
+    finalCreativePrompt.value = promptForDraft(originalFinalDraft || {}, getPreferredPromptIndex(), activePromptType);
+  }
+  if (copyCreativePromptButton) {
+    copyCreativePromptButton.textContent = activePromptType === "video" ? "Copy video prompt" : "Copy image prompt";
+  }
+}
+
+function getPreferredPromptIndex() {
+  const selected = Number(finalCreativeSelect?.selectedOptions?.[0]?.value ?? 0);
+  return Number.isInteger(selected) && selected >= 0 ? selected : 0;
+}
+
 function renderFinalCreativeOptions(preferredCreativeIndex = -1) {
   finalCreativeSelect.innerHTML = "";
   const noMediaOption = document.createElement("option");
@@ -2290,7 +2363,7 @@ async function copyCreativePrompt() {
     await navigator.clipboard.writeText(promptText);
     copyCreativePromptButton.textContent = "Đã copy";
     setTimeout(() => {
-      copyCreativePromptButton.textContent = "Copy prompt";
+      copyCreativePromptButton.textContent = activePromptType === "video" ? "Copy video prompt" : "Copy image prompt";
     }, 1200);
   } catch {
     safePayload.textContent = promptText;
@@ -2509,6 +2582,8 @@ resetFinalButton.addEventListener("click", () => {
 });
 copyFinalButton.addEventListener("click", copyFinalCaption);
 copyCreativePromptButton?.addEventListener("click", copyCreativePrompt);
+imagePromptTab?.addEventListener("click", () => setPromptType("image"));
+videoPromptTab?.addEventListener("click", () => setPromptType("video"));
 selectAllPagesButton.addEventListener("click", () => {
   publishPageList.querySelectorAll('input[type="checkbox"]').forEach((input) => {
     input.checked = true;
@@ -2536,6 +2611,7 @@ cmoGraphToggle.addEventListener("click", () => {
 });
 setSourceMode("auto");
 syncCreativeImageMode();
+setPromptType("image");
 updateFacebookPreview();
 loadStatus().catch(() => {
   modeValue.textContent = "Unknown";

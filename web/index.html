@@ -496,6 +496,10 @@
                   <button id="copyCreativePromptButton" class="secondary-button compact" type="button">Copy prompt</button>
                 </div>
                 <textarea id="finalCreativePrompt" class="final-textarea creative-prompt-textarea" rows="9" spellcheck="false" placeholder="Prompt sẽ hiện sau khi chạy workflow."></textarea>
+                <div class="prompt-type-switch" role="tablist" aria-label="Chon loai prompt creative">
+                  <button id="imagePromptTab" class="prompt-tab active" type="button" data-prompt-type="image" aria-selected="true">Prompt anh</button>
+                  <button id="videoPromptTab" class="prompt-tab" type="button" data-prompt-type="video" aria-selected="false">Prompt video 40s</button>
+                </div>
                 <div class="prompt-handoff">
                   <span>1. Copy prompt</span>
                   <span>2. Gen ở tool ngoài</span>

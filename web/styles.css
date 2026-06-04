@@ -3358,6 +3358,40 @@ pre {
   color: rgba(226, 232, 240, 0.56);
 }
 
+.prompt-type-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(132px, 1fr));
+  gap: 6px;
+  margin: 12px 0 10px;
+  padding: 5px;
+  border: 1px solid rgba(174, 188, 200, 0.64);
+  border-radius: 12px;
+  background: rgba(238, 244, 247, 0.92);
+}
+
+.prompt-tab {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 9px;
+  color: #516276;
+  background: transparent;
+  font: 850 13px/1.2 "Segoe UI", Arial, sans-serif;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.prompt-tab:hover {
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.prompt-tab.active {
+  color: #062f2b;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(16, 24, 40, 0.1);
+}
+
 .prompt-handoff {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

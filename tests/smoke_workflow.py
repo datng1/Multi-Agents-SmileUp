@@ -27,6 +27,8 @@ def main() -> None:
     assert result.get("creative_assets"), "workflow should produce copyable creative prompt assets"
     assert all(not asset.get("image_path") for asset in result["creative_assets"]), "creative prompt assets should not include generated images"
     assert any(asset.get("prompt_text") or asset.get("image_prompt") for asset in result["creative_assets"]), "prompt assets should include copyable prompts"
+    assert all(asset.get("image_prompt") for asset in result["creative_assets"]), "each prompt asset should include an image prompt"
+    assert all(asset.get("video_prompt") for asset in result["creative_assets"]), "each prompt asset should include a 40s video prompt"
     assert result["compliance_report"], "compliance agent should produce a report"
     assert result["hardness_report"], "hardness agent should produce a report"
     assert result["hardness_score"] >= 0, "hardness agent should score the workflow"
