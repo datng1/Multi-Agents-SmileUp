@@ -35,8 +35,8 @@ def analyze_facebook_trends(insights: list[dict]) -> str:
         f"- Chủ đề đang lặp lại: {topic_line}.\n"
         f"- Tín hiệu dễ kéo tương tác: {hit_line}.\n"
         "- Góc triển khai nên ưu tiên: răng sứ thẩm mỹ và cấy ghép implant, dẫn bằng câu chuyện tự tin, ăn nhai, mất răng hoặc mong muốn cải thiện nụ cười.\n"
-        "- Cấu trúc bài: hook 1 câu mạnh, 3 lợi ích dễ scan, bằng chứng/quy trình thăm khám, lưu ý kết quả tùy tình trạng, CTA inbox/đặt lịch.\n"
-        "- Định dạng: caption ngắn đoạn, emoji tiết chế, hashtag hẹp theo dịch vụ, ảnh thật SmileUp hoặc creative gốc có nhận diện SmileUp.\n"
+        "- Cấu trúc media: hook mạnh, 3 lợi ích dễ scan, bằng chứng/quy trình thăm khám, disclaimer và CTA intent.\n"
+        "- Format: short video, carousel và ảnh gốc SmileUp; mỗi format phải có objective, audience và owner sản xuất.\n"
         f"- Hook tham khảo từ dữ liệu đầu vào: {hook_line}"
     )
 
@@ -49,7 +49,7 @@ def build_visual_creative_brief(insights: list[dict]) -> str:
         f"- Chủ đề hình ảnh: {service_focus} tại SmileUp, cảm giác hiện đại, sạch, tin cậy.\n"
         "- Dùng ảnh gốc của SmileUp, ảnh tự chụp, ảnh có license, hoặc ảnh AI tạo mới. Không tái sử dụng/rebrand ảnh của đối thủ.\n"
         "- Bố cục bắt buộc: ảnh photorealistic có bác sĩ Việt Nam tư vấn bên ghế nha hoặc màn hình phim chụp, có bệnh nhân/khách hàng trong khung hình, ánh sáng trắng xanh nhẹ, logo SmileUp được gắn bằng post-process.\n"
-        "- Không dùng text overlay, poster chữ, banner, icon răng, infographic, phòng khám trống hoặc layout trang trí; caption Facebook sẽ chứa toàn bộ chữ.\n"
+        "- Hạn chế text overlay dài, poster chữ và layout trang trí; mọi chữ trên media phải nằm trong message matrix đã duyệt.\n"
         "- Tránh: before/after không có consent, claim 100%, phóng đại kết quả, dùng ảnh nhận diện phòng khám/khách hàng đối thủ."
     )
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import math
@@ -55,13 +57,18 @@ def collect_ad_library_ads(
     competitor_ratio = min(1.0, max(0.0, competitor_ratio))
     cache_key = _cache_key(keywords, country, max_ads, competitor_urls, competitor_ratio)
     cached = _read_cache(cache_key, cache_ttl_hours)
-    if cached is not None and not force_refresh:
+    if cached is not None and not force_refresh and len(cached) >= max_ads:
         return cached[:max_ads]
 
     if competitor_urls:
         ads = _collect_weighted_ads(keywords, country, max_ads, competitor_urls, competitor_ratio)
     else:
-        ads = _scrape_ad_library(keywords=keywords, country=country, max_ads=max_ads)
+        ads = _dedupe_ads(_scrape_ad_library(keywords=keywords, country=country, max_ads=max_ads))
+        if len(ads) < max_ads:
+            raise RuntimeError(
+                f"Ad Library live scan did not return enough ads (need {max_ads} keyword ads; got {len(ads)}). "
+                "Fallback is disabled by configuration, so the workflow is stopped instead of using synthetic benchmark ads."
+            )
 
     _write_cache(cache_key, keywords, country, ads, competitor_urls, competitor_ratio)
     return ads[:max_ads]
@@ -190,7 +197,10 @@ def _collect_weighted_ads(
 
     competitor_ranked = _rank_ads(competitor_ads)
     keyword_ranked = _rank_ads(keyword_ads)
-    selected = _dedupe_ads(competitor_ranked[:competitor_target] + keyword_ranked[:keyword_target])
+    selected: list[dict] = []
+    seen: set[str] = set()
+    _append_unique_ads(selected, seen, competitor_ranked, competitor_target)
+    _append_unique_ads(selected, seen, keyword_ranked, keyword_target)
 
     competitor_count = sum(1 for ad in selected if ad.get("source_type") == "competitor_page")
     keyword_count = sum(1 for ad in selected if ad.get("source_type") == "keyword_scan")
@@ -228,19 +238,7 @@ def _collect_keyword_scan_ads(keywords: str, country: str, max_ads: int) -> list
 
 def _keyword_scan_queries(keywords: str) -> list[str]:
     base = str(keywords or "").strip()
-    queries: list[str] = []
-    for query in (
-        base,
-        "nha khoa",
-        "răng sứ",
-        "cấy implant",
-        "implant nha khoa",
-        "răng đẹp",
-    ):
-        normalized = query.strip()
-        if normalized and normalized not in queries:
-            queries.append(normalized)
-    return queries
+    return [base] if base else []
 
 
 def _scrape_ad_library(keywords: str, country: str, max_ads: int) -> list[dict]:
@@ -607,14 +605,35 @@ def _dedupe_ads(ads: list[dict]) -> list[dict]:
     deduped: list[dict] = []
     seen: set[str] = set()
     for ad in ads:
-        key = str(ad.get("library_id") or "").strip()
-        if not key:
-            key = f"{ad.get('page_name', '')}:{str(ad.get('ad_text', ''))[:220]}"
+        key = _ad_identity(ad)
         if key in seen:
             continue
         seen.add(key)
         deduped.append(ad)
     return deduped
+
+
+def _append_unique_ads(
+    selected: list[dict],
+    seen: set[str],
+    candidates: list[dict],
+    target_count: int,
+) -> None:
+    added = 0
+    for ad in candidates:
+        key = _ad_identity(ad)
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(ad)
+        added += 1
+        if added >= target_count:
+            return
+
+
+def _ad_identity(ad: dict) -> str:
+    library_id = str(ad.get("library_id") or "").strip()
+    return library_id or f"{ad.get('page_name', '')}:{str(ad.get('ad_text', ''))[:220]}"
 
 
 def _cache_key(

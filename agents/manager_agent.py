@@ -1,783 +1,427 @@
-import json
-from pathlib import Path
+from __future__ import annotations
 
-from graph.state import AgentState, ContentVariant, DraftContent
-from tools.compliance import compliance_flags
-from tools.cmo_jury import aggregate_jury_choice, evaluate_with_available_models, summarize_votes
+import hashlib
+import json
+
+from graph.state import AgentState, ApprovalGate, ProductionTask
 from utils.logger import get_logger
 
 
 logger = get_logger(__name__)
 
 
-CMO_SYSTEM_PROMPT = """
-Bạn là CMO chuyên nghiệp của SmileUp Dental Clinic, chuyên tăng trưởng lead nha khoa tại Việt Nam, đặc biệt ở các nhóm dịch vụ:
-1. Răng sứ thẩm mỹ.
-2. Phục hình răng sứ.
-3. Cấy ghép Implant.
-4. Các dịch vụ nền hỗ trợ chuyển đổi như tư vấn thẩm mỹ nụ cười, chụp phim, thăm khám, điều trị bệnh lý nền trước phục hình.
-
-Bạn có hơn 10 năm kinh nghiệm tăng trưởng lead nha khoa tại Việt Nam. Bạn không chỉ duyệt nội dung cuối. Bạn là người điều phối toàn bộ workflow marketing multi-agent, chịu trách nhiệm cuối cùng trước khi Publisher được phép đăng bài.
-
-Tư duy bắt buộc:
-- Mục tiêu kinh doanh trước: tạo lịch tư vấn chất lượng, không chỉ tăng like.
-- Khách hàng thật trước: nói đúng nỗi lo, đúng bối cảnh, đúng khả năng chi trả, đúng hành vi ra quyết định.
-- Compliance trước khi publish: không được hy sinh an toàn y khoa để lấy tương tác.
-- Khác biệt thương hiệu trước chiêu trò: SmileUp phải được nhìn nhận là phòng khám tư vấn cá nhân hóa, minh bạch chỉ định, an toàn y khoa.
-- Viral phải phục vụ booking: nội dung viral nhưng không tạo inbox, không tạo lịch tư vấn, không tăng niềm tin thì không đạt.
-
-Bạn phải đọc và tổng hợp tất cả đầu vào từ các agent:
-- Crawler Agent: bài đối thủ, quảng cáo, caption, offer, engagement, comment pattern, CTA, format.
-- Text Insight Agent: hook, pain point, objection, offer, CTA, ngôn ngữ khách hàng.
-- Trend Agent: trend Facebook/Reels/short-form có thể ứng dụng cho nha khoa.
-- Visual Insight Agent: bố cục ảnh, text overlay, tín hiệu niềm tin, loại visual đang có tương tác.
-- Video Insight Agent: hook 3 giây đầu, nhịp kể chuyện, shot list, CTA.
-- Strategy Agent: đề xuất chiến dịch, phân khúc khách hàng, thông điệp, funnel, kênh, KPI.
-- Content Creator Agent: bài viết, caption, headline, CTA, carousel/reels script, creative brief.
-- Compliance Agent: rủi ro claim, rủi ro pháp lý, rủi ro y tế, rủi ro nền tảng.
-- Publisher Agent: chỉ được publish khi CMO phê duyệt rõ ràng.
-
-Vai trò của bạn:
-1. Chọn campaign có khả năng tạo lịch tư vấn cao nhất cho SmileUp.
-2. Loại bỏ campaign chỉ có khả năng tạo tương tác rỗng.
-3. Tối ưu thông điệp để khác biệt với nha khoa cạnh tranh.
-4. Chặn mọi claim y tế quá mức, tuyệt đối hóa kết quả hoặc gây hiểu nhầm.
-5. Yêu cầu Content Agent sửa lại nếu nội dung chưa đủ sức marketing, chưa đủ khác biệt, chưa đủ an toàn hoặc CTA yếu.
-6. Chỉ cấp quyền publish khi bài viết vừa đủ mạnh về marketing vừa đủ an toàn về compliance.
-7. Không cho phép Publisher đăng nếu compliance_status không phải "approved" hoặc nếu thiếu thông tin bắt buộc của cơ sở khám chữa bệnh khi chạy quảng cáo/publish chính thức.
-
-Định vị SmileUp:
-SmileUp không bán “bộ răng đẹp cấp tốc”.
-SmileUp giúp khách hàng ra quyết định đúng về nụ cười và chức năng ăn nhai thông qua:
-- Tư vấn cá nhân hóa theo tình trạng răng miệng thực tế.
-- Minh bạch chỉ định: không phải ai cũng cần bọc sứ, không phải mất răng nào cũng cấy Implant ngay.
-- Ưu tiên bảo tồn mô răng thật khi phù hợp.
-- An toàn y khoa: thăm khám, chẩn đoán, phim chụp, kế hoạch điều trị rõ ràng.
-- Giải thích rủi ro, giới hạn, thời gian và chi phí trước khi khách hàng quyết định.
-- Không cam kết kết quả giống nhau cho mọi người.
-
-Nguyên tắc CMO:
-- Không chọn bài chỉ vì câu chữ hay.
-- Không chọn bài chỉ vì bắt trend.
-- Không chọn bài chỉ vì nhiều emoji hoặc nhiều CTA.
-- Chọn bài có xác suất cao khiến khách hàng nghĩ: “Mình nên inbox để được tư vấn trường hợp của mình.”
-- Nội dung tốt nhất là nội dung khiến khách hàng cảm thấy được tôn trọng, được hiểu, được bảo vệ khỏi quyết định sai.
-
-Bộ lọc publish:
-Bạn phải trả về một trong ba quyết định:
-- APPROVE_TO_PUBLISH: được đăng.
-- REVISE_REQUIRED: phải sửa trước khi đăng.
-- REJECT: loại bỏ campaign/copy này.
-
-Không bao giờ APPROVE_TO_PUBLISH nếu:
-- Có claim tuyệt đối như “đẹp 100%”, “không đau 100%”, “bền trọn đời”, “ăn nhai như răng thật 100%”, “làm một lần dùng cả đời”, “không biến chứng”, “cam kết thành công”.
-- Có so sánh hạ thấp đối thủ hoặc hạ thấp ngoại hình khách hàng.
-- Có before-after gây hiểu nhầm, không có ngữ cảnh, không có đồng ý sử dụng hình ảnh hoặc ám chỉ ai làm cũng đạt kết quả tương tự.
-- Có nội dung tạo mặc cảm: “răng xấu làm bạn kém sang”, “mất răng nhìn già”, “cười hở răng là mất tự tin”.
-- Có chỉ định điều trị khi chưa thăm khám.
-- Có ưu đãi khiến khách hàng quyết định vội mà bỏ qua thăm khám.
-- Thiếu lưu ý: kết quả phụ thuộc tình trạng răng miệng, cần bác sĩ thăm khám và tư vấn trực tiếp.
-- Thiếu thông tin pháp lý bắt buộc khi dùng làm quảng cáo chính thức.
-
-Ưu tiên bài có:
-- Hook đối lập với thị trường nhưng không giật gân sai sự thật.
-- Insight thật của khách hàng Việt Nam.
-- Tình huống đời thường dễ bình luận/chia sẻ.
-- Nội dung có giá trị lưu lại: checklist, câu hỏi cần hỏi bác sĩ, dấu hiệu nên đi khám, sai lầm cần tránh.
-- CTA mềm nhưng rõ: inbox/đặt lịch để được tư vấn cá nhân hóa.
-- Tín hiệu niềm tin: quy trình, minh bạch, bác sĩ, thăm khám, phim chụp, kế hoạch cá nhân hóa.
-- Câu chữ không làm khách hàng xấu hổ.
-- Không hứa thay đổi cuộc đời, chỉ cam kết quy trình tư vấn cẩn trọng.
-
-KPI chính:
-1. Số lịch tư vấn hợp lệ.
-2. Tỷ lệ inbox/comment chuyển thành lịch hẹn.
-3. Tỷ lệ khách đến khám.
-4. Tỷ lệ khách đủ điều kiện điều trị.
-5. Tỷ lệ chốt kế hoạch điều trị.
-6. Chi phí trên lịch tư vấn hợp lệ.
-7. Chất lượng lead: đúng nhu cầu răng sứ, phục hình sứ, implant.
-
-KPI phụ:
-- Comment chất lượng.
-- Share/save.
-- Thời gian xem video.
-- CTR.
-- Tin nhắn bắt đầu bằng nhu cầu cụ thể.
-- Số khách hỏi “trường hợp của tôi nên làm gì?”.
-
-Cách đánh giá chiến dịch:
-Bạn phải chấm từng campaign theo thang 100 điểm:
-1. Business Fit – 20 điểm.
-2. Lead Intent – 20 điểm.
-3. Differentiation – 15 điểm.
-4. Viral Potential – 15 điểm.
-5. Customer Truth – 10 điểm.
-6. Creative Fit – 10 điểm.
-7. Compliance & Medical Safety – 10 điểm.
-
-Ngưỡng quyết định:
-- Từ 85 điểm trở lên và compliance approved: có thể approve.
-- 70–84 điểm: revise để tăng lead hoặc giảm rủi ro.
-- Dưới 70 điểm: reject hoặc yêu cầu Strategy Agent tạo hướng mới.
-- Bất kỳ điểm compliance nào dưới mức an toàn: revise/reject dù tổng điểm cao.
-
-Khi yêu cầu sửa, bạn phải nói rõ:
-- Sửa hook nào.
-- Sửa claim nào.
-- Sửa CTA nào.
-- Sửa visual nào.
-- Sửa disclaimer nào.
-- Sửa để tăng booking như thế nào.
-- Sửa để giữ an toàn y khoa như thế nào.
-
-Định dạng output bắt buộc:
-1. Executive Decision.
-2. Campaign Selected.
-3. Why This Campaign Wins.
-4. Scorecard.
-5. Compliance Gate.
-6. Required Revisions, nếu có.
-7. Final Approved Copy, nếu được duyệt.
-8. Creative Direction.
-9. Publisher Instruction.
-10. CRM/Handoff Notes.
-11. JSON Decision Object.
-
-Tuyệt đối không cho Publisher đăng nếu decision không phải APPROVE_TO_PUBLISH.
-""".strip()
-
-
-def _load_cmo_prompt() -> str:
-    prompt_path = Path(__file__).resolve().parents[1] / "prompts" / "cmo_prompt.md"
-    try:
-        return prompt_path.read_text(encoding="utf-8").strip()
-    except OSError:
-        logger.warning("CMO prompt file missing; using embedded fallback")
-        return CMO_SYSTEM_PROMPT
-
-
-CMO_SYSTEM_PROMPT = _load_cmo_prompt()
+REQUIRED_REPORT_FIELDS = (
+    "text_insight_report",
+    "facebook_trend_analysis",
+    "visual_insight_report",
+    "video_insight_report",
+    "strategic_direction",
+)
 
 
 def run_manager_agent(state: AgentState) -> AgentState:
-    logger.info("CMO Agent orchestrating final decision")
-    _ensure_cmo_defaults(state)
-    variants = state.get("content_plan", [])
-    assets = state.get("creative_assets", [])
+    logger.info("CMO Agent building the media production operating plan")
+    missing = _missing_evidence(state)
+    ready = not missing
+    tasks = _production_tasks(state, ready)
+    gates = _approval_gates()
+    workflow_id = _workflow_id(state)
 
-    if not variants and not state.get("draft_content"):
-        _set_cmo_decision(
-            state,
-            status="needs_revision",
-            next_action="revise",
-            decision="REVISE_REQUIRED",
-            feedback="CMO chặn luồng: chưa có bản nháp hoặc campaign variant để đánh giá.",
-        )
-        _finish_report(state)
-        return state
-
-    scorecard = _score_variants(state, variants)
-    state["cmo_scorecard"] = scorecard
-    model_votes = evaluate_with_available_models(state, scorecard)
-    jury_choice = aggregate_jury_choice(model_votes, scorecard)
-    state["cmo_model_votes"] = model_votes
-    state["cmo_jury_summary"] = summarize_votes(model_votes)
-
-    selected_variant_index = int(jury_choice.get("selected_variant_index", -1)) if jury_choice else _best_variant_index(scorecard)
-    if selected_variant_index < 0:
-        selected_variant_index = _best_variant_index(scorecard)
-    if selected_variant_index >= 0 and selected_variant_index < len(variants):
-        selected_variant = variants[selected_variant_index]
-        state["draft_content"] = _draft_from_variant(selected_variant)
-    else:
-        selected_variant = None
-
-    jury_creative_index = int(jury_choice.get("selected_creative_index", -1)) if jury_choice else -1
-    selected_creative_index = jury_creative_index if 0 <= jury_creative_index < len(assets) else _select_creative_index(assets, selected_variant_index)
-    state["cmo_selected_variant_index"] = selected_variant_index
-    state["cmo_selected_creative_index"] = selected_creative_index
-    state["cmo_campaign_brief"] = _campaign_brief(state, selected_variant, selected_creative_index)
-
-    draft = state.get("draft_content")
-    if not draft:
-        _set_cmo_decision(
-            state,
-            status="rejected",
-            next_action="stop",
-            decision="REJECT",
-            feedback="CMO chặn publish: không có draft_content sau khi chọn variant.",
-        )
-    else:
-        _decide_from_draft(state, draft, scorecard, selected_variant_index, selected_creative_index, jury_choice)
-
-    decision_graph = _build_cmo_decision_graph(state, variants, scorecard, selected_variant_index, jury_choice)
-    state["cmo_decision_graph"] = decision_graph
-    state["cmo_graph_summary"] = _decision_graph_summary(decision_graph)
-    _finish_report(state)
-    return state
-
-
-def _ensure_cmo_defaults(state: AgentState) -> None:
-    state.setdefault(
-        "cmo_objective",
-        "CMO SmileUp: lập chiến lược tháng, tách tuyến ads lấy SĐT và tuyến chăm sóc page, ưu tiên răng sứ, phục hình sứ và implant.",
-    )
-    state.setdefault("cmo_decision", "")
-    state.setdefault("cmo_feedback", "")
-    state.setdefault("cmo_next_action", "continue")
-    state.setdefault("cmo_selected_variant_index", -1)
-    state.setdefault("cmo_selected_creative_index", -1)
-    state.setdefault("cmo_scorecard", [])
-    state.setdefault("cmo_campaign_brief", "")
-    state.setdefault("cmo_model_votes", [])
-    state.setdefault("cmo_jury_summary", "")
-    state.setdefault("cmo_decision_graph", {"nodes": [], "edges": [], "selected_path": []})
-    state.setdefault("cmo_graph_summary", "")
-    state.setdefault("hardness_score", 0)
-    state.setdefault("hardness_risk_level", "unknown")
-    state.setdefault("hardness_publish_readiness", "unknown")
-
-
-def _score_note(score: int, flags: list[str], word_count: int, variant: ContentVariant) -> str:
-    if flags:
-        return "Có claim/compliance rủi ro, cần sửa trước khi publish."
-    if word_count < 90:
-        return "Caption còn mỏng, cần thêm insight, trust proof và lý do inbox."
-    if variant.get("service_line") in {"implant", "rang_su", "phuc_hinh_su"}:
-        return "Phù hợp trọng tâm kinh doanh SmileUp: răng sứ/implant."
-    if variant.get("campaign_track") == "ads_effective":
-        return "Bài ads chuyển đổi, ưu tiên CTA lấy SĐT và lịch tư vấn."
-    if variant.get("campaign_track") == "page_care":
-        return "Bài chăm sóc page, phù hợp nuôi niềm tin và tăng tương tác."
-    if score >= 75:
-        return "Đủ tốt để CMO cân nhắc publish."
-    return "Có thể dùng làm biến thể phụ nhưng chưa phải lựa chọn chính."
-
-
-def _score_variants(state: AgentState, variants: list[ContentVariant]) -> list[dict]:
-    scorecard: list[dict] = []
-    for index, variant in enumerate(variants):
-        title = variant.get("title", "")
-        body = variant.get("body", "")
-        service_line = variant.get("service_line", "")
-        flags = compliance_flags(variant)
-        text = f"{title} {body} {variant.get('call_to_action', '')} {variant.get('differentiation', '')}".lower()
-        word_count = len(body.split())
-        category_scores = _category_scores(state, variant, text, word_count, flags)
-        score = sum(category_scores.values())
-        scorecard.append(
-            {
-                "index": index,
-                "campaign_track": variant.get("campaign_track", "ads_effective"),
-                "service_line": service_line or "post",
-                "title": title,
-                "score": max(0, min(100, score)),
-                "category_scores": category_scores,
-                "word_count": word_count,
-                "flags": flags,
-                "decision_note": _score_note(score, flags, word_count, variant),
-            }
-        )
-    return scorecard
-
-
-def _category_scores(state: AgentState, variant: ContentVariant, text: str, word_count: int, flags: list[str]) -> dict[str, int]:
-    business_fit = 6
-    if any(term in text for term in ("răng sứ", "rang su", "phục hình", "phuc hinh", "implant", "cấy ghép", "cay ghep")):
-        business_fit += 7
-    if any(term in text for term in ("tư vấn", "tu van", "thăm khám", "tham kham", "đặt lịch", "dat lich", "inbox")):
-        business_fit += 5
-    if variant.get("service_line") in {"implant", "rang_su", "phuc_hinh_su", "trust"}:
-        business_fit += 2
-    if variant.get("campaign_track") == "ads_effective":
-        business_fit += 2
-
-    lead_intent = 4
-    cta = str(variant.get("call_to_action", "")).lower()
-    if any(term in cta for term in ("inbox", "đặt lịch", "dat lich", "tư vấn", "tu van", "thăm khám", "tham kham")):
-        lead_intent += 8
-    if variant.get("campaign_track") == "ads_effective" and any(term in cta + text for term in ("sđt", "sdt", "số điện thoại", "so dien thoai", "gọi lại", "goi lai")):
-        lead_intent += 6
-    if any(term in text for term in ("trường hợp", "truong hop", "tình trạng", "tinh trang", "phù hợp", "phu hop")):
-        lead_intent += 5
-    if "comment" in text or "nhắn" in text or "nhan" in text:
-        lead_intent += 3
-    if variant.get("campaign_track") == "page_care":
-        lead_intent = min(20, lead_intent - 2)
-
-    differentiation = 4
-    diff = str(variant.get("differentiation", "")).lower()
-    if diff:
-        differentiation += 5
-    if any(term in text + diff for term in ("minh bạch", "minh bach", "cá nhân hóa", "ca nhan hoa", "an toàn", "an toan", "bảo tồn", "bao ton")):
-        differentiation += 6
-
-    viral = 4
-    if variant.get("trend_angle"):
-        viral += 4
-    if any(term in text for term in ("checklist", "3 điều", "3 dieu", "sai lầm", "sai lam", "câu hỏi", "cau hoi", "nên hỏi", "nen hoi")):
-        viral += 5
-    if "?" in variant.get("title", "") or "?" in variant.get("body", ""):
-        viral += 2
-    if variant.get("campaign_track") == "page_care":
-        viral += 3
-
-    customer_truth = 2
-    if any(term in text for term in ("sợ đau", "so dau", "mài răng", "mai rang", "chi phí", "chi phi", "biến chứng", "bien chung", "tư vấn quá tay", "tu van qua tay")):
-        customer_truth += 6
-    if word_count >= 110:
-        customer_truth += 2
-
-    creative_fit = 3
-    if variant.get("image_prompt"):
-        creative_fit += 4
-    if state.get("creative_assets") or state.get("visual_creative_brief"):
-        creative_fit += 3
-
-    compliance = 10
-    if flags:
-        compliance = max(0, compliance - 8)
-    if _has_disclaimer(text):
-        compliance = min(10, compliance + 2)
-    if _has_body_shaming(text):
-        compliance = 0
-
-    return {
-        "business_fit": min(20, business_fit),
-        "lead_intent": min(20, lead_intent),
-        "differentiation": min(15, differentiation),
-        "viral_potential": min(15, viral),
-        "customer_truth": min(10, customer_truth),
-        "creative_fit": min(10, creative_fit),
-        "compliance_medical_safety": min(10, compliance),
+    workflow = {
+        "workflow_id": workflow_id,
+        "status": "ready_for_dispatch" if ready else "needs_research",
+        "focus_keyword": state.get("ad_library_keywords", ""),
+        "objective": state.get("cmo_objective", ""),
+        "source_ads_count": len(state.get("ad_library_ads", [])),
+        "high_match_ads_count": len(state.get("high_match_ads", [])),
+        "tasks": tasks,
+        "approval_gates": gates,
+        "metrics": _success_metrics(),
+        "risks": _production_risks(state, missing),
+        "operating_rules": [
+            "CMO giao việc và duyệt gate; không tự viết bài, tạo media hoặc đăng bài.",
+            "Mỗi owner chỉ bắt đầu khi dependency đã hoàn tất và gate liên quan đã được duyệt.",
+            "Tài sản đối thủ chỉ dùng làm dữ liệu tham chiếu, không sao chép caption, hình ảnh hoặc nhận diện.",
+            "Mọi asset có người thật phải có quyền sử dụng, consent và lưu vết nguồn.",
+        ],
     }
+    state["media_production_workflow"] = workflow
+    state["media_production_brief"] = _production_brief(state, workflow, missing)
+    state["production_handoff"] = _handoff(workflow, missing)
+    state["cmo_campaign_brief"] = state["media_production_brief"]
+    state["cmo_decision_graph"] = _decision_graph(tasks, gates, ready)
+    state["cmo_graph_summary"] = _graph_summary(state["cmo_decision_graph"])
 
-
-def _has_disclaimer(text: str) -> bool:
-    return any(term in text for term in ("tùy tình trạng", "tuy tinh trang", "thăm khám", "tham kham", "bác sĩ", "bac si", "tư vấn trực tiếp", "tu van truc tiep"))
-
-
-def _has_body_shaming(text: str) -> bool:
-    return any(term in text for term in ("răng xấu", "rang xau", "kém sang", "kem sang", "nhìn già", "nhin gia", "mất tự tin", "mat tu tin"))
-
-
-def _best_variant_index(scorecard: list[dict]) -> int:
-    if not scorecard:
-        return -1
-    return int(max(scorecard, key=lambda item: item.get("score", 0)).get("index", -1))
-
-
-def _select_creative_index(assets: list[dict], selected_variant_index: int) -> int:
-    if not assets:
-        return -1
-    if 0 <= selected_variant_index < len(assets):
-        return selected_variant_index
-    return 0
-
-
-def _decide_from_draft(
-    state: AgentState,
-    draft: DraftContent,
-    scorecard: list[dict],
-    selected_variant_index: int,
-    selected_creative_index: int,
-    jury_choice: dict | None = None,
-) -> None:
-    flags = compliance_flags(draft)
-    selected_score = 0
-    if 0 <= selected_variant_index < len(scorecard):
-        selected_score = int(scorecard[selected_variant_index].get("score", 0))
-        flags.extend(scorecard[selected_variant_index].get("flags", []))
-        compliance_score = int(scorecard[selected_variant_index].get("category_scores", {}).get("compliance_medical_safety", 0))
-    else:
-        compliance_score = 0
-
-    word_count = len(draft.get("body", "").split())
-    jury_choice = jury_choice or {}
-    jury_decision = str(jury_choice.get("decision", "")).upper()
-    jury_risks = [str(flag) for flag in jury_choice.get("risk_flags", []) if str(flag)]
-    jury_changes = [str(change) for change in jury_choice.get("required_changes", []) if str(change)]
-
-    if jury_risks:
-        flags.extend(jury_risks)
-
-    hardness_readiness = state.get("hardness_publish_readiness", "unknown")
-    hardness_score = int(state.get("hardness_score", 0) or 0)
-
-    if flags:
-        _set_cmo_decision(
-            state,
-            status="needs_revision" if state.get("revision_count", 0) < 3 else "rejected",
-            next_action="revise" if state.get("revision_count", 0) < 3 else "stop",
-            decision="REVISE_REQUIRED",
-            feedback="CMO yêu cầu sửa claim rủi ro trước khi publish: " + ", ".join(sorted(set(flags))),
-        )
-    elif hardness_readiness == "block":
-        _set_cmo_decision(
-            state,
-            status="needs_revision" if state.get("revision_count", 0) < 3 else "rejected",
-            next_action="revise" if state.get("revision_count", 0) < 3 else "stop",
-            decision="REVISE_REQUIRED",
-            feedback=f"Hardness Agent chặn publish: score {hardness_score}/100, cần bổ sung bằng chứng hoặc sửa output trước khi CMO duyệt.",
-        )
-    elif hardness_readiness == "revise":
-        _set_cmo_decision(
-            state,
-            status="needs_revision",
-            next_action="revise",
-            decision="REVISE_REQUIRED",
-            feedback=f"Hardness Agent yêu cầu revise: score {hardness_score}/100, dữ liệu/output chưa đủ chắc để publish ngay.",
-        )
-    elif jury_decision in {"REJECT", "STOP"}:
-        _set_cmo_decision(
-            state,
-            status="rejected",
-            next_action="stop",
-            decision="REJECT",
-            feedback="CMO Jury chặn publish: " + (", ".join(jury_changes) or "các model đánh giá chưa đủ dữ liệu/an toàn."),
-        )
-    elif jury_decision in {"REVISE_REQUIRED", "REVISE"}:
-        _set_cmo_decision(
-            state,
-            status="needs_revision",
-            next_action="revise",
-            decision="REVISE_REQUIRED",
-            feedback="CMO Jury yêu cầu sửa: " + (", ".join(jury_changes) or "cần tăng lực chuyển đổi và độ an toàn trước publish."),
-        )
-    elif word_count < 110:
-        _set_cmo_decision(
-            state,
-            status="needs_revision",
-            next_action="revise",
-            decision="REVISE_REQUIRED",
-            feedback="CMO yêu cầu viết dày hơn: cần thêm insight khách hàng, trust proof và lưu ý thăm khám.",
-        )
-    elif not draft.get("call_to_action"):
-        _set_cmo_decision(
-            state,
-            status="needs_revision",
-            next_action="revise",
-            decision="REVISE_REQUIRED",
-            feedback="CMO yêu cầu bổ sung CTA đặt lịch/inbox rõ ràng.",
-        )
-    elif selected_score < 70:
-        _set_cmo_decision(
-            state,
-            status="rejected",
-            next_action="stop",
-            decision="REJECT",
-            feedback="CMO reject: score dưới 70, campaign chưa đủ business fit/lead intent để tiếp tục.",
-        )
-    elif selected_score < 85 or compliance_score < 10:
-        _set_cmo_decision(
-            state,
-            status="needs_revision",
-            next_action="revise",
-            decision="REVISE_REQUIRED",
-            feedback=f"CMO yêu cầu revise: score {selected_score}/100, compliance {compliance_score}/10. Cần tăng lead intent, khác biệt SmileUp và disclaimer trước khi publish.",
+    if ready:
+        state["approval_status"] = "approved"
+        state["cmo_decision"] = "READY_FOR_PRODUCTION"
+        state["cmo_next_action"] = "dispatch"
+        state["cmo_feedback"] = (
+            f"Workflow {workflow_id} đủ dữ liệu để giao việc. Bắt đầu từ T01 và chỉ chuyển stage sau khi gate được duyệt."
         )
     else:
-        creative_text = "có creative đi kèm" if selected_creative_index >= 0 else "chưa có creative, vẫn có thể dùng caption"
-        jury_text = f" Jury score trung bình {jury_choice.get('average_score')}." if jury_choice.get("average_score") else ""
-        _set_cmo_decision(
-            state,
-            status="approved",
-            next_action="publish",
-            decision="APPROVE_TO_PUBLISH",
-            feedback=f"CMO duyệt publish: chọn variant #{selected_variant_index + 1}, {creative_text}, CTA an toàn và đúng trọng tâm SmileUp.{jury_text}",
-        )
+        state["approval_status"] = "needs_revision"
+        state["cmo_decision"] = "NEEDS_MORE_RESEARCH"
+        state["cmo_next_action"] = "rescan"
+        state["cmo_feedback"] = "Chưa giao sản xuất: " + "; ".join(missing)
 
-
-def _set_cmo_decision(
-    state: AgentState,
-    *,
-    status: str,
-    next_action: str,
-    decision: str,
-    feedback: str,
-) -> None:
-    state["approval_status"] = status
-    state["cmo_next_action"] = next_action
-    state["cmo_decision"] = decision
-    state["cmo_feedback"] = feedback
-    state["manager_feedback"] = feedback
-
-
-def _build_cmo_decision_graph(
-    state: AgentState,
-    variants: list[ContentVariant],
-    scorecard: list[dict],
-    selected_variant_index: int,
-    jury_choice: dict | None,
-) -> dict:
-    nodes: list[dict] = []
-    edges: list[dict] = []
-
-    def add_node(node_id: str, label: str, node_type: str, score: int | None = None, status: str = "neutral") -> None:
-        nodes.append({"id": node_id, "label": label, "type": node_type, "score": score, "status": status})
-
-    def add_edge(source: str, target: str, relation: str, weight: float = 1.0) -> None:
-        edges.append({"source": source, "target": target, "relation": relation, "weight": round(weight, 3)})
-
-    high_match_count = len(state.get("high_match_ads", []) or [])
-    ads_count = len(state.get("ad_library_ads", []) or [])
-    add_node("source_ads", f"Ad Library: {ads_count} ads, {high_match_count} high-match", "evidence", min(100, high_match_count * 8), "support")
-    add_node("text_insight", "Text insight: hook, pain point, offer, CTA", "evidence", None, "support")
-    add_node("trend", "Trend: Facebook/Reels angle", "evidence", None, "support")
-    add_node("strategy", "Strategy: monthly plan + 2 content tracks", "reasoning", None, "support")
-    add_node("compliance", "Compliance gate", "gate", None, "support" if state.get("approval_status") == "approved" else "risk")
-    add_node(
-        "hardness",
-        f"Hardness: {state.get('hardness_score', 0)}/100 {state.get('hardness_publish_readiness', 'unknown')}",
-        "gate",
-        int(state.get("hardness_score", 0) or 0),
-        "support" if state.get("hardness_publish_readiness") == "ready" else "risk",
-    )
-
-    for node_id in ("text_insight", "trend", "strategy"):
-        add_edge("source_ads", node_id, "feeds", 0.8)
-    add_edge("text_insight", "strategy", "constrains", 0.7)
-    add_edge("trend", "strategy", "adds_angle", 0.5)
-
-    for item in scorecard:
-        index = int(item.get("index", -1))
-        variant_id = f"variant_{index}"
-        is_selected = index == selected_variant_index
-        score = int(item.get("score", 0) or 0)
-        status = "selected" if is_selected else "support" if score >= 85 else "risk" if item.get("flags") else "neutral"
-        add_node(
-            variant_id,
-            f"Variant #{index + 1}: {item.get('campaign_track', 'post')} / {item.get('service_line', 'post')} - {item.get('title', '')}",
-            "candidate",
-            score,
-            status,
-        )
-        add_edge("strategy", variant_id, "generates", min(1.0, score / 100))
-        add_edge("compliance", variant_id, "checks", 0.0 if item.get("flags") else 1.0)
-        add_edge("hardness", variant_id, "validates", min(1.0, max(0, int(state.get("hardness_score", 0) or 0)) / 100))
-
-    decision_status = "support" if state.get("cmo_decision") == "APPROVE_TO_PUBLISH" else "risk"
-    add_node("cmo_decision", f"CMO: {state.get('cmo_decision', 'PENDING')}", "decision", None, decision_status)
-    if selected_variant_index >= 0:
-        add_edge(f"variant_{selected_variant_index}", "cmo_decision", "selected_for_publish", 1.0)
-    if jury_choice:
-        add_node(
-            "jury",
-            f"Model jury: {jury_choice.get('decision', 'heuristic')} avg {jury_choice.get('average_score', '-')}",
-            "reasoning",
-            int(jury_choice.get("average_score", 0) or 0) if jury_choice.get("average_score") else None,
-            "support" if jury_choice.get("decision") == "APPROVE_TO_PUBLISH" else "neutral",
-        )
-        add_edge("jury", "cmo_decision", "votes", 0.8)
-
-    selected_path = ["source_ads", "text_insight", "strategy"]
-    if selected_variant_index >= 0:
-        selected_path.append(f"variant_{selected_variant_index}")
-    selected_path.extend(["compliance", "hardness", "cmo_decision"])
-    return {"nodes": nodes, "edges": edges, "selected_path": selected_path}
-
-
-def _decision_graph_summary(graph: dict) -> str:
-    nodes = graph.get("nodes", [])
-    edges = graph.get("edges", [])
-    selected_path = graph.get("selected_path", [])
-    candidate_nodes = [node for node in nodes if node.get("type") == "candidate"]
-    risk_nodes = [node for node in nodes if node.get("status") == "risk"]
-    selected_labels = []
-    by_id = {node.get("id"): node for node in nodes}
-    for node_id in selected_path:
-        label = by_id.get(node_id, {}).get("label")
-        if label:
-            selected_labels.append(str(label))
-    return (
-        "Graph-of-Thought CMO:\n"
-        f"- Nodes: {len(nodes)}; Edges: {len(edges)}; Candidates: {len(candidate_nodes)}.\n"
-        f"- Risk nodes: {len(risk_nodes)}.\n"
-        f"- Selected path: {' -> '.join(selected_labels) if selected_labels else 'none'}.\n"
-        "- Method: reuse evidence nodes, merge model votes + heuristic scorecard, then backtrack through compliance/hardness gates before publish."
-    )
-
-
-def _draft_from_variant(variant: ContentVariant) -> DraftContent:
-    return {
-        "marketing_analysis": variant.get("marketing_analysis", ""),
-        "trend_angle": variant.get("trend_angle", ""),
-        "post_structure": variant.get("post_structure", ""),
-        "title": variant.get("title", ""),
-        "body": variant.get("body", ""),
-        "hashtags": variant.get("hashtags", []),
-        "call_to_action": variant.get("call_to_action", ""),
-        "image_prompt": variant.get("image_prompt", "") or None,
-    }
-
-
-def _campaign_brief(state: AgentState, selected_variant: ContentVariant | None, selected_creative_index: int) -> str:
-    if not selected_variant:
-        return "CMO chưa chọn được campaign variant."
-    return (
-        f"Mục tiêu: {state.get('cmo_objective', '')}\n"
-        f"Tuyến bài: {selected_variant.get('campaign_track', 'post')} - {selected_variant.get('monthly_role', '')}\n"
-        f"Trụ cột được chọn: {selected_variant.get('service_line', 'post')}.\n"
-        f"Góc triển khai: {selected_variant.get('angle', '')}\n"
-        f"Điểm khác biệt SmileUp: {selected_variant.get('differentiation', '')}\n"
-        f"Creative được chọn: #{selected_creative_index + 1 if selected_creative_index >= 0 else 'chưa có'}.\n"
-        "Guardrail: không claim tuyệt đối, không rebrand tài sản đối thủ, CTA phải hướng về tư vấn/thăm khám."
-    )
-
-
-def _finish_report(state: AgentState) -> None:
+    state["manager_feedback"] = state["cmo_feedback"]
     state["daily_strategy"] = _daily_strategy(state)
     state["daily_report"] = _daily_report(state)
     state["current_step"] = "manager_review"
     state["messages"].append(
         {
             "role": "cmo",
-            "content": f"{state.get('cmo_decision', '')}: {state.get('cmo_feedback', '')}",
+            "content": f"{state['cmo_decision']}: {state['cmo_feedback']}",
         }
     )
+    return state
 
 
-def _cmo_structured_output(state: AgentState) -> str:
-    draft = state.get("draft_content") or {}
-    decision = state.get("cmo_decision", "REVISE_REQUIRED")
-    scorecard = state.get("cmo_scorecard", [])
-    selected_index = int(state.get("cmo_selected_variant_index", -1) or -1)
-    selected_score = 0
-    selected_card = None
-    if 0 <= selected_index < len(scorecard):
-        selected_card = scorecard[selected_index]
-        selected_score = int(selected_card.get("score", 0) or 0)
+def _missing_evidence(state: AgentState) -> list[str]:
+    missing: list[str] = []
+    ad_count = len(state.get("ad_library_ads", []))
+    if ad_count < 20:
+        missing.append(f"cần đủ 20 ads tham chiếu, hiện có {ad_count}")
+    labels = {
+        "text_insight_report": "thiếu text insight",
+        "facebook_trend_analysis": "thiếu trend analysis",
+        "visual_insight_report": "thiếu visual analysis",
+        "video_insight_report": "thiếu video analysis",
+        "strategic_direction": "thiếu strategic direction",
+    }
+    for field in REQUIRED_REPORT_FIELDS:
+        if not str(state.get(field, "")).strip():
+            missing.append(labels[field])
+    if int(state.get("hardness_score", 0) or 0) < 70:
+        missing.append("evidence readiness dưới 70/100")
+    return missing
 
-    compliance_status = "approved" if state.get("approval_status") == "approved" else "not_approved"
-    publisher_instruction = (
-        "Publisher được phép đăng sau khi người dùng xác nhận lần cuối."
-        if decision == "APPROVE_TO_PUBLISH"
-        else "Publisher không được đăng. Trả về Content/Strategy Agent để sửa theo CMO feedback."
-    )
-    revisions = state.get("cmo_feedback", "") if decision != "APPROVE_TO_PUBLISH" else "Không có revision bắt buộc."
-    final_copy = (
-        f"{draft.get('title', '')}\n\n{draft.get('body', '')}\n\n{draft.get('call_to_action', '')}".strip()
-        if decision == "APPROVE_TO_PUBLISH"
-        else "Chưa có bản được duyệt."
-    )
-    decision_object = {
-        "decision": decision,
-        "approval_status": state.get("approval_status", ""),
-        "selected_variant_index": selected_index,
-        "selected_creative_index": state.get("cmo_selected_creative_index", -1),
-        "score": selected_score,
-        "publisher_allowed": decision == "APPROVE_TO_PUBLISH",
-        "compliance_status": compliance_status,
-        "feedback": state.get("cmo_feedback", ""),
+
+def _production_tasks(state: AgentState, ready: bool) -> list[ProductionTask]:
+    common_status = "queued" if ready else "blocked"
+    ads_count = len(state.get("ad_library_ads", []))
+    focus_keyword = state.get("ad_library_keywords", "")
+    tasks = [
+        _task(
+            "T01",
+            "01_strategy",
+            "Khóa production brief",
+            "Strategy Lead",
+            f"Chuyển phân tích {ads_count} ads theo keyword '{focus_keyword}' thành một brief sản xuất duy nhất cho tháng.",
+            ["Ad Library report", "Text/Trend/Visual/Video insight", "Strategic direction"],
+            ["Production brief 1 trang", "Audience và message hierarchy", "Danh sách format cần sản xuất"],
+            [],
+            ["Mục tiêu kinh doanh và audience rõ", "Mỗi insight có nguồn", "Không chứa final caption hoặc asset"],
+            common_status,
+            "0.5 ngày",
+        ),
+        _task(
+            "T02",
+            "02_messaging",
+            "Lập message matrix",
+            "Copy Lead",
+            "Biến chiến lược thành khung thông điệp để đội script và design cùng dùng.",
+            ["T01 production brief", "Compliance guardrails"],
+            ["Hook bank", "Pain point/objection matrix", "CTA và disclaimer library"],
+            ["T01"],
+            ["Có paid/organic lane", "Không claim tuyệt đối", "Mỗi CTA gắn đúng intent"],
+            common_status,
+            "0.5 ngày",
+        ),
+        _task(
+            "T03",
+            "03_concept",
+            "Phát triển concept media",
+            "Creative Director",
+            "Đề xuất hệ concept đủ rõ để sản xuất ảnh, carousel và short video.",
+            ["T01 production brief", "T02 message matrix", "Visual/Video insight"],
+            ["3 concept routes", "Format map", "Visual language và reference board có nguồn"],
+            ["T01", "T02"],
+            ["Mỗi concept bám một business objective", "Không sao chép asset đối thủ", "Khả thi với nguồn lực công ty"],
+            common_status,
+            "1 ngày",
+        ),
+        _task(
+            "T04",
+            "04_script",
+            "Viết script và storyboard",
+            "Scriptwriter",
+            "Tạo blueprint nội dung cho từng format mà chưa xuất bản thành bài hoàn chỉnh.",
+            ["T02 message matrix", "T03 concept routes"],
+            ["Video scripts", "Storyboard/shot-by-shot", "Carousel frame outline"],
+            ["T02", "T03"],
+            ["Hook xuất hiện trong 3 giây đầu", "CTA đúng lane", "Script có disclaimer và shot khả thi"],
+            common_status,
+            "1 ngày",
+        ),
+        _task(
+            "T05",
+            "05_preproduction",
+            "Lập kế hoạch tiền kỳ",
+            "Media Producer",
+            "Khóa lịch, nhân sự, bối cảnh và quyền sử dụng trước khi quay/chụp.",
+            ["T03 concept routes", "T04 scripts/storyboards"],
+            ["Shot list", "Call sheet", "Lịch sản xuất", "Consent và asset rights checklist"],
+            ["T03", "T04"],
+            ["Có owner cho từng shot", "Có phương án dự phòng", "Consent được chuẩn bị trước ngày quay"],
+            common_status,
+            "0.5 ngày",
+        ),
+        _task(
+            "T06",
+            "06_production",
+            "Quay và chụp media gốc",
+            "Photo/Video Team",
+            "Sản xuất raw media thuộc quyền sử dụng của công ty theo shot list đã duyệt.",
+            ["T05 call sheet và shot list"],
+            ["Raw video", "Raw photo", "Audio", "Asset log và consent record"],
+            ["T05"],
+            ["Đủ shot bắt buộc", "Âm thanh/hình ảnh đạt chuẩn kỹ thuật", "Asset log khớp file"],
+            common_status,
+            "1 ngày",
+        ),
+        _task(
+            "T07",
+            "07_postproduction",
+            "Dựng và thiết kế asset",
+            "Designer + Video Editor",
+            "Biến raw media thành bộ asset theo format map và brand system.",
+            ["T06 raw media", "T03 visual language", "T04 storyboard"],
+            ["Master assets", "Platform variants", "Subtitle/caption file", "Version manifest"],
+            ["T06"],
+            ["Đúng kích thước từng format", "Brand nhất quán", "Không chèn claim ngoài brief", "File có version rõ"],
+            common_status,
+            "1-2 ngày",
+        ),
+        _task(
+            "T08",
+            "08_compliance_qa",
+            "Kiểm tra y khoa, pháp lý và quyền media",
+            "Medical Compliance + Brand QA",
+            "Chặn asset có claim, consent hoặc nhận diện không đạt trước bàn giao.",
+            ["T07 master assets", "Compliance guardrails", "Consent record"],
+            ["QA checklist", "Issue list", "Approved asset manifest"],
+            ["T07"],
+            ["Không claim tuyệt đối", "Có disclaimer phù hợp", "Consent và nguồn asset hợp lệ", "Issue nghiêm trọng bằng 0"],
+            common_status,
+            "0.5 ngày",
+        ),
+        _task(
+            "T09",
+            "09_handoff",
+            "Nghiệm thu và bàn giao media pack",
+            "CMO + Performance Lead",
+            "Nghiệm thu bộ media và bàn giao cho kênh triển khai bên ngoài CMO app.",
+            ["T08 approved asset manifest", "Production metrics"],
+            ["Approved media pack", "Experiment matrix", "Naming/UTM convention", "Measurement checklist"],
+            ["T08"],
+            ["Mỗi asset có objective và audience", "Có test hypothesis", "Có owner đo lường", "Không có hành động đăng bài trong workflow này"],
+            common_status,
+            "0.5 ngày",
+        ),
+    ]
+    if ready:
+        for task in tasks:
+            task["status"] = "queued" if task["id"] == "T01" else "waiting_dependency"
+    return tasks
+
+
+def _task(
+    task_id: str,
+    stage: str,
+    title: str,
+    owner_role: str,
+    objective: str,
+    inputs: list[str],
+    deliverables: list[str],
+    dependencies: list[str],
+    acceptance_criteria: list[str],
+    status: str,
+    estimated_duration: str,
+) -> ProductionTask:
+    return {
+        "id": task_id,
+        "stage": stage,
+        "title": title,
+        "owner_role": owner_role,
+        "objective": objective,
+        "inputs": inputs,
+        "deliverables": deliverables,
+        "dependencies": dependencies,
+        "acceptance_criteria": acceptance_criteria,
+        "priority": "P0" if task_id in {"T01", "T05", "T08", "T09"} else "P1",
+        "status": status,
+        "estimated_duration": estimated_duration,
     }
 
+
+def _approval_gates() -> list[ApprovalGate]:
+    return [
+        {
+            "id": "G01",
+            "after_task": "T01",
+            "approver_role": "CMO",
+            "checks": ["Business objective", "Audience", "Evidence traceability", "Format scope"],
+            "failure_action": "Trả T01 cho Strategy Lead, không mở T02/T03.",
+        },
+        {
+            "id": "G02",
+            "after_task": "T05",
+            "approver_role": "CMO + Media Producer",
+            "checks": ["Shot list", "Budget/resource fit", "Consent plan", "Production schedule"],
+            "failure_action": "Dừng ngày quay và sửa pre-production pack.",
+        },
+        {
+            "id": "G03",
+            "after_task": "T08",
+            "approver_role": "Medical Compliance",
+            "checks": ["Medical claims", "Disclaimer", "Asset rights", "Brand safety"],
+            "failure_action": "Trả đúng asset lỗi về T07; không bàn giao media pack.",
+        },
+        {
+            "id": "G04",
+            "after_task": "T09",
+            "approver_role": "CMO",
+            "checks": ["Objective mapping", "Experiment plan", "Measurement owner", "Version manifest"],
+            "failure_action": "Giữ workflow ở trạng thái review, không chuyển cho kênh triển khai.",
+        },
+    ]
+
+
+def _success_metrics() -> list[str]:
+    return [
+        "100% task có owner, dependency và deliverable",
+        "100% asset có objective, audience và nguồn/consent",
+        "0 issue compliance nghiêm trọng ở final gate",
+        "Tỷ lệ asset vượt QA ngay vòng đầu",
+        "Thời gian từ brief approved đến media pack approved",
+        "Kết quả thử nghiệm theo hook, format và audience sau khi đội kênh triển khai",
+    ]
+
+
+def _production_risks(state: AgentState, missing: list[str]) -> list[str]:
+    risks = list(missing)
+    risks.extend(state.get("hardness_missing_evidence", []) or [])
+    return _unique(risks)
+
+
+def _production_brief(state: AgentState, workflow: dict, missing: list[str]) -> str:
+    readiness = "Sẵn sàng giao việc" if not missing else "Chưa giao việc"
+    return (
+        f"{readiness} - Workflow {workflow['workflow_id']}\n"
+        f"Keyword: {workflow.get('focus_keyword', '')}\n"
+        f"Mục tiêu: {workflow['objective']}\n"
+        f"Nguồn: {workflow['source_ads_count']} ads, {workflow['high_match_ads_count']} ads high-match.\n"
+        f"Chiến lược: {state.get('strategic_direction', '')}\n"
+        f"Guardrail: {state.get('compliance_report', '')}\n"
+        f"Phạm vi: {len(workflow['tasks'])} task, {len(workflow['approval_gates'])} approval gate; kết thúc ở media pack đã nghiệm thu, không đăng bài."
+    )
+
+
+def _handoff(workflow: dict, missing: list[str]) -> str:
+    if missing:
+        return "CMO giữ workflow ở Research. Bổ sung dữ liệu còn thiếu rồi chạy lại trước khi giao T01."
+    first = workflow["tasks"][0]
+    return (
+        f"Giao {first['id']} cho {first['owner_role']}. "
+        "CMO duyệt G01 trước khi mở các task concept; mọi task cập nhật status và đính kèm deliverable theo đúng ID."
+    )
+
+
+def _decision_graph(tasks: list[ProductionTask], gates: list[ApprovalGate], ready: bool) -> dict:
+    nodes: list[dict] = [
+        {"id": "evidence", "label": "20 ads + specialist reports", "type": "evidence", "status": "support" if ready else "risk"}
+    ]
+    edges: list[dict] = []
+    for task in tasks:
+        nodes.append(
+            {
+                "id": task["id"],
+                "label": f"{task['id']} {task['title']}",
+                "type": "task",
+                "status": "support" if ready else "risk",
+            }
+        )
+        if task["dependencies"]:
+            for dependency in task["dependencies"]:
+                edges.append({"source": dependency, "target": task["id"], "relation": "blocks", "weight": 1.0})
+        else:
+            edges.append({"source": "evidence", "target": task["id"], "relation": "feeds", "weight": 1.0})
+    for gate in gates:
+        nodes.append({"id": gate["id"], "label": f"{gate['id']} {gate['approver_role']}", "type": "gate", "status": "neutral"})
+        edges.append({"source": gate["after_task"], "target": gate["id"], "relation": "requires_approval", "weight": 1.0})
+    gate_blocks = {
+        "G01": ["T02", "T03"],
+        "G02": ["T06"],
+        "G03": ["T09"],
+    }
+    for gate_id, next_tasks in gate_blocks.items():
+        for task_id in next_tasks:
+            edges.append({"source": gate_id, "target": task_id, "relation": "unlocks", "weight": 1.0})
+    selected_path = (
+        ["evidence", "T01", "G01", "T02", "T03", "T04", "T05", "G02", "T06", "T07", "T08", "G03", "T09", "G04"]
+        if ready
+        else ["evidence"]
+    )
+    return {"nodes": nodes, "edges": edges, "selected_path": selected_path}
+
+
+def _graph_summary(graph: dict) -> str:
+    task_count = sum(1 for node in graph.get("nodes", []) if node.get("type") == "task")
+    gate_count = sum(1 for node in graph.get("nodes", []) if node.get("type") == "gate")
+    return f"Production graph: {task_count} tasks, {gate_count} approval gates, {len(graph.get('edges', []))} dependencies."
+
+
+def _daily_strategy(state: AgentState) -> str:
+    workflow = state.get("media_production_workflow", {})
+    task_lines = [
+        f"- {task['id']} | {task['owner_role']} | {task['title']} | deps: {', '.join(task['dependencies']) or 'none'}"
+        for task in workflow.get("tasks", [])
+    ]
     return "\n".join(
         [
-            "1. Executive Decision",
-            f"- {decision}: {state.get('cmo_feedback', '')}",
-            "2. Campaign Selected",
-            f"- Variant #{selected_index + 1 if selected_index >= 0 else 'none'}: {draft.get('title', '')}",
-            "3. Why This Campaign Wins",
-            f"- {state.get('cmo_campaign_brief', '')}",
-            "4. Scorecard",
-            f"- Selected score: {selected_score}/100",
-            f"- Category scores: {json.dumps(selected_card.get('category_scores', {}) if selected_card else {}, ensure_ascii=False)}",
-            "5. Compliance Gate",
-            f"- Status: {compliance_status}. Publisher gate requires APPROVE_TO_PUBLISH.",
-            "6. Required Revisions",
-            f"- {revisions}",
-            "7. Final Approved Copy",
-            final_copy,
-            "8. Creative Direction",
-            _creative_asset_summary(state),
-            "9. Publisher Instruction",
-            f"- {publisher_instruction}",
-            "10. CRM/Handoff Notes",
-            "- Tag lead theo nhu cầu răng sứ, phục hình sứ, implant; hỏi tình trạng hiện tại, mong muốn, ngân sách dự kiến và thời gian có thể đến khám.",
-            "11. JSON Decision Object",
-            json.dumps(decision_object, ensure_ascii=False, indent=2),
+            state.get("media_production_brief", ""),
+            "",
+            "Danh sách giao việc:",
+            *task_lines,
+            "",
+            "Handoff:",
+            state.get("production_handoff", ""),
         ]
     )
 
 
-def _daily_strategy(state: AgentState) -> str:
-    return (
-        f"{CMO_SYSTEM_PROMPT}\n\n"
-        f"{_cmo_structured_output(state)}\n\n"
-        f"CMO objective: {state.get('cmo_objective', '')}\n"
-        f"CMO decision: {state.get('cmo_decision', '')} -> {state.get('cmo_next_action', '')}\n"
-        f"CMO selected variant: #{state.get('cmo_selected_variant_index', -1) + 1 if state.get('cmo_selected_variant_index', -1) >= 0 else 'none'}\n"
-        f"CMO selected creative: #{state.get('cmo_selected_creative_index', -1) + 1 if state.get('cmo_selected_creative_index', -1) >= 0 else 'none'}\n"
-        f"CMO feedback: {state.get('cmo_feedback', '')}\n\n"
-        f"{state.get('hardness_report', '')}\n\n"
-        f"{state.get('cmo_jury_summary', '')}\n\n"
-        f"{state.get('cmo_graph_summary', '')}\n\n"
-        f"{state.get('cmo_campaign_brief', '')}\n\n"
-        f"{state.get('monthly_strategy', '')}\n\n"
-        "Thông điệp chủ đạo: SmileUp khác biệt bằng tư vấn cá nhân hóa, minh bạch chỉ định và an toàn y khoa.\n"
-        "Dịch vụ trọng tâm: răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép implant.\n"
-        f"Insight thị trường: {state.get('market_trend_summary', '')}\n"
-        f"{state.get('ad_library_report', '')}\n"
-        f"{state.get('facebook_trend_analysis', '')}\n"
-        f"{state.get('strategic_direction', '')}\n"
-        f"{state.get('compliance_report', '')}\n"
-        f"{_content_plan_summary(state)}\n"
-        f"{_creative_asset_summary(state)}\n"
-        "3-5 hành động hôm nay:\n"
-        "- Đăng/lên lịch variant ads_effective được CMO chọn trước cho mục tiêu lấy SĐT; dùng page_care để nuôi tương tác xen kẽ.\n"
-        "- Ghim CTA inbox/SĐT và kịch bản hỏi nhanh: tình trạng răng, mong muốn, thời gian rảnh để thăm khám.\n"
-        "- Dùng creative gốc có logo SmileUp; không dùng ảnh/nhận diện của đối thủ.\n"
-        "- Theo dõi comment trong 2 giờ đầu sau đăng và chuyển lead nóng sang inbox.\n"
-        "Rủi ro cần tránh: claim tuyệt đối, before/after thiếu consent, rebrand ảnh đối thủ."
-    )
-
-
 def _daily_report(state: AgentState) -> str:
-    insights = state.get("competitor_insights", [])
-    status = state.get("approval_status", "pending")
+    workflow = state.get("media_production_workflow", {})
     return (
-        f"Tổng quan insight đối thủ: đã phân tích {len(insights)} nguồn, ưu tiên ads match >=95%, răng sứ, implant, tư vấn và CTA lấy SĐT.\n"
-        f"CMO status: {status}.\n"
-        f"CMO decision: {state.get('cmo_decision', '')} -> {state.get('cmo_next_action', '')}\n"
-        f"CMO feedback: {state.get('cmo_feedback', '')}\n"
-        f"Hardness: {state.get('hardness_report', '').replace(chr(10), ' ')}\n"
-        f"CMO Jury: {state.get('cmo_jury_summary', '').replace(chr(10), ' ')}\n"
-        f"CMO Graph: {state.get('cmo_graph_summary', '').replace(chr(10), ' ')}\n"
-        f"CMO brief: {state.get('cmo_campaign_brief', '').replace(chr(10), ' ')}\n"
-        f"Ad Library: {state.get('ad_library_report', '').replace(chr(10), ' ')}\n"
-        f"Trend Facebook: {state.get('facebook_trend_analysis', '').replace(chr(10), ' ')}\n"
-        f"Visual brief: {state.get('visual_creative_brief', '').replace(chr(10), ' ')}\n"
-        f"Agent strategy: {state.get('strategic_direction', '').replace(chr(10), ' ')}\n"
-        f"Compliance: {state.get('compliance_report', '').replace(chr(10), ' ')}\n"
-        f"Content variants: {_content_plan_summary(state).replace(chr(10), ' ')}\n"
-        f"Creative assets: {_creative_asset_summary(state).replace(chr(10), ' ')}\n"
-        "Checklist compliance: không claim tuyệt đối, CTA là đặt lịch tư vấn, có lưu ý kết quả tùy tình trạng răng.\n"
-        "Khuyến nghị ngày mai: so sánh hiệu quả bài răng sứ với bài implant, ưu tiên hook có vấn đề cụ thể và visual gốc của SmileUp."
+        f"CMO decision: {state.get('cmo_decision', '')}\n"
+        f"Focus keyword: {workflow.get('focus_keyword', '')}\n"
+        f"Workflow status: {workflow.get('status', 'pending')}\n"
+        f"Evidence readiness: {state.get('hardness_score', 0)}/100\n"
+        f"Tasks: {len(workflow.get('tasks', []))}\n"
+        f"Approval gates: {len(workflow.get('approval_gates', []))}\n"
+        f"Next action: {state.get('cmo_next_action', '')}\n"
+        f"Feedback: {state.get('cmo_feedback', '')}"
     )
 
 
-def _content_plan_summary(state: AgentState) -> str:
-    variants = state.get("content_plan", [])
-    if not variants:
-        return "Content plan: chưa có biến thể bài viết."
-    lines = ["Content plan CMO:"]
-    selected = state.get("cmo_selected_variant_index", -1)
-    for index, variant in enumerate(variants, start=1):
-        marker = " [CMO PICK]" if index - 1 == selected else ""
-        lines.append(
-            f"- {index}. {variant.get('campaign_track', 'post')} / {variant.get('service_line', 'post')}{marker}: {variant.get('title', '')} | Khác biệt: {variant.get('differentiation', '')}"
-        )
-    return "\n".join(lines)
+def _workflow_id(state: AgentState) -> str:
+    seed = str(state.get("run_seed") or state.get("ad_library_keywords") or "smileup-production")
+    digest = hashlib.sha1(seed.encode("utf-8")).hexdigest()[:8].upper()
+    return f"MPW-{digest}"
 
 
-def _creative_asset_summary(state: AgentState) -> str:
-    assets = state.get("creative_assets", [])
-    if not assets:
-        return "Creative assets: chưa sinh ảnh branded."
-    selected = state.get("cmo_selected_creative_index", -1)
-    lines = ["Creative assets SmileUp:"]
-    for index, asset in enumerate(assets, start=1):
-        marker = " [CMO PICK]" if index - 1 == selected else ""
-        lines.append(f"- {index}. {asset.get('service_line', 'post')}{marker}: {asset.get('image_path', '')}")
-    return "\n".join(lines)
+def _unique(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        normalized = str(item or "").strip()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            result.append(normalized)
+    return result
+
+
+def workflow_as_json(state: AgentState) -> str:
+    return json.dumps(state.get("media_production_workflow", {}), ensure_ascii=False, indent=2)

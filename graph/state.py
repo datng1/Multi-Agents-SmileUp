@@ -1,4 +1,7 @@
-from typing import Annotated, Any, Literal, Optional, TypedDict
+from __future__ import annotations
+
+from typing import Annotated, Any, Literal, TypedDict
+
 
 def add_messages(left: list[Any], right: list[Any]) -> list[Any]:
     existing = left or []
@@ -8,8 +11,8 @@ def add_messages(left: list[Any], right: list[Any]) -> list[Any]:
     return existing + incoming
 
 
-ApprovalStatus = Literal["pending", "approved", "rejected", "needs_revision"]
-CMONextAction = Literal["continue", "revise", "publish", "stop", "rescan"]
+ApprovalStatus = Literal["pending", "approved", "needs_revision", "blocked"]
+CMONextAction = Literal["continue", "dispatch", "rescan", "stop"]
 CurrentStep = Literal[
     "start",
     "crawler",
@@ -18,11 +21,9 @@ CurrentStep = Literal[
     "visual_insight",
     "video_insight",
     "strategy",
-    "content_creator",
     "compliance",
     "hardness",
     "manager_review",
-    "publisher",
     "end",
     "error",
 ]
@@ -36,34 +37,27 @@ class CompetitorInsight(TypedDict):
     key_topics: list[str]
 
 
-class DraftContent(TypedDict):
-    marketing_analysis: str
-    trend_angle: str
-    post_structure: str
+class ProductionTask(TypedDict, total=False):
+    id: str
+    stage: str
     title: str
-    body: str
-    hashtags: list[str]
-    call_to_action: str
-    image_prompt: Optional[str]
+    owner_role: str
+    objective: str
+    inputs: list[str]
+    deliverables: list[str]
+    dependencies: list[str]
+    acceptance_criteria: list[str]
+    priority: str
+    status: str
+    estimated_duration: str
 
 
-class ContentVariant(TypedDict, total=False):
-    campaign_track: str
-    monthly_role: str
-    source_ads_count: int
-    service_line: str
-    angle: str
-    differentiation: str
-    marketing_analysis: str
-    trend_angle: str
-    post_structure: str
-    title: str
-    body: str
-    hashtags: list[str]
-    call_to_action: str
-    image_prompt: str
-    video_prompt: str
-    image_path: str
+class ApprovalGate(TypedDict, total=False):
+    id: str
+    after_task: str
+    approver_role: str
+    checks: list[str]
+    failure_action: str
 
 
 class AgentState(TypedDict):
@@ -80,7 +74,7 @@ class AgentState(TypedDict):
     ad_library_competitor_ratio: float
     market_trend_summary: str
     facebook_trend_analysis: str
-    visual_creative_brief: str
+    visual_direction: str
     competitor_visual_notes: str
     competitor_video_notes: str
     text_insight_report: str
@@ -89,46 +83,33 @@ class AgentState(TypedDict):
     strategic_direction: str
     monthly_strategy: str
     compliance_report: str
+    production_guardrails: list[str]
     hardness_score: int
     hardness_risk_level: str
     hardness_missing_evidence: list[str]
     hardness_recommended_next_agents: list[str]
-    hardness_publish_readiness: str
+    hardness_production_readiness: str
     hardness_report: str
-    draft_content: Optional[DraftContent]
-    content_plan: list[ContentVariant]
-    creative_assets: list[dict[str, Any]]
-    creative_image_mode: str
-    creative_upload_path: str
-    creative_upload_url: str
-    creative_reference_note: str
-    creative_reference_ad: dict[str, Any]
-    creative_reference_blueprint: str
     cmo_objective: str
     cmo_decision: str
     cmo_feedback: str
     cmo_next_action: CMONextAction
-    cmo_selected_variant_index: int
-    cmo_selected_creative_index: int
-    cmo_scorecard: list[dict[str, Any]]
     cmo_campaign_brief: str
-    cmo_model_votes: list[dict[str, Any]]
-    cmo_jury_summary: str
     cmo_decision_graph: dict[str, Any]
     cmo_graph_summary: str
-    revision_count: int
     approval_status: ApprovalStatus
     manager_feedback: str
+    media_production_brief: str
+    media_production_workflow: dict[str, Any]
+    production_handoff: str
     daily_strategy: str
     daily_report: str
     messages: Annotated[list[Any], add_messages]
     current_step: CurrentStep
-    error: Optional[str]
-    publish_result: Optional[dict[str, Any]]
+    error: str | None
     data_source: str
-    manual_posts_count: int
     run_seed: str
-    creative_variation_profile: dict[str, str]
+    production_focus_profile: dict[str, str]
 
 
 def create_initial_state() -> AgentState:
@@ -139,14 +120,14 @@ def create_initial_state() -> AgentState:
         "high_match_threshold": 0.95,
         "ad_library_report": "",
         "ad_library_keywords": "",
-        "ad_library_max_ads": 15,
-        "ad_library_reference_scan_limit": 15,
-        "ad_library_scan_mode": "deep",
+        "ad_library_max_ads": 20,
+        "ad_library_reference_scan_limit": 20,
+        "ad_library_scan_mode": "auto",
         "ad_library_competitor_urls": [],
         "ad_library_competitor_ratio": 0.8,
         "market_trend_summary": "",
         "facebook_trend_analysis": "",
-        "visual_creative_brief": "",
+        "visual_direction": "",
         "competitor_visual_notes": "",
         "competitor_video_notes": "",
         "text_insight_report": "",
@@ -155,44 +136,41 @@ def create_initial_state() -> AgentState:
         "strategic_direction": "",
         "monthly_strategy": "",
         "compliance_report": "",
+        "production_guardrails": [],
         "hardness_score": 0,
         "hardness_risk_level": "unknown",
         "hardness_missing_evidence": [],
         "hardness_recommended_next_agents": [],
-        "hardness_publish_readiness": "unknown",
+        "hardness_production_readiness": "unknown",
         "hardness_report": "",
-        "draft_content": None,
-        "content_plan": [],
-        "creative_assets": [],
-        "creative_image_mode": "upload_only",
-        "creative_upload_path": "",
-        "creative_upload_url": "",
-        "creative_reference_note": "",
-        "creative_reference_ad": {},
-        "creative_reference_blueprint": "",
-        "cmo_objective": "CMO SmileUp: lập chiến lược tháng, tách tuyến ads lấy SĐT và tuyến chăm sóc page, ưu tiên răng sứ, phục hình sứ và implant.",
+        "cmo_objective": (
+            "Phân tích thị trường và giao việc cho đội ngũ tạo workflow sản xuất media "
+            "có đầu ra, dependency, tiêu chí nghiệm thu và điểm duyệt rõ ràng."
+        ),
         "cmo_decision": "",
         "cmo_feedback": "",
         "cmo_next_action": "continue",
-        "cmo_selected_variant_index": -1,
-        "cmo_selected_creative_index": -1,
-        "cmo_scorecard": [],
         "cmo_campaign_brief": "",
-        "cmo_model_votes": [],
-        "cmo_jury_summary": "",
         "cmo_decision_graph": {"nodes": [], "edges": [], "selected_path": []},
         "cmo_graph_summary": "",
-        "revision_count": 0,
         "approval_status": "pending",
         "manager_feedback": "",
+        "media_production_brief": "",
+        "media_production_workflow": {
+            "workflow_id": "",
+            "status": "pending",
+            "tasks": [],
+            "approval_gates": [],
+            "metrics": [],
+            "risks": [],
+        },
+        "production_handoff": "",
         "daily_strategy": "",
         "daily_report": "",
         "messages": [],
         "current_step": "start",
         "error": None,
-        "publish_result": None,
         "data_source": "auto",
-        "manual_posts_count": 0,
         "run_seed": "",
-        "creative_variation_profile": {},
+        "production_focus_profile": {},
     }

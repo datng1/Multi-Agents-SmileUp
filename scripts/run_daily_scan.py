@@ -32,9 +32,18 @@ def main() -> None:
         "ad_library_report": result.get("ad_library_report"),
         "daily_strategy": result.get("daily_strategy"),
         "daily_report": result.get("daily_report"),
-        "draft_content": result.get("draft_content"),
-        "content_plan": result.get("content_plan", []),
-        "creative_assets": result.get("creative_assets", []),
+        "media_production_brief": result.get("media_production_brief"),
+        "media_production_workflow": result.get("media_production_workflow", {}),
+        "production_handoff": result.get("production_handoff"),
+        "specialist_reports": {
+            "text": result.get("text_insight_report"),
+            "trend": result.get("facebook_trend_analysis"),
+            "visual": result.get("visual_insight_report"),
+            "video": result.get("video_insight_report"),
+            "strategy": result.get("strategic_direction"),
+            "compliance": result.get("compliance_report"),
+            "readiness": result.get("hardness_report"),
+        },
         "ad_library_ads": result.get("ad_library_ads", []),
         "messages": result.get("messages", []),
     }
@@ -43,8 +52,9 @@ def main() -> None:
     print(f"approval_status={result.get('approval_status')}")
     print(f"data_source={result.get('data_source')}")
     print(f"ads={len(result.get('ad_library_ads', []))}")
-    print(f"content_variants={len(result.get('content_plan', []))}")
-    print(f"creative_assets={len(result.get('creative_assets', []))}")
+    workflow = result.get("media_production_workflow", {})
+    print(f"production_tasks={len(workflow.get('tasks', []))}")
+    print(f"approval_gates={len(workflow.get('approval_gates', []))}")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ logger = get_logger(__name__)
 
 def run_trend_agent(state: AgentState) -> AgentState:
     logger.info("Trend Agent analyzing Facebook trend signals")
+    focus_keyword = state.get("ad_library_keywords", "")
     insights = state.get("competitor_insights", [])
     fallback_trend = analyze_facebook_trends(insights)
     fallback_visual = build_visual_creative_brief(insights)
@@ -16,10 +17,11 @@ def run_trend_agent(state: AgentState) -> AgentState:
         agent_name="Trend Agent",
         role="Tổng hợp trend Facebook/Reels/short-form có thể ứng dụng an toàn cho marketing nha khoa.",
         task=(
-            "Xuất đúng 2 phần: 'Facebook trend analysis:' và 'Visual creative brief an toàn:'. "
-            "Nêu trend phục vụ ads lấy SĐT và trend phục vụ chăm sóc page."
+            "Xuất đúng 2 phần: 'Facebook trend analysis:' và 'Production visual direction:'. "
+            "Nêu trend phục vụ paid media và organic, cùng các format nên đưa vào workflow sản xuất."
         ),
         context={
+            "focus_keyword": focus_keyword,
             "competitor_insights": insights,
             "high_match_ads": state.get("high_match_ads", []),
             "fallback_trend": fallback_trend,
@@ -27,8 +29,14 @@ def run_trend_agent(state: AgentState) -> AgentState:
         },
         fallback=f"{fallback_trend}\n\n{fallback_visual}",
     )
-    state["facebook_trend_analysis"] = _section_or_fallback(report, "Facebook trend analysis:", fallback_trend)
-    state["visual_creative_brief"] = _section_or_fallback(report, "Visual creative brief an toàn:", fallback_visual)
+    state["facebook_trend_analysis"] = (
+        f"Focus keyword: {focus_keyword}\n"
+        f"{_section_or_fallback(report, 'Facebook trend analysis:', fallback_trend)}"
+    ).strip()
+    state["visual_direction"] = (
+        f"Focus keyword: {focus_keyword}\n"
+        f"{_section_or_fallback(report, 'Production visual direction:', fallback_visual)}"
+    ).strip()
     state["current_step"] = "trend_analysis"
     state["messages"].append({"role": "trend", "content": f"Analyzed Facebook trend signals with {provider}"})
     return state
@@ -38,7 +46,7 @@ def _section_or_fallback(report: str, marker: str, fallback: str) -> str:
     if marker not in report:
         return fallback
     start = report.find(marker)
-    other_markers = ["Facebook trend analysis:", "Visual creative brief an toàn:"]
+    other_markers = ["Facebook trend analysis:", "Production visual direction:"]
     end = len(report)
     for other in other_markers:
         if other == marker:

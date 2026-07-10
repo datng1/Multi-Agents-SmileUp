@@ -3,562 +3,199 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SmileUp Marketing Intelligence</title>
-    <meta
-      name="description"
-      content="CMO Command Center cho SmileUp Dental Clinic: quét ads, điều phối multi-agent, lập chiến lược tháng và duyệt bài Facebook trước khi đăng."
-    />
-    <link id="appFavicon" rel="icon" type="image/png" href="/assets/favicon.png" />
-    <link rel="shortcut icon" href="/assets/favicon.ico" />
-    <link rel="apple-touch-icon" href="/assets/favicon.png" />
+    <meta name="theme-color" content="#0f766e" />
+    <title>SmileUp CMO - Media Production Lead</title>
+    <link rel="icon" href="/assets/favicon.ico" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <a class="skip-link" href="#mainContent">Bỏ qua điều hướng</a>
-    <main id="mainContent" class="app-shell">
-      <header class="topbar">
-        <div class="brand-block">
-          <span class="brand-mark">
-            <img src="/assets/smileup-logo.jfif" alt="SmileUp Dental Clinic" />
-          </span>
-          <div>
-            <p class="eyebrow">SmileUp Dental Clinic</p>
-            <h1>CMO Command Center</h1>
-            <p class="top-note">CMO lập chiến lược tháng, điều phối agent con, tách tuyến ads lấy SĐT và tuyến chăm sóc page cho SmileUp.</p>
+    <header class="app-header">
+      <div class="brand-block">
+        <img src="/assets/smileup-logo.jfif" alt="SmileUp" class="brand-logo" />
+        <div>
+          <p class="eyebrow">Media operations</p>
+          <h1>CMO Production Lead</h1>
+        </div>
+      </div>
+      <div class="header-status" aria-live="polite">
+        <span id="serviceStatus" class="status-pill">Đang kết nối</span>
+        <span id="modelStatus" class="status-detail">AI chưa xác định</span>
+        <button id="logoutButton" class="quiet-button" type="button">Đăng xuất</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="control-rail">
+        <section class="command-panel">
+          <div class="section-heading">
+            <p class="eyebrow">Automatic scan</p>
+            <h2>Khởi tạo workflow</h2>
           </div>
-        </div>
-        <div class="top-actions">
-          <span id="connectionState" class="connection-pill">Checking</span>
-          <button id="homeButton" class="secondary-button history-button hidden-panel" type="button">
-            Về trang chủ
-          </button>
-          <button id="historyButton" class="secondary-button history-button" type="button" aria-expanded="false" aria-controls="historyPanel">
-            Xem lịch sử
-          </button>
-          <button id="deepRunButton" class="secondary-button history-button" type="button" aria-label="Chạy nhanh 5 ads">
-            Chạy nhanh 5 ads
-          </button>
-          <button id="runButton" class="primary-button" type="button" aria-label="Quét sâu 15 ads">
-            <span class="button-icon" aria-hidden="true">▶</span>
-            Quét sâu 15 ads
-          </button>
-        </div>
-      </header>
+          <label class="keyword-field" for="keywordInput">
+            <span>Keyword quét</span>
+            <input
+              id="keywordInput"
+              type="text"
+              maxlength="120"
+              autocomplete="off"
+              placeholder="Ví dụ: implant toàn hàm"
+            />
+          </label>
+          <dl class="scan-facts">
+            <div><dt>Chế độ</dt><dd>Tự động</dd></div>
+            <div><dt>Nguồn</dt><dd>Meta Ad Library</dd></div>
+            <div><dt>Khối lượng</dt><dd>20 ads</dd></div>
+            <div><dt>Đầu ra</dt><dd>Production tasks</dd></div>
+          </dl>
+          <button id="runButton" class="primary-button" type="button">Chạy CMO và giao việc</button>
+          <p id="runMessage" class="run-message" role="status">Sẵn sàng · 20 ads mỗi lượt.</p>
+        </section>
 
-      <section class="quick-start" aria-label="Hướng dẫn nhanh">
-        <div>
-          <span>01</span>
-          <strong>Nhập từ khóa hoặc để mặc định</strong>
-          <p>Hệ thống sẽ ưu tiên ads đối thủ và tín hiệu mới nhất.</p>
-        </div>
-        <div>
-          <span>02</span>
-          <strong>Bấm Quét sâu 15 ads</strong>
-          <p>CMO tự điều phối agent con với đủ 15 ads ưu tiên, bạn chỉ chờ kết quả.</p>
-        </div>
-        <div>
-          <span>03</span>
-          <strong>Duyệt bản cuối rồi đăng</strong>
-          <p>Sửa caption, chọn ảnh và chọn page ngay trong preview.</p>
-        </div>
-      </section>
-
-      <aside id="completionNotice" class="completion-notice hidden-panel" role="status" aria-live="polite">
-        <span class="completion-dot" aria-hidden="true"></span>
-        <div>
-          <strong>Thao tác đã thành công</strong>
-          <p>Workflow đã chạy xong. Bạn có thể xem chiến lược, chọn bài và duyệt bản cuối trước khi đăng.</p>
-        </div>
-        <button id="completionJumpButton" class="secondary-button compact" type="button">Xem bản cuối</button>
-        <button id="completionCloseButton" class="notice-close-button" type="button" aria-label="Đóng thông báo">×</button>
+        <section class="history-panel">
+          <div class="section-heading compact-heading">
+            <p class="eyebrow">Recent runs</p>
+            <h2>Lịch sử</h2>
+          </div>
+          <div id="historyList" class="history-list empty-state">Chưa có workflow.</div>
+        </section>
       </aside>
 
-      <section id="processingScreen" class="processing-screen hidden-panel" role="status" aria-live="polite" aria-label="Trạng thái xử lý workflow">
-        <div class="processing-card">
+      <section class="workspace">
+        <section id="processingScreen" class="processing-panel hidden" role="status" aria-live="polite">
           <div class="processing-header">
             <div>
-              <span class="label">Workflow đang chạy</span>
-              <h2>Đang xử lý</h2>
+              <p class="eyebrow">Workflow running</p>
+              <h2 id="processingTitle">CMO đang thu thập evidence</h2>
             </div>
-            <span id="processingMode" class="meta-chip">Quick scan</span>
+            <strong id="elapsedTime">0s</strong>
           </div>
-          <div class="processing-current">
-            <span id="processingPulse" aria-hidden="true"></span>
-            <div>
-              <p>Agent hiện tại</p>
-              <strong id="processingAgent">Crawler</strong>
-              <em id="processingAgentDetail">Đang chuẩn bị dữ liệu đầu vào.</em>
-            </div>
-            <small id="processingElapsed">0s</small>
-          </div>
-          <div id="processingSteps" class="processing-steps"></div>
-          <p id="processingNote" class="processing-note">CMO đang điều phối các agent con. Kết quả sẽ tự hiện khi workflow hoàn tất.</p>
-        </div>
-      </section>
-
-      <section id="historyPanel" class="history-panel hidden-panel" aria-label="Lịch sử phân tích 7 ngày" aria-live="polite">
-        <div class="panel-header compact">
-          <div>
-            <span class="label">Saving context</span>
-            <h2>Lịch sử 7 ngày gần nhất</h2>
-          </div>
-          <div class="history-actions">
-            <span id="historyCount" class="meta-chip">0 lượt</span>
-            <button id="historyCloseButton" class="secondary-button compact" type="button">Đóng</button>
-          </div>
-        </div>
-        <div id="historyList" class="history-list empty-state">Chưa có lịch sử.</div>
-      </section>
-
-      <section class="control-board" aria-label="Workflow controls">
-        <div class="control-main">
-          <div class="source-tabs" role="tablist" aria-label="Chọn nguồn dữ liệu">
-            <button id="autoTabButton" class="tab-button active" type="button" role="tab" aria-selected="true" data-mode="auto">Tự động quét ads</button>
-            <button id="manualTabButton" class="tab-button" type="button" role="tab" aria-selected="false" data-mode="manual">Nhập tay</button>
-          </div>
-
-          <section id="autoSourcePanel" class="source-mode-panel active" role="tabpanel" aria-labelledby="autoTabButton">
-            <div>
-              <span class="label">Từ khóa muốn phân tích</span>
-              <div class="keyword-shell">
-                <input
-                  id="keywordValue"
-                  class="keyword-input"
-                  type="text"
-                  value="nha khoa răng sứ răng đẹp cấy implant"
-                  aria-label="Keyword scan"
-                />
-                <span class="enter-hint">Enter để quét sâu</span>
-              </div>
-            </div>
-            <div class="auto-note-grid">
-              <div><span class="label">Nguồn dữ liệu</span><strong>80% ads đối thủ · 20% keyword</strong></div>
-              <div><span class="label">Cách chạy</span><strong>Quét sâu 15 ads để ưu tiên dữ liệu đầy đủ</strong></div>
-              <div><span class="label">Lịch tự động</span><strong>Mỗi ngày quét một lần trên server</strong></div>
-            </div>
-          </section>
-
-          <section id="manualSourcePanel" class="source-mode-panel" role="tabpanel" aria-labelledby="manualTabButton" hidden>
-            <div class="manual-panel-inner">
-              <div class="panel-header compact">
-                <div>
-                  <span class="label">Manual override</span>
-                  <h2>Dán bài, ảnh, video nếu muốn ép nguồn riêng</h2>
-                </div>
-                <span id="manualCount" class="meta-chip">0 bài nhập tay</span>
-              </div>
-              <div class="input-stack">
-                <textarea
-                  id="manualInput"
-                  class="manual-input"
-                  rows="7"
-                  spellcheck="false"
-                  placeholder="Dán bài đối thủ tại đây. Mỗi bài cách nhau bằng một dòng trống."
-                ></textarea>
-                <div class="media-input-grid">
-                  <label>
-                    <span class="label">Image notes</span>
-                    <textarea id="visualInput" class="manual-input compact" rows="4" spellcheck="false" placeholder="Mô tả ảnh: bố cục, màu sắc, text overlay, bác sĩ/khách hàng, CTA..."></textarea>
-                  </label>
-                  <label>
-                    <span class="label">Video notes</span>
-                    <textarea id="videoInput" class="manual-input compact" rows="4" spellcheck="false" placeholder="Transcript hoặc ghi chú video: hook 3 giây đầu, cảnh chính, CTA..."></textarea>
-                  </label>
-                </div>
-              </div>
-              <div class="manual-actions">
-                <p>Manual input sẽ bỏ qua Ad Library trong lần chạy này.</p>
-                <button id="clearManualButton" class="secondary-button" type="button">Xóa nội dung</button>
-              </div>
-            </div>
-          </section>
-
-          <section class="creative-source-panel hidden-panel" aria-label="Creative image source" aria-hidden="true">
-            <div class="panel-header compact">
-              <div>
-                <span class="label">Ảnh bài đăng</span>
-                <h2>Tùy chọn ảnh nếu cần</h2>
-              </div>
-              <span id="creativeImageStatus" class="meta-chip">Text only</span>
-            </div>
-            <div class="creative-source-grid">
-              <label class="creative-upload-tile" for="creativeImageInput">
-                <input id="creativeImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
-                <span class="upload-icon">+</span>
-                <span>
-                  <strong>Thêm ảnh tham chiếu</strong>
-                  <small>Dùng ảnh SmileUp hoặc chỉ lấy bố cục</small>
-                </span>
-              </label>
-              <div class="creative-mode-box">
-                <label>
-                  <span class="label">Chế độ ảnh</span>
-                  <select id="creativeImageMode" class="mode-select">
-                    <option value="upload_only" selected>Chỉ upload ảnh/video thủ công</option>
-                  </select>
-                </label>
-                <p id="creativeImageHint">Gen ảnh/video trong app đã tắt. Agent chỉ viết prompt creative, media đăng cuối được upload ở bước final review.</p>
-              </div>
-              <div id="creativeImagePreview" class="creative-image-preview empty">Text only</div>
-            </div>
-          </section>
-        </div>
-
-        <aside class="control-side">
-          <div class="metric-card source-card">
-            <span class="label">Nguồn hiện tại</span>
-            <strong id="dataSourceValue">Auto Ad Library</strong>
-          </div>
-          <div class="metric-card">
-            <span class="label">Số ads đọc được</span>
-            <strong id="adsValue">-</strong>
-          </div>
-          <div class="metric-card">
-            <span class="label">Thời gian xử lý</span>
-            <strong id="durationValue">-</strong>
-          </div>
-          <div class="metric-card">
-            <span class="label">Approval</span>
-            <strong id="approvalValue">Pending</strong>
-          </div>
-        </aside>
-      </section>
-
-      <section class="status-strip" aria-live="polite">
-        <div>
-          <span class="label">Trạng thái AI</span>
-          <strong id="modeValue">Đang kiểm tra</strong>
-        </div>
-        <div>
-          <span class="label">Chế độ đăng</span>
-          <strong id="dryRunValue">-</strong>
-        </div>
-        <div>
-          <span class="label">Lần chạy cuối</span>
-          <strong id="lastRunValue">-</strong>
-        </div>
-        <div>
-          <span class="label">Output</span>
-          <strong>Monthly strategy + posts</strong>
-        </div>
-      </section>
-
-      <section class="flow-rail" aria-label="Workflow summary">
-        <div><span>01</span><strong>Thu thập tín hiệu</strong><p>Quét ads match cao, mới nhất và dữ liệu nhập tay.</p></div>
-        <div><span>02</span><strong>Agent phân tích</strong><p>Text, trend, visual, video, compliance đọc theo nhiệm vụ riêng.</p></div>
-        <div><span>03</span><strong>CMO quyết định</strong><p>Tổng kết agent con, chốt chiến lược tháng và tuyến bài.</p></div>
-        <div><span>04</span><strong>Final review</strong><p>Sửa caption, ảnh và xem preview như Facebook trước khi đăng.</p></div>
-      </section>
-
-      <section class="workflow-panel hidden-panel" aria-label="Agent workflow" aria-hidden="true">
-        <div class="workflow-header">
-          <div>
-            <span class="label">Multi-agent operating model</span>
-            <h2>Agent con phân tích, CMO là người chốt cuối</h2>
-          </div>
-          <span class="meta-chip">CMO gate</span>
-        </div>
-        <article class="agent-card" data-agent="crawler"><div class="agent-topline"><span class="agent-number">01</span><span class="agent-state">Idle</span></div><h2>Crawler</h2><p>Quét Ad Library hoặc nhận input tay.</p></article>
-        <article class="agent-card" data-agent="text_insight"><div class="agent-topline"><span class="agent-number">02</span><span class="agent-state">Idle</span></div><h2>Text</h2><p>Đọc hook, pain point, offer và CTA.</p></article>
-        <article class="agent-card" data-agent="trend_analysis"><div class="agent-topline"><span class="agent-number">03</span><span class="agent-state">Idle</span></div><h2>Trend</h2><p>Tìm góc dễ kéo tương tác Facebook.</p></article>
-        <article class="agent-card" data-agent="visual_insight"><div class="agent-topline"><span class="agent-number">04</span><span class="agent-state">Idle</span></div><h2>Visual</h2><p>Đọc ảnh, layout và creative angle.</p></article>
-        <article class="agent-card" data-agent="video_insight"><div class="agent-topline"><span class="agent-number">05</span><span class="agent-state">Idle</span></div><h2>Video</h2><p>Đọc transcript, hook mở đầu và nhịp reel.</p></article>
-        <article class="agent-card" data-agent="strategy"><div class="agent-topline"><span class="agent-number">06</span><span class="agent-state">Idle</span></div><h2>Strategy</h2><p>Chốt hướng cho răng sứ và implant.</p></article>
-        <article class="agent-card" data-agent="content_creator"><div class="agent-topline"><span class="agent-number">07</span><span class="agent-state">Idle</span></div><h2>Content</h2><p>Viết bài Facebook theo giọng marketing.</p></article>
-        <article class="agent-card" data-agent="compliance"><div class="agent-topline"><span class="agent-number">08</span><span class="agent-state">Idle</span></div><h2>Compliance</h2><p>Chặn claim nha khoa quá đà.</p></article>
-        <article class="agent-card" data-agent="hardness"><div class="agent-topline"><span class="agent-number">09</span><span class="agent-state">Idle</span></div><h2>Hardness</h2><p>Đo độ chắc dữ liệu và readiness.</p></article>
-        <article class="agent-card agent-card-cmo" data-agent="manager_review"><div class="agent-topline"><span class="agent-number">10</span><span class="agent-state">Idle</span></div><h2>CMO Lead</h2><p>Tổng kết agent con, chọn tuyến bài, creative và quyết định publish.</p></article>
-        <article class="agent-card" data-agent="publisher"><div class="agent-topline"><span class="agent-number">11</span><span class="agent-state">Idle</span></div><h2>Publisher</h2><p>Xuất payload an toàn ở chế độ dry-run.</p></article>
-      </section>
-
-      <section class="dashboard-grid">
-        <section class="panel panel-wide source-panel advanced-panel">
-          <div class="panel-header">
-            <div>
-              <span class="label">Auto source</span>
-              <h2>Ad Library scan</h2>
-            </div>
-            <span id="adScanBadge" class="meta-chip">Auto mỗi ngày</span>
-          </div>
-          <div class="source-grid">
-            <pre id="adLibraryReport">Chưa có dữ liệu Ad Library.</pre>
-            <div class="source-notes">
-              <div><span class="label">Cách dùng</span><strong>Auto tab dùng keyword; Manual tab dùng dữ liệu bạn dán.</strong></div>
-              <div><span class="label">Lịch tự động</span><strong>Task Scheduler chạy `scripts/run_daily_scan.py` mỗi ngày.</strong></div>
-              <div><span class="label">Phạm vi an toàn</span><strong>Dữ liệu quảng cáo công khai, không cookie/F12.</strong></div>
+          <div class="operations-floor" aria-label="Sơ đồ hoạt động trực tiếp của chín agent">
+            <canvas id="operationsCanvas"></canvas>
+            <div class="operations-hud">
+              <span class="live-marker"><i></i> Live operations</span>
+              <span id="officePhaseLabel">Crawler đang vào ca</span>
+              <strong id="officeCompletedCount">0/9 hoàn tất</strong>
             </div>
           </div>
+          <div id="agentProgress" class="agent-progress"></div>
         </section>
 
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <div>
-              <span class="label">Referenced ads</span>
-              <h2>Ads đã được tham chiếu</h2>
-            </div>
-            <span id="referencedAdsCount" class="meta-chip">0 ads</span>
+        <section class="summary-band" aria-labelledby="summaryTitle">
+          <div class="summary-copy">
+            <p class="eyebrow">Executive control</p>
+            <h2 id="summaryTitle">Workflow sản xuất media</h2>
+            <p id="cmoFeedback">Chạy CMO để nhận production brief và danh sách giao việc.</p>
           </div>
-          <div id="referencedAdsList" class="referenced-ads-list empty-state">Chưa có ads tham chiếu.</div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <div>
-              <span class="label">Market intelligence</span>
-              <h2>Insight đối thủ</h2>
-            </div>
-            <span id="insightCount" class="meta-chip">0 nguồn</span>
-          </div>
-          <div id="insightList" class="insight-list empty-state">Chưa có insight.</div>
-        </section>
-
-        <section class="panel panel-wide cmo-panel">
-          <div class="panel-header">
-            <div>
-              <span class="label">CMO Command Center</span>
-              <h2>Chiến lược tháng, quyết định và tổng kết agent con</h2>
-            </div>
-            <span id="cmoActionBadge" class="meta-chip">Waiting</span>
-          </div>
-          <div class="cmo-track-strip hidden-panel" aria-label="CMO content tracks" aria-hidden="true">
-            <div>
-              <span>01</span>
-              <strong>Ads hiệu quả</strong>
-              <p>Chỉ ưu tiên ads keyword match >=95%, copy phải kéo SĐT/inbox.</p>
-            </div>
-            <div>
-              <span>02</span>
-              <strong>Chăm sóc page</strong>
-              <p>Nuôi niềm tin, tăng tương tác chất lượng, không bán gắt.</p>
-            </div>
-            <div>
-              <span>03</span>
-              <strong>Compliance gate</strong>
-              <p>CMO chỉ cho publish khi bài đủ mạnh và an toàn y khoa.</p>
-            </div>
-          </div>
-          <div class="cmo-grid hidden-panel" aria-hidden="true">
-            <div>
-              <span class="label">Mục tiêu CMO</span>
-              <p id="cmoObjective">Chưa có quyết định.</p>
-            </div>
-            <div>
-              <span class="label">Quyết định</span>
-              <p id="cmoDecision">Chưa chạy workflow.</p>
-            </div>
-            <div>
-              <span class="label">CMO chọn</span>
-              <p id="cmoSelected">Chưa chọn variant/creative.</p>
-            </div>
-            <div>
-              <span class="label">Feedback cho agent</span>
-              <p id="cmoFeedback">Chưa có feedback.</p>
-            </div>
-          </div>
-          <div class="monthly-strategy-box">
-            <div class="panel-header compact">
-              <div>
-                <span class="label">Monthly strategy</span>
-                <h2>Chiến lược tháng</h2>
-              </div>
-            </div>
-            <pre id="cmoBrief" class="cmo-brief">Chiến lược tháng sẽ hiện ở đây sau khi chạy workflow.</pre>
-          </div>
-          <pre id="hardnessReport" class="cmo-brief hidden-report">Hardness Agent sẽ đánh giá độ chắc dữ liệu ở đây.</pre>
-          <pre id="cmoJurySummary" class="cmo-brief hidden-report">CMO Jury sẽ hiện các phiếu Gemini/GPT/Claude ở đây.</pre>
-          <div id="cmoScorecard" class="cmo-scorecard empty-state">Chưa có scorecard.</div>
-          <div class="monthly-strategy-box got-box">
-            <div class="panel-header compact">
-              <div>
-                <span class="label">Graph-of-Thought</span>
-                <h2>Bản đồ quyết định CMO</h2>
-              </div>
-              <button id="cmoGraphToggle" class="secondary-button graph-toggle" type="button" aria-expanded="false" aria-controls="cmoDecisionGraphWrap">
-                Mở đồ thị quyết định của CMO
-              </button>
-            </div>
-            <div id="cmoDecisionGraphWrap" class="got-collapse hidden-panel">
-              <div id="cmoDecisionGraph" class="got-graph empty-state">Chưa có decision graph.</div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel hidden-panel" aria-hidden="true">
-          <div class="panel-header"><div><span class="label">Decision</span><h2>Báo cáo ngày</h2></div><span id="approvalBadge" class="badge">pending</span></div>
-          <pre id="dailyReport">Bấm “Chạy phân tích” để tạo báo cáo.</pre>
-        </section>
-
-        <section class="panel hidden-panel" aria-hidden="true">
-          <div class="panel-header"><div><span class="label">Action plan</span><h2>Chiến lược</h2></div></div>
-          <pre id="dailyStrategy">Chưa có dữ liệu.</pre>
-        </section>
-
-        <section class="panel panel-wide post-panel">
-          <div class="panel-header">
-            <div><span class="label">Final review</span><h2>Bản cuối trước khi lên Facebook</h2></div>
-            <span id="finalCharCount" class="meta-chip">0 ký tự</span>
-          </div>
-          <div class="final-review-grid">
-            <div class="final-editor">
-              <label>
-                <span class="label">Hook / dòng mở đầu</span>
-                <input id="finalTitleInput" class="final-input" type="text" placeholder="Hook hiển thị đầu bài..." />
-              </label>
-              <label>
-                <span class="label">Nội dung bài đăng</span>
-                <textarea id="finalBodyInput" class="final-textarea" rows="11" spellcheck="false" placeholder="Nội dung cuối cùng sẽ hiện ở đây sau khi chạy workflow."></textarea>
-              </label>
-              <div class="final-two-col">
-                <label>
-                  <span class="label">CTA</span>
-                  <input id="finalCtaInput" class="final-input" type="text" placeholder="Inbox SmileUp..." />
-                </label>
-                <label>
-                  <span class="label">Hashtags</span>
-                  <input id="finalTagsInput" class="final-input" type="text" placeholder="#SmileUp #RangSu #Implant" />
-                </label>
-              </div>
-              <section class="media-workbench" aria-label="Chọn media đăng Facebook">
-                <div class="media-workbench-head">
-                  <div>
-                    <span class="label">Media đi kèm</span>
-                    <strong>Upload ảnh/video của SmileUp</strong>
-                  </div>
-                  <button id="finalAddImageButton" class="secondary-button compact media-upload-button" type="button">Thêm ảnh/video</button>
-                  <input id="finalCreativeUpload" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden />
-                </div>
-                <div class="media-workbench-body">
-                  <label class="final-image-select">
-                    <span class="label">Danh sách media</span>
-                    <select id="finalCreativeSelect" class="mode-select" multiple size="7" aria-describedby="finalImageStatus">
-                      <option value="-1">Không dùng ảnh/video cho bài này</option>
-                    </select>
-                    <small class="input-help">Chọn nhiều ảnh để đăng album. Nếu chọn video, bài đăng sẽ dùng một video.</small>
-                  </label>
-                  <div class="media-action-rail">
-                    <button id="finalUseImageButton" class="secondary-button" type="button">Dùng media đã upload</button>
-                    <button id="finalNoImageButton" class="secondary-button" type="button">Chỉ đăng bài viết</button>
-                    <button id="finalRemoveImageButton" class="secondary-button danger" type="button">Xóa media đang chọn</button>
-                  </div>
-                </div>
-                <p id="finalImageStatus" class="final-image-status">Upload ảnh/video của SmileUp trước khi đăng. Tối đa 80 MB mỗi file.</p>
-              </section>
-              <div class="publish-page-box">
-                <div class="publish-page-heading">
-                  <div>
-                    <span class="label">Facebook pages</span>
-                    <strong>Chọn page để đăng</strong>
-                  </div>
-                  <button id="selectAllPagesButton" class="secondary-button compact" type="button">Chọn tất cả</button>
-                </div>
-                <div id="publishPageList" class="publish-page-list empty-state">Đang tải danh sách page...</div>
-                <div class="publish-page-actions">
-                  <button id="publishSelectedButton" class="primary-button compact" type="button">Đăng page đã chọn</button>
-                  <button id="publishAllButton" class="secondary-button" type="button">Đăng nhiều page</button>
-                </div>
-                <p id="publishPageStatus" class="final-image-status">Publisher chỉ chạy khi CMO đã duyệt và bạn bấm đăng.</p>
-              </div>
-              <div class="final-actions">
-                <button id="resetFinalButton" class="secondary-button" type="button">Khôi phục bản AI</button>
-                <button id="copyFinalButton" class="primary-button compact" type="button">Copy caption cuối</button>
-              </div>
-              <div id="publishedPostLinkBox" class="published-link-box" hidden>
-                <span class="label">Bài đã đăng</span>
-                <a id="publishedPostLink" href="#" target="_blank" rel="noopener noreferrer">Mở bài viết trên Facebook</a>
-                <div id="publishedPageResults" class="published-page-results"></div>
-              </div>
-            </div>
-
-            <div class="final-preview-stack">
-              <article class="facebook-preview" aria-label="Facebook post preview">
-                <div class="fb-preview-top">
-                  <img src="/assets/smileup-logo.jfif" alt="SmileUp Dental Clinic" />
-                  <div>
-                    <strong>SmileUp Dental Clinic</strong>
-                    <span>Được tài trợ · Công khai</span>
-                  </div>
-                  <button type="button" aria-label="Facebook options">•••</button>
-                </div>
-                <div id="fbPreviewText" class="fb-preview-text">Chạy workflow để xem bản preview cuối.</div>
-                <div id="fbPreviewImage" class="fb-preview-image empty">Media upload sẽ hiện ở đây.</div>
-                <div class="fb-image-footer">
-                  <button id="finalAddImagePreviewButton" class="secondary-button" type="button">+ Thêm ảnh/video</button>
-                </div>
-                <div class="fb-preview-stats"><span>Thích 0</span><span>0 bình luận · 0 lượt chia sẻ</span></div>
-                <div class="fb-preview-actions"><span>Thích</span><span>Bình luận</span><span>Chia sẻ</span></div>
-              </article>
-              <section class="creative-prompt-panel" aria-label="Creative prompt copy">
-                <div class="panel-header compact">
-                  <div>
-                    <span class="label">Prompt creative</span>
-                    <h2>Prompt để copy sang tool ảnh/video</h2>
-                  </div>
-                  <button id="copyCreativePromptButton" class="secondary-button compact" type="button">Copy prompt</button>
-                </div>
-                <textarea id="finalCreativePrompt" class="final-textarea creative-prompt-textarea" rows="9" spellcheck="false" placeholder="Prompt sẽ hiện sau khi chạy workflow."></textarea>
-                <div class="prompt-type-switch" role="tablist" aria-label="Chon loai prompt creative">
-                  <button id="imagePromptTab" class="prompt-tab active" type="button" data-prompt-type="image" aria-selected="true">Prompt anh</button>
-                  <button id="videoPromptTab" class="prompt-tab" type="button" data-prompt-type="video" aria-selected="false">Prompt video 40s</button>
-                </div>
-                <div class="prompt-handoff">
-                  <span>1. Copy prompt</span>
-                  <span>2. Gen ở tool ngoài</span>
-                  <span>3. Upload media để đăng</span>
-                </div>
-                <p class="input-help">App không gen ảnh/video để tránh tốn chi phí. Prompt này bám sát bài viết, dùng để tạo media ở công cụ ngoài rồi upload lại ở bước final review.</p>
-              </section>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel panel-wide content-plan-panel">
-          <div class="panel-header">
-            <div><span class="label">CMO monthly plan</span><h2>Chiến lược tháng và 2 tuyến bài</h2></div>
-            <span id="contentPlanCount" class="meta-chip">0 biến thể</span>
-          </div>
-          <div id="contentPlanList" class="content-plan-list empty-state">Chưa có campaign variants.</div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header"><div><span class="label">Agent reports</span><h2>Phân tích bài viết, trend, ảnh, video, compliance</h2></div></div>
-          <div class="agent-output-grid">
-            <div><span class="label">Text Agent</span><pre id="textAgentReport">Chưa có phân tích bài viết.</pre></div>
-            <div><span class="label">Trend Agent</span><pre id="trendAnalysis">Chưa có phân tích trend.</pre></div>
-            <div><span class="label">Visual Agent</span><pre id="visualAgentReport">Chưa có phân tích ảnh.</pre></div>
-            <div><span class="label">Video Agent</span><pre id="videoAgentReport">Chưa có phân tích video.</pre></div>
-            <div><span class="label">Strategy Agent</span><pre id="strategyAgentReport">Chưa có hướng chiến lược.</pre></div>
-            <div><span class="label">Compliance Agent</span><pre id="complianceAgentReport">Chưa có kiểm tra compliance.</pre></div>
-            <div><span class="label">Hardness Agent</span><pre id="hardnessAgentReport">Chưa có đánh giá hardness.</pre></div>
-          </div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header"><div><span class="label">Marketing expert output</span><h2>Phân tích & cấu trúc bài</h2></div></div>
-          <div class="analysis-grid">
-            <div><span class="label">Marketing analysis</span><pre id="marketingAnalysis">Chưa có phân tích marketing.</pre></div>
-            <div><span class="label">Trend angle</span><pre id="trendAngle">Chưa có góc trend.</pre></div>
-            <div><span class="label">Post structure</span><pre id="postStructure">Chưa có cấu trúc bài.</pre></div>
-            <div><span class="label">Visual creative brief</span><pre id="visualBrief">Chưa có brief ảnh.</pre></div>
-          </div>
-        </section>
-
-        <section class="panel hidden-panel" aria-hidden="true">
-          <div class="panel-header"><div><span class="label">Publisher</span><h2>Publish result</h2></div></div>
-          <dl class="publish-facts">
-            <div><dt>Status</dt><dd id="publishStatus">-</dd></div>
-            <div><dt>Mode</dt><dd id="publishMode">-</dd></div>
-            <div><dt>Post ID</dt><dd id="postId">-</dd></div>
+          <dl class="summary-metrics">
+            <div><dt>Decision</dt><dd id="cmoDecision">PENDING</dd></div>
+            <div><dt>Evidence</dt><dd id="hardnessScore">0/100</dd></div>
+            <div><dt>Tasks</dt><dd id="taskCount">0</dd></div>
+            <div><dt>Gates</dt><dd id="gateCount">0</dd></div>
           </dl>
-          <pre id="safePayload" class="payload-preview">Payload preview sẽ hiện ở đây.</pre>
         </section>
 
-        <section class="panel advanced-panel">
-          <div class="panel-header"><div><span class="label">System</span><h2>Warnings và logs</h2></div></div>
+        <section class="content-section" aria-labelledby="briefTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Department brief</p>
+              <h2 id="briefTitle">Production brief</h2>
+            </div>
+            <span id="workflowStatus" class="status-pill neutral">pending</span>
+          </div>
+          <pre id="productionBrief" class="brief-output">Production brief sẽ hiện ở đây.</pre>
+          <p id="productionHandoff" class="handoff-note">Chưa có handoff.</p>
+        </section>
+
+        <section class="content-section" aria-labelledby="taskTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Ownership map</p>
+              <h2 id="taskTitle">Danh sách giao việc</h2>
+            </div>
+            <span id="taskStatusText" class="section-meta">0 task</span>
+          </div>
+          <div id="productionTasks" class="task-list empty-state">Chưa có task.</div>
+        </section>
+
+        <div class="two-column-band">
+          <section class="content-section" aria-labelledby="gateTitle">
+            <div class="section-heading compact-heading">
+              <p class="eyebrow">Quality control</p>
+              <h2 id="gateTitle">Approval gates</h2>
+            </div>
+            <div id="approvalGates" class="gate-list empty-state">Chưa có approval gate.</div>
+          </section>
+
+          <section class="content-section" aria-labelledby="riskTitle">
+            <div class="section-heading compact-heading">
+              <p class="eyebrow">Readiness</p>
+              <h2 id="riskTitle">Metrics và rủi ro</h2>
+            </div>
+            <div class="split-list">
+              <div><h3>Success metrics</h3><ul id="successMetrics"><li>Chưa có dữ liệu.</li></ul></div>
+              <div><h3>Risks</h3><ul id="riskList"><li>Chưa có dữ liệu.</li></ul></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="content-section" aria-labelledby="graphTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Dependencies</p>
+              <h2 id="graphTitle">Luồng bàn giao</h2>
+            </div>
+            <span id="graphSummary" class="section-meta">Chưa có graph.</span>
+          </div>
+          <div id="workflowGraph" class="workflow-graph empty-state">Chưa có dependency map.</div>
+        </section>
+
+        <section class="content-section" aria-labelledby="reportTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Evidence room</p>
+              <h2 id="reportTitle">Báo cáo specialist</h2>
+            </div>
+            <span id="adsSummary" class="section-meta">0 ads</span>
+          </div>
+          <div class="report-accordion">
+            <details open><summary>Strategy</summary><pre id="strategyReport">Chưa có dữ liệu.</pre></details>
+            <details><summary>Text insight</summary><pre id="textReport">Chưa có dữ liệu.</pre></details>
+            <details><summary>Trend</summary><pre id="trendReport">Chưa có dữ liệu.</pre></details>
+            <details><summary>Visual analysis</summary><pre id="visualReport">Chưa có dữ liệu.</pre></details>
+            <details><summary>Video analysis</summary><pre id="videoReport">Chưa có dữ liệu.</pre></details>
+            <details><summary>Compliance guardrails</summary><pre id="complianceReport">Chưa có dữ liệu.</pre></details>
+            <details><summary>Evidence readiness</summary><pre id="hardnessReport">Chưa có dữ liệu.</pre></details>
+          </div>
+        </section>
+
+        <section class="content-section" aria-labelledby="adsTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Source evidence</p>
+              <h2 id="adsTitle">20 ads tham chiếu</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Page</th><th>Nguồn</th><th>Match</th><th>Thông điệp</th></tr></thead>
+              <tbody id="adsTableBody"><tr><td colspan="5" class="empty-cell">Chưa có ads.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="content-section system-section" aria-labelledby="systemTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">System</p>
+              <h2 id="systemTitle">Warnings và logs</h2>
+            </div>
+          </div>
           <div id="warningList" class="warning-list empty-state">Không có warning.</div>
-          <pre id="logOutput" class="log-output">Chưa có log chạy workflow.</pre>
+          <pre id="logOutput" class="log-output">Chưa chạy workflow.</pre>
         </section>
       </section>
     </main>
+
     <script src="/app.js"></script>
   </body>
 </html>

@@ -1,28 +1,54 @@
 from graph.state import AgentState
 from tools.agent_api_reasoning import reason_with_agent_api
-from tools.compliance import build_compliance_report
 from utils.logger import get_logger
 
 
 logger = get_logger(__name__)
 
 
+PRODUCTION_GUARDRAILS = [
+    "Không dùng claim tuyệt đối về kết quả, đau, độ bền hoặc tỷ lệ thành công.",
+    "Không đưa chỉ định điều trị khi chưa có bác sĩ thăm khám và chẩn đoán.",
+    "Ảnh/video có bệnh nhân phải có consent và phạm vi sử dụng được lưu lại.",
+    "Không sao chép caption, hình ảnh, gương mặt, logo hoặc nhận diện của đối thủ.",
+    "Before/after chỉ được dùng khi có consent, bối cảnh và disclaimer phù hợp.",
+    "Mọi asset phải qua Medical Compliance trước khi bàn giao cho đội kênh.",
+]
+
+
 def run_compliance_agent(state: AgentState) -> AgentState:
-    logger.info("Compliance Agent checking dental marketing claims")
-    fallback = build_compliance_report(state.get("draft_content"))
+    logger.info("Compliance Agent defining production guardrails")
+    focus_keyword = state.get("ad_library_keywords", "")
+    fallback = _fallback_report()
     report, provider = reason_with_agent_api(
         agent_name="Compliance Agent",
-        role="Kiểm tra rủi ro claim nha khoa, pháp lý quảng cáo, medical safety và nền tảng trước khi CMO duyệt.",
-        task="Đánh giá draft và content_plan. Chỉ ra claim phải sửa, disclaimer thiếu, CTA quá vội hoặc rủi ro y khoa.",
+        role="Thiết lập guardrail y khoa, pháp lý, quyền hình ảnh và brand safety cho quy trình sản xuất media nha khoa.",
+        task=(
+            "Đánh giá chiến lược và insight trước khi sản xuất. Chỉ ra các gate kiểm tra bắt buộc cho brief, "
+            "pre-production, asset final và handoff. Không viết caption và không tạo nội dung đăng bài."
+        ),
         context={
-            "draft_content": state.get("draft_content"),
-            "content_plan": state.get("content_plan", []),
-            "creative_assets": state.get("creative_assets", []),
-            "fallback_compliance_report": fallback,
+            "focus_keyword": focus_keyword,
+            "strategic_direction": state.get("strategic_direction", ""),
+            "text_insight_report": state.get("text_insight_report", ""),
+            "visual_insight_report": state.get("visual_insight_report", ""),
+            "video_insight_report": state.get("video_insight_report", ""),
+            "production_guardrails": PRODUCTION_GUARDRAILS,
         },
         fallback=fallback,
     )
-    state["compliance_report"] = report
+    state["production_guardrails"] = list(PRODUCTION_GUARDRAILS)
+    state["compliance_report"] = f"Focus keyword: {focus_keyword}\n{report}".strip()
     state["current_step"] = "compliance"
-    state["messages"].append({"role": "compliance", "content": f"Checked dental claims with {provider}"})
+    state["messages"].append({"role": "compliance", "content": f"Defined production guardrails with {provider}"})
     return state
+
+
+def _fallback_report() -> str:
+    return "\n".join(
+        [
+            "Production compliance guardrails:",
+            *[f"- {item}" for item in PRODUCTION_GUARDRAILS],
+            "Required gates: brief review -> consent/pre-production review -> medical and rights QA -> CMO handoff approval.",
+        ]
+    )

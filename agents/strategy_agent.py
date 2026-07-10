@@ -11,6 +11,7 @@ logger = get_logger(__name__)
 
 def run_strategy_agent(state: AgentState) -> AgentState:
     logger.info("Strategy Agent selecting SmileUp direction")
+    focus_keyword = state.get("ad_library_keywords", "")
     fallback_direction = build_strategic_direction(
         state.get("text_insight_report", ""),
         state.get("visual_insight_report", ""),
@@ -20,12 +21,13 @@ def run_strategy_agent(state: AgentState) -> AgentState:
     fallback_monthly = _build_monthly_strategy(state)
     report, provider = reason_with_agent_api(
         agent_name="Strategy Agent",
-        role="Chuyển insight từ agent con thành chiến lược tháng, funnel, phân khúc, KPI và tuyến bài.",
+        role="Chuyển insight từ agent con thành chiến lược tháng, funnel, phân khúc, KPI và phạm vi sản xuất media.",
         task=(
-            "Tạo chiến lược tháng cho CMO. Bắt buộc chia 2 tuyến: ads_effective lấy SĐT từ ads match >=95%, "
-            "và page_care để nuôi page/tăng tương tác."
+            "Tạo chiến lược tháng cho CMO. Bắt buộc chia paid media và organic media, xác định audience, "
+            "message hierarchy, format cần sản xuất và KPI. Không viết bài đăng hoặc tạo asset."
         ),
         context={
+            "focus_keyword": focus_keyword,
             "text_insight_report": state.get("text_insight_report", ""),
             "facebook_trend_analysis": state.get("facebook_trend_analysis", ""),
             "visual_insight_report": state.get("visual_insight_report", ""),
@@ -34,12 +36,12 @@ def run_strategy_agent(state: AgentState) -> AgentState:
             "high_match_ads": state.get("high_match_ads", []),
             "fallback_monthly_strategy": fallback_monthly,
             "run_seed": state.get("run_seed", ""),
-            "creative_variation_profile": state.get("creative_variation_profile", {}),
+            "production_focus_profile": state.get("production_focus_profile", {}),
         },
         fallback=f"{fallback_monthly}\n\n{fallback_direction}",
     )
-    state["monthly_strategy"] = report
-    state["strategic_direction"] = f"{report}\n\n{fallback_direction}".strip()
+    state["monthly_strategy"] = f"Focus keyword: {focus_keyword}\n{report}".strip()
+    state["strategic_direction"] = f"Focus keyword: {focus_keyword}\n{report}\n\n{fallback_direction}".strip()
     state["current_step"] = "strategy"
     state["messages"].append({"role": "strategy", "content": f"Built monthly CMO strategy with {provider}"})
     return state
@@ -59,9 +61,9 @@ def _build_monthly_strategy(state: AgentState) -> str:
         f"- Nguồn ads ưu tiên: {source_count} ads có keyword match từ 95% trở lên với cụm '{keywords}'. "
         "Nếu chưa đủ nguồn 95%, CMO vẫn dùng toàn bộ ads đã quét để lấy tín hiệu phụ nhưng không coi là chuẩn chiến dịch.\n"
         f"- Page/nguồn nổi bật để tham chiếu thị trường: {sample_pages or 'chưa đủ dữ liệu'}.\n"
-        "- Tuyến 1 - Bài ads hiệu quả: viết theo mục tiêu lấy SĐT/inbox nhanh, dùng hook đúng nỗi đau, lead magnet rõ, CTA yêu cầu khách để lại số điện thoại để được gọi tư vấn; vẫn bắt buộc có thăm khám và không claim quá mức.\n"
-        "- Tuyến 2 - Chăm sóc page: bài nuôi niềm tin, checklist, hỏi đáp, tình huống đời thường, tăng bình luận/lưu/chia sẻ; không ép SĐT, không bán gắt.\n"
-        "- CMO phải thay đổi hook, góc kể, offer mềm và CTA sau mỗi lượt chạy bằng run_seed để tránh lặp nội dung."
+        "- Paid media lane: ưu tiên short video, static proof và carousel giải thích; mỗi format phải có hypothesis và mục tiêu lead rõ.\n"
+        "- Organic lane: ưu tiên checklist, hỏi đáp và quy trình chuyên môn để tăng trust, save/share và chuẩn bị nhu cầu.\n"
+        "- CMO chỉ khóa brief, format và tiêu chí; đội sản xuất chịu trách nhiệm tạo asset qua các approval gate."
     )
 
 

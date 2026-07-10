@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: smileup-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -34,17 +34,13 @@ jobs:
       - name: Regression checks
         env:
           MOCK_MODE: "true"
-          DRY_RUN: "true"
           AD_LIBRARY_ENABLED: "false"
           AGENT_API_REASONING_ENABLED: "false"
-          CMO_JURY_ENABLED: "false"
-          FACEBOOK_PAGE_TOKENS_JSON: '{"ci_smoke_page":"ci_smoke_token"}'
-          FACEBOOK_PAGE_NAMES_JSON: '{"ci_smoke_page":"CI Smoke Page"}'
         run: |
           set -euo pipefail
           node --check web/app.js
-          python -m py_compile web_app.py main.py
-          python -m tests.test_facebook_publisher_encoding
+          python -m compileall -q agents graph tools utils web_app.py main.py scripts tests
+          python -m unittest discover -s tests -p 'test_*.py'
           python -m tests.smoke_workflow
 
       - name: Build release archive
@@ -80,8 +76,10 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y sshpass
 
-          SSH_OPTS="-p ${SERVER_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-          SCP_OPTS="-P ${SERVER_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          install -d -m 700 "$HOME/.ssh"
+          install -m 600 .github/known_hosts "$HOME/.ssh/known_hosts"
+          SSH_OPTS="-p ${SERVER_PORT} -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+          SCP_OPTS="-P ${SERVER_PORT} -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
           sshpass -p "$SERVER_PASSWORD" scp $SCP_OPTS smileup-release.tar.gz "${SERVER_USER}@${SERVER_HOST}:/tmp/smileup-release.tar.gz"
 
           sshpass -p "$SERVER_PASSWORD" ssh $SSH_OPTS "${SERVER_USER}@${SERVER_HOST}" 'bash -s' <<'REMOTE_DEPLOY'
@@ -113,7 +111,6 @@ jobs:
             [ -f "$APP_DIR/.env" ] && cp -a "$APP_DIR/.env" "$PRESERVE/.env"
             [ -d "$APP_DIR/data" ] && cp -a "$APP_DIR/data" "$PRESERVE/data"
             [ -d "$APP_DIR/reports" ] && cp -a "$APP_DIR/reports" "$PRESERVE/reports"
-            [ -d "$APP_DIR/web/generated" ] && mkdir -p "$PRESERVE/web" && cp -a "$APP_DIR/web/generated" "$PRESERVE/web/generated"
           fi
 
           cd "$STAGE"
@@ -129,15 +126,10 @@ jobs:
             else
               printf '\nOPENAI_MODEL=gpt-5.5\n' >> "$STAGE/.env"
             fi
-            if grep -q '^OPENAI_IMAGE_MAX_CREATIVES=' "$STAGE/.env"; then
-              sed -i 's/^OPENAI_IMAGE_MAX_CREATIVES=.*/OPENAI_IMAGE_MAX_CREATIVES=0/' "$STAGE/.env"
-            else
-              printf 'OPENAI_IMAGE_MAX_CREATIVES=0\n' >> "$STAGE/.env"
-            fi
             if grep -q '^AD_LIBRARY_MAX_ADS=' "$STAGE/.env"; then
-              sed -i 's/^AD_LIBRARY_MAX_ADS=.*/AD_LIBRARY_MAX_ADS=15/' "$STAGE/.env"
+              sed -i 's/^AD_LIBRARY_MAX_ADS=.*/AD_LIBRARY_MAX_ADS=20/' "$STAGE/.env"
             else
-              printf 'AD_LIBRARY_MAX_ADS=15\n' >> "$STAGE/.env"
+              printf 'AD_LIBRARY_MAX_ADS=20\n' >> "$STAGE/.env"
             fi
             NEW_COMPETITOR_AD_URL='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=100304372631888'
             if grep -q '^AD_LIBRARY_COMPETITOR_URLS=' "$STAGE/.env"; then
@@ -148,10 +140,9 @@ jobs:
               printf 'AD_LIBRARY_COMPETITOR_URLS=%s\n' "$NEW_COMPETITOR_AD_URL" >> "$STAGE/.env"
             fi
           fi
-          mkdir -p "$STAGE/data" "$STAGE/reports" "$STAGE/web/generated/uploads" "$STAGE/web/generated/creatives"
+          mkdir -p "$STAGE/data" "$STAGE/reports"
           [ -d "$PRESERVE/data" ] && cp -a "$PRESERVE/data/." "$STAGE/data/"
           [ -d "$PRESERVE/reports" ] && cp -a "$PRESERVE/reports/." "$STAGE/reports/"
-          [ -d "$PRESERVE/web/generated" ] && cp -a "$PRESERVE/web/generated/." "$STAGE/web/generated/"
 
           rollback() {
             if [ "$ROLLED_BACK" = "true" ]; then

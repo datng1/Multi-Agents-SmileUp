@@ -37,13 +37,13 @@ def build_text_insight_report(insights: list[dict]) -> str:
             hooks.append(summary[:140])
 
     dominant = _format_counter(counter) or "trust_doctor, service_crown, service_implant"
-    hook_examples = "; ".join(hooks[:3]) or "Chưa có caption đủ dài, cần nhập thêm nội dung bài viết để phân tích sâu."
+    hook_examples = "; ".join(hooks[:3]) or "Chưa có đủ thông điệp dài trong dữ liệu quét để kết luận sâu."
     return (
         "Text Insight Agent:\n"
-        f"- Tín hiệu caption nổi bật: {dominant}.\n"
+        f"- Tín hiệu thông điệp nổi bật: {dominant}.\n"
         "- Nên ưu tiên hook đánh vào nỗi lo thật: sợ đau, sợ sai chỉ định, sợ giá cao, mất tự tin khi cười hoặc mất răng khó ăn nhai.\n"
         "- Với SmileUp, chuyển góc cạnh tranh sang tư vấn cá nhân hóa cho răng sứ và implant thay vì chạy ưu đãi chung chung.\n"
-        f"- Hook/caption tham chiếu từ dữ liệu đầu vào: {hook_examples}"
+        f"- Hook tham chiếu từ evidence đầu vào: {hook_examples}"
     )
 
 
@@ -94,8 +94,8 @@ def build_strategic_direction(
         f"- Trụ cột chính nên triển khai hôm nay: {focus}; trụ cột phụ: {secondary}.\n"
         "- Góc nội dung: không sao chép đối thủ, dùng insight thị trường để viết lại theo lợi thế SmileUp: tư vấn rõ chỉ định, bác sĩ đồng hành, phòng khám hiện đại.\n"
         "- Công thức ưu tiên: Hook vấn đề thật -> checklist dấu hiệu cần đi khám -> giải pháp SmileUp -> lưu ý kết quả tùy tình trạng -> CTA inbox/đặt lịch.\n"
-        "- Trend Facebook nên bám: caption ngắn đoạn, câu hỏi ở đầu bài, lợi ích dạng bullet, hình/video có mặt bác sĩ hoặc bối cảnh phòng khám, hashtag hẹp theo dịch vụ.\n"
-        "- KPI nội dung: tăng inbox tư vấn, tăng lịch thăm khám, không chạy claim quá đà hoặc cam kết kết quả tuyệt đối."
+        "- Hướng sản xuất: short video mở bằng câu hỏi, carousel chia lợi ích theo frame, media gốc có bác sĩ hoặc bối cảnh phòng khám.\n"
+        "- KPI media: khả năng tạo lead, lịch thăm khám và niềm tin; không dùng claim quá đà hoặc cam kết tuyệt đối."
     )
 
 

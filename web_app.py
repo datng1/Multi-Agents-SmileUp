@@ -1,8 +1,7 @@
-import contextlib
-import base64
+from __future__ import annotations
+
 import hashlib
 import hmac
-import io
 import json
 import re
 import secrets
@@ -16,20 +15,17 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from graph.state import create_initial_state
-from graph.workflow import build_workflow
-from tools.facebook_publisher import get_publish_pages, publish_facebook_post
-from tools.manual_input import parse_manual_competitor_posts
+from graph.workflow import PRODUCTION_AGENT_ORDER, build_workflow
 from tools.workflow_progress import set_workflow_progress_callback
 from utils import config
 
 
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
-UPLOAD_ROOT = WEB_ROOT / "generated" / "uploads"
 WORKFLOW_CONTEXT_CACHE_PATH = ROOT / "data" / "workflow_context_cache.json"
 HOST = "127.0.0.1"
 PORT = 8765
-MAX_UPLOAD_BYTES = 80 * 1024 * 1024
+MAX_REQUEST_BYTES = 1024 * 1024
 JOB_LOCK = threading.Lock()
 CACHE_LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
@@ -40,19 +36,8 @@ CLIENT_SESSION_SECONDS = 30 * 24 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_VERSION = 1
 WORKFLOW_CONTEXT_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_CLEANUP_INTERVAL_SECONDS = 60 * 60
-WORKFLOW_AGENT_ORDER = [
-    "crawler",
-    "text_insight",
-    "trend_analysis",
-    "visual_insight",
-    "video_insight",
-    "strategy",
-    "content_creator",
-    "compliance",
-    "hardness",
-    "manager_review",
-    "publisher",
-]
+JOB_TTL_SECONDS = 24 * 60 * 60
+WORKFLOW_AGENT_ORDER = list(PRODUCTION_AGENT_ORDER)
 
 
 def _enable_utf8_console() -> None:
@@ -94,18 +79,14 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._send_json(
                 {
-                    "mock_mode": config.MOCK_MODE,
-                    "dry_run": config.DRY_RUN,
                     "ai_provider": config.AI_PROVIDER,
                     "ai_model": _model_status_label(),
-                    "image_model": "disabled",
-                    "openai_image_model": "disabled",
-                    "cmo_jury_enabled": config.CMO_JURY_ENABLED,
                     "ad_library_enabled": config.AD_LIBRARY_ENABLED,
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
                     "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
                     "ad_library_competitor_count": len(config.AD_LIBRARY_COMPETITOR_URLS),
-                    "publish_pages": _get_allowed_publish_pages(username),
+                    "scan_ads": 20,
+                    "agent_order": WORKFLOW_AGENT_ORDER,
                     "workflow_context_cache_days": round(WORKFLOW_CONTEXT_CACHE_TTL_SECONDS / 86400),
                     "warnings": config.CONFIG_WARNINGS,
                 }
@@ -127,6 +108,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             query = parse_qs(parsed.query)
             job_id = (query.get("id") or [""])[0]
             with JOB_LOCK:
+                _prune_jobs_locked()
                 job = dict(JOBS.get(job_id) or {})
             if not job:
                 self._send_json({"ok": False, "error": "Job not found"}, status=404)
@@ -154,9 +136,6 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             return
         username = self._current_username()
         session_id = self._current_session_id(username)
-        if path == "/api/publish":
-            self._handle_publish_final()
-            return
         if path != "/api/run":
             self.send_error(404)
             return
@@ -169,6 +148,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
 
             job_id = uuid.uuid4().hex
             with JOB_LOCK:
+                _prune_jobs_locked()
                 JOBS[job_id] = {
                     "status": "running",
                     "started_at": time.time(),
@@ -181,65 +161,6 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "job_id": job_id, "status": "running"})
         except Exception as exc:
             self._send_json({"ok": False, "error": _sanitize_error(str(exc)), "logs": ""}, status=500)
-
-    def _handle_publish_final(self) -> None:
-        try:
-            username = self._current_username()
-            session_id = self._current_session_id(username)
-            payload = self._read_json()
-            draft = {
-                "title": str(payload.get("title", "")).strip(),
-                "body": str(payload.get("body", "")).strip(),
-                "call_to_action": str(payload.get("call_to_action", "")).strip(),
-                "hashtags": [str(tag).strip() for tag in payload.get("hashtags", []) if str(tag).strip()],
-            }
-            final_image_path = str(payload.get("final_image_path", "")).strip()
-            final_image_data_url = str(payload.get("final_image_data_url", "")).strip()
-            final_image_paths = [str(path).strip() for path in payload.get("final_image_paths", []) if str(path).strip()]
-            final_image_data_urls = [str(url).strip() for url in payload.get("final_image_data_urls", []) if str(url).strip()]
-            final_video_paths = [str(path).strip() for path in payload.get("final_video_paths", []) if str(path).strip()]
-            final_video_data_urls = [str(url).strip() for url in payload.get("final_video_data_urls", []) if str(url).strip()]
-            page_ids = [str(page_id).strip() for page_id in payload.get("page_ids", []) if str(page_id).strip()]
-            if not any(draft.values()):
-                self._send_json({"ok": False, "error": "Final draft is empty"}, status=400)
-                return
-            if not page_ids:
-                self._send_json({"ok": False, "error": "No publish pages selected"}, status=400)
-                return
-            unauthorized = _unauthorized_publish_page_ids(page_ids, username)
-            if unauthorized:
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": "Bạn không có quyền đăng vào page: " + ", ".join(unauthorized),
-                    },
-                    status=403,
-                )
-                return
-            approved = _verify_publish_approval_payload(payload, session_id, username)
-            approval_override = bool(payload.get("override_publish"))
-            result = publish_facebook_post(
-                draft,
-                approved=approved,
-                page_ids=page_ids,
-                approval_override=approval_override,
-                image_path=final_image_path,
-                image_data_url=final_image_data_url,
-                image_paths=final_image_paths,
-                image_data_urls=final_image_data_urls,
-                video_paths=final_video_paths,
-                video_data_urls=final_video_data_urls,
-            )
-            if not approved and not approval_override:
-                result["reason"] = "Publisher bị chặn: backend chưa xác thực được approval token từ workflow đã được CMO duyệt."
-            elif approval_override:
-                result["cmo_override"] = True
-                result["reason"] = "Người dùng đã bỏ qua CMO gate và xác nhận đăng thủ công."
-            self._send_json({"ok": True, "publish_result": result})
-        except ValueError as exc:
-            self._send_json({"ok": False, "error": _sanitize_error(str(exc))}, status=400)
-        except Exception as exc:
-            self._send_json({"ok": False, "error": _sanitize_error(str(exc))}, status=500)
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
@@ -489,8 +410,8 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length", "0") or "0")
         if content_length <= 0:
             return {}
-        if content_length > MAX_UPLOAD_BYTES * 2:
-            raise ValueError("Request body is too large. Maximum media upload is 80 MB.")
+        if content_length > MAX_REQUEST_BYTES:
+            raise ValueError("Request body is too large.")
         raw_body = self.rfile.read(content_length).decode("utf-8")
         return json.loads(raw_body or "{}")
 
@@ -552,6 +473,18 @@ def _run_job(job_id: str, request_payload: dict, session_id: str, username: str)
         set_workflow_progress_callback(None)
 
 
+def _prune_jobs_locked() -> None:
+    cutoff = time.time() - JOB_TTL_SECONDS
+    stale_ids = [
+        job_id
+        for job_id, job in JOBS.items()
+        if job.get("status") in {"completed", "error"}
+        and float(job.get("finished_at") or 0) < cutoff
+    ]
+    for job_id in stale_ids:
+        JOBS.pop(job_id, None)
+
+
 def _progress_log(statuses: dict, current_agent: str, current_status: str) -> str:
     labels = {
         "crawler": "Crawler",
@@ -560,11 +493,9 @@ def _progress_log(statuses: dict, current_agent: str, current_status: str) -> st
         "visual_insight": "Visual",
         "video_insight": "Video",
         "strategy": "Strategy",
-        "content_creator": "Content",
         "compliance": "Compliance",
         "hardness": "Hardness",
         "manager_review": "CMO Lead",
-        "publisher": "Publisher",
     }
     lines = [f"{labels.get(current_agent, current_agent)}: {current_status}"]
     for key, label in labels.items():
@@ -575,79 +506,30 @@ def _progress_log(statuses: dict, current_agent: str, current_status: str) -> st
 
 def _run_workflow_payload(request_payload: dict, session_id: str, username: str) -> dict:
     context_key = _workflow_context_cache_key(request_payload)
-    log_buffer = io.StringIO()
     initial_state = _build_initial_state(request_payload)
     started_at = time.perf_counter()
-    with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
-        result = build_workflow().invoke(initial_state)
+    result = build_workflow().invoke(initial_state)
     duration_ms = round((time.perf_counter() - started_at) * 1000)
     output = {
         "result": result,
         "duration_ms": duration_ms,
-        "logs": log_buffer.getvalue().strip(),
+        "logs": "Workflow completed with production task contract.",
         "history_hit": False,
         "context_cache_key": context_key,
     }
-    _attach_publish_approval(output, session_id, username)
     output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload, session_id, username)
     return output
 
 
 def _completed_workflow_step(result: dict, statuses: dict) -> str:
-    if statuses.get("publisher") == "done" or result.get("publish_result"):
-        return "publisher"
     for agent_name in reversed(WORKFLOW_AGENT_ORDER):
         if statuses.get(agent_name) in {"done", "running"}:
             return agent_name
     return str(result.get("current_step") or "manager_review")
 
 
-def _attach_publish_approval(output: dict, session_id: str, username: str) -> None:
-    result = output.get("result")
-    if not isinstance(result, dict):
-        return
-    result.pop("publish_approval_token", None)
-    result.pop("publish_approval_context_key", None)
-    if not _is_publish_approved_result(result):
-        return
-    context_key = str(output.get("context_cache_key") or "")
-    if not context_key:
-        return
-    result["publish_approval_context_key"] = context_key
-    result["publish_approval_token"] = _sign_publish_approval(context_key, session_id, username)
-
-
-def _is_publish_approved_result(result: dict) -> bool:
-    return result.get("approval_status") == "approved" and result.get("cmo_decision") == "APPROVE_TO_PUBLISH"
-
-
-def _publish_approval_secret() -> str:
-    return config.AUTH_SECRET or hashlib.sha256(repr(sorted(config.AUTH_USERS.items())).encode("utf-8")).hexdigest()
-
-
-def _publish_approval_message(context_key: str, session_id: str, username: str) -> bytes:
-    return f"{username}|{session_id}|{context_key}|publish".encode("utf-8")
-
-
-def _sign_publish_approval(context_key: str, session_id: str, username: str) -> str:
-    return hmac.new(
-        _publish_approval_secret().encode("utf-8"),
-        _publish_approval_message(context_key, session_id, username),
-        hashlib.sha256,
-    ).hexdigest()
-
-
-def _verify_publish_approval_payload(payload: dict, session_id: str, username: str) -> bool:
-    context_key = str(payload.get("approval_context_key") or "").strip()
-    token = str(payload.get("approval_token") or "").strip()
-    if not context_key or not token:
-        return False
-    expected = _sign_publish_approval(context_key, session_id, username)
-    return hmac.compare_digest(token, expected)
-
-
 def _workflow_context_cache_key(request_payload: dict) -> str:
-    ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip() or config.AD_LIBRARY_KEYWORDS
+    ad_library_keywords = _normalize_scan_keyword(request_payload.get("ad_library_keywords"))
     scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
     payload = {
         "version": WORKFLOW_CONTEXT_CACHE_VERSION,
@@ -656,13 +538,8 @@ def _workflow_context_cache_key(request_payload: dict) -> str:
         "ad_library_run_max_ads": max_ads,
         "ad_library_reference_scan_limit": reference_scan_limit,
         "ad_library_keywords": re.sub(r"\s+", " ", ad_library_keywords).strip().casefold(),
-        "manual_competitor_posts": str(request_payload.get("manual_competitor_posts", "")).strip(),
-        "manual_visual_notes": str(request_payload.get("manual_visual_notes", "")).strip(),
-        "manual_video_notes": str(request_payload.get("manual_video_notes", "")).strip(),
-        "creative_mode": "upload_only_prompt",
+        "data_source": "auto",
         "settings": {
-            "mock_mode": config.MOCK_MODE,
-            "dry_run": config.DRY_RUN,
             "ad_library_enabled": config.AD_LIBRARY_ENABLED,
             "ad_library_country": config.AD_LIBRARY_COUNTRY,
             "ad_library_max_ads": config.AD_LIBRARY_MAX_ADS,
@@ -671,7 +548,6 @@ def _workflow_context_cache_key(request_payload: dict) -> str:
             "openai_model": config.OPENAI_MODEL,
             "gemini_model": config.GEMINI_MODEL,
             "anthropic_model": config.ANTHROPIC_MODEL,
-            "cmo_jury_enabled": config.CMO_JURY_ENABLED,
             "agent_api_reasoning_enabled": config.AGENT_API_REASONING_ENABLED,
         },
     }
@@ -699,7 +575,6 @@ def _get_workflow_context_history_item(history_id: str, session_id: str, usernam
         if isinstance(output.get("result"), dict):
             output["result"] = dict(output["result"])
         output["context_cache_key"] = str(output.get("context_cache_key") or entry.get("context_key") or "")
-        _attach_publish_approval(output, session_id, username)
         return {
             "history_id": history_id,
             "cached_at": cached_at,
@@ -773,9 +648,13 @@ def _start_workflow_context_cache_cleanup() -> None:
             time.sleep(WORKFLOW_CONTEXT_CACHE_CLEANUP_INTERVAL_SECONDS)
             with CACHE_LOCK:
                 _prune_workflow_context_cache()
+            with JOB_LOCK:
+                _prune_jobs_locked()
 
     with CACHE_LOCK:
         _prune_workflow_context_cache()
+    with JOB_LOCK:
+        _prune_jobs_locked()
     worker = threading.Thread(target=cleanup_loop, daemon=True)
     worker.start()
 
@@ -805,8 +684,10 @@ def _write_workflow_context_cache(context_key: str, output: dict, request_payloa
 def _workflow_context_history_summary(output: dict, request_payload: dict, cached_at: float) -> dict:
     result = output.get("result") or {}
     ads = result.get("ad_library_ads") or []
-    draft = result.get("draft_content") or {}
-    keyword = str(request_payload.get("ad_library_keywords", "")).strip() or result.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
+    workflow = result.get("media_production_workflow") or {}
+    keyword = _normalize_scan_keyword(
+        request_payload.get("ad_library_keywords") or result.get("ad_library_keywords")
+    )
     return {
         "created_at": datetime.fromtimestamp(cached_at).isoformat(timespec="seconds"),
         "keyword": keyword,
@@ -817,7 +698,9 @@ def _workflow_context_history_summary(output: dict, request_payload: dict, cache
         "ads_count": len(ads),
         "competitor_ads": sum(1 for ad in ads if ad.get("source_type") == "competitor_page"),
         "keyword_ads": sum(1 for ad in ads if ad.get("source_type") == "keyword_scan"),
-        "title": draft.get("title") or result.get("cmo_next_action") or "Workflow result",
+        "title": workflow.get("workflow_id") or "Media production workflow",
+        "workflow_status": workflow.get("status") or "pending",
+        "tasks_count": len(workflow.get("tasks") or []),
         "duration_ms": output.get("duration_ms", 0),
     }
 
@@ -842,35 +725,25 @@ def _save_workflow_context_cache(cache: dict) -> None:
 
 
 def _build_initial_state(request_payload: dict) -> dict:
-    manual_text = str(request_payload.get("manual_competitor_posts", "")).strip()
-    visual_notes = str(request_payload.get("manual_visual_notes", "")).strip()
-    video_notes = str(request_payload.get("manual_video_notes", "")).strip()
-    ad_library_keywords = str(request_payload.get("ad_library_keywords", "")).strip()
+    ad_library_keywords = _normalize_scan_keyword(request_payload.get("ad_library_keywords"))
     scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
-    creative_image_mode = _normalize_creative_image_mode(request_payload.get("creative_image_mode", "upload_only"))
 
     initial_state = create_initial_state()
-    run_seed = _build_run_seed(ad_library_keywords or config.AD_LIBRARY_KEYWORDS, scan_mode)
+    run_seed = _build_run_seed(ad_library_keywords, scan_mode)
     initial_state["run_seed"] = run_seed
-    initial_state["creative_variation_profile"] = _creative_variation_profile(run_seed)
-    initial_state["ad_library_keywords"] = ad_library_keywords or config.AD_LIBRARY_KEYWORDS
+    initial_state["production_focus_profile"] = _production_focus_profile(run_seed, ad_library_keywords)
+    initial_state["ad_library_keywords"] = ad_library_keywords
+    initial_state["cmo_objective"] = (
+        f"Phân tích thị trường theo keyword '{ad_library_keywords}' và giao việc cho đội ngũ tạo workflow "
+        "sản xuất media có đầu ra, dependency, tiêu chí nghiệm thu và điểm duyệt rõ ràng."
+    )
     initial_state["ad_library_scan_mode"] = scan_mode
     initial_state["ad_library_max_ads"] = max_ads
     initial_state["ad_library_reference_scan_limit"] = reference_scan_limit
     initial_state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
     initial_state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
-    initial_state["competitor_visual_notes"] = visual_notes
-    initial_state["competitor_video_notes"] = video_notes
-    initial_state["creative_image_mode"] = creative_image_mode
-    initial_state["creative_reference_note"] = "Image/video generation is disabled; media must be uploaded manually in final review."
-    if manual_text:
-        manual_insights = parse_manual_competitor_posts(manual_text)
-        if manual_insights:
-            initial_state["competitor_insights"] = manual_insights
-            initial_state["data_source"] = "manual"
-            initial_state["manual_posts_count"] = len(manual_insights)
-    if visual_notes or video_notes:
-        initial_state["data_source"] = "manual"
+    initial_state["competitor_visual_notes"] = ""
+    initial_state["competitor_video_notes"] = ""
     return initial_state
 
 
@@ -879,7 +752,12 @@ def _build_run_seed(keywords: str, scan_mode: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def _creative_variation_profile(run_seed: str) -> dict[str, str]:
+def _normalize_scan_keyword(value: object) -> str:
+    normalized = re.sub(r"\s+", " ", str(value or "")).strip()
+    return (normalized or config.AD_LIBRARY_KEYWORDS)[:120].strip()
+
+
+def _production_focus_profile(run_seed: str, focus_keyword: str) -> dict[str, str]:
     seed_value = int(str(run_seed or "0")[:8], 16) if run_seed else 0
     hook_styles = [
         "counter-intuitive: đi ngược quảng cáo giảm giá, nhấn vào tư vấn đúng chỉ định",
@@ -895,12 +773,12 @@ def _creative_variation_profile(run_seed: str) -> dict[str, str]:
         "mở bằng checklist, mỗi ý chỉ 1-2 câu",
         "mở bằng insight khách hàng, sau đó dẫn vào quy trình SmileUp",
     ]
-    visual_moods = [
-        "ánh sáng phòng khám trắng xanh, góc máy ngang tầm mắt, bác sĩ tư vấn nhẹ nhàng",
-        "cận cảnh tương tác bác sĩ - bệnh nhân, hậu cảnh sạch, cảm giác premium ấm",
-        "góc máy hơi nghiêng, không gian tư vấn hiện đại, ít đạo cụ, ảnh thật tự nhiên",
-        "bố cục nhiều khoảng thở, chủ thể lệch 1/3 khung hình, màu teal/trắng tinh tế",
-        "ảnh lifestyle nha khoa, khách hàng thoải mái, bác sĩ giải thích trên tablet/phim chụp",
+    production_formats = [
+        "short video 30-45 giây + static proof",
+        "carousel giải thích + short video hỏi đáp",
+        "doctor-led video + checklist graphic",
+        "patient journey video + process carousel",
+        "myth-busting reel + trust-building static",
     ]
     lead_magnets = [
         "kiểm tra bước đầu xem trường hợp có phù hợp răng sứ/implant không",
@@ -922,47 +800,18 @@ def _creative_variation_profile(run_seed: str) -> dict[str, str]:
 
     return {
         "run_seed": run_seed,
+        "focus_keyword": focus_keyword,
         "hook_style": pick(hook_styles),
         "copy_rhythm": pick(copy_rhythms, 1),
-        "visual_mood": pick(visual_moods, 2),
+        "production_format": pick(production_formats, 2),
         "lead_magnet": pick(lead_magnets, 3),
         "cta_mode": pick(cta_modes, 4),
-        "anti_repeat_rule": "Không dùng lại tiêu đề, câu mở đầu, CTA hoặc visual mood giống lượt chạy trước dù keyword giống nhau.",
+        "anti_repeat_rule": "Mỗi lượt phải đổi hypothesis, format ưu tiên hoặc audience angle dựa trên evidence mới.",
     }
 
 
 def _scan_settings(request_payload: dict) -> tuple[str, int, int]:
-    mode = str(request_payload.get("scan_mode") or request_payload.get("ad_library_scan_mode") or "quick").strip().lower()
-    if mode == "deep":
-        return "deep", 15, 15
-    return "quick", 5, 5
-
-
-def _normalize_creative_image_mode(value: object) -> str:
-    return "upload_only"
-
-
-def _save_uploaded_creative(data_url: str, original_name: str) -> tuple[str, str]:
-    match = re.match(r"^data:image/(png|jpe?g|webp);base64,(.+)$", data_url, re.IGNORECASE | re.DOTALL)
-    if not match:
-        raise ValueError("Unsupported image upload. Please upload PNG, JPG, JPEG, or WEBP.")
-
-    extension = match.group(1).lower()
-    extension = "jpg" if extension in {"jpg", "jpeg"} else extension
-    try:
-        raw = base64.b64decode(match.group(2), validate=True)
-    except Exception as exc:
-        raise ValueError("Image upload is not valid base64.") from exc
-    if len(raw) > MAX_UPLOAD_BYTES:
-        raise ValueError("Image upload is too large. Maximum size is 80 MB.")
-
-    safe_name = re.sub(r"[^a-zA-Z0-9]+", "-", Path(original_name).stem).strip("-").lower()[:36]
-    digest = hashlib.sha1(raw).hexdigest()[:10]
-    filename = f"{datetime.now():%Y%m%d_%H%M%S}_{safe_name or 'creative'}_{digest}.{extension}"
-    UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
-    output_path = UPLOAD_ROOT / filename
-    output_path.write_bytes(raw)
-    return str(output_path), f"/generated/uploads/{filename}"
+    return "auto", 20, 20
 
 
 def _model_status_label() -> str:
@@ -1011,36 +860,6 @@ def _auth_username(token: str) -> str:
 
 def _is_admin_user(username: str) -> bool:
     return str(username or "") in set(config.AUTH_ADMIN_USERNAMES)
-
-
-def _allowed_publish_page_ids(username: str) -> set[str] | None:
-    safe_username = str(username or "").strip()
-    if _is_admin_user(safe_username):
-        return None
-    page_ids = config.AUTH_PAGE_PERMISSIONS.get(safe_username)
-    if page_ids is None:
-        return None
-    return {str(page_id).strip() for page_id in page_ids if str(page_id).strip()}
-
-
-def _get_allowed_publish_pages(username: str) -> list[dict]:
-    pages = get_publish_pages()
-    allowed_page_ids = _allowed_publish_page_ids(username)
-    if allowed_page_ids is None:
-        return pages
-    return [page for page in pages if str(page.get("page_id") or "") in allowed_page_ids]
-
-
-def _unauthorized_publish_page_ids(page_ids: list[str], username: str) -> list[str]:
-    allowed_page_ids = _allowed_publish_page_ids(username)
-    if allowed_page_ids is None:
-        return []
-    configured_allowed_ids = {str(page.get("page_id") or "") for page in _get_allowed_publish_pages(username)}
-    return [
-        page_id
-        for page_id in page_ids
-        if page_id not in allowed_page_ids or page_id not in configured_allowed_ids
-    ]
 
 
 def _can_access_history_entry(entry: dict, session_id: str, username: str) -> bool:

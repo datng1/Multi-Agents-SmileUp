@@ -3,6 +3,14 @@ from graph.workflow import build_workflow
 from datetime import datetime
 
 
+FORBIDDEN_OUTPUT_FIELDS = {
+    "content_plan",
+    "creative_assets",
+    "draft_content",
+    "publish_result",
+}
+
+
 def _enable_utf8_console() -> None:
     import sys
 
@@ -22,28 +30,21 @@ def main() -> None:
     assert result["visual_insight_report"], "visual insight agent should produce a report"
     assert result["video_insight_report"], "video insight agent should produce a report"
     assert result["strategic_direction"], "strategy agent should produce a direction"
-    assert result["draft_content"], "content agent should produce draft"
-    assert result.get("creative_image_mode") == "upload_only", "workflow should run in upload-only media mode"
-    assert result.get("creative_assets"), "workflow should produce copyable creative prompt assets"
-    assert all(not asset.get("image_path") for asset in result["creative_assets"]), "creative prompt assets should not include generated images"
-    assert any(asset.get("prompt_text") or asset.get("image_prompt") for asset in result["creative_assets"]), "prompt assets should include copyable prompts"
-    assert all(asset.get("image_prompt") for asset in result["creative_assets"]), "each prompt asset should include an image prompt"
-    assert all(asset.get("video_prompt") for asset in result["creative_assets"]), "each prompt asset should include a 40s video prompt"
     assert result["compliance_report"], "compliance agent should produce a report"
     assert result["hardness_report"], "hardness agent should produce a report"
     assert result["hardness_score"] >= 0, "hardness agent should score the workflow"
-    assert result["hardness_publish_readiness"] in {"ready", "revise", "block"}, result["hardness_publish_readiness"]
-    assert result["approval_status"] == "approved", result["manager_feedback"]
-    assert result["cmo_decision"] == "APPROVE_TO_PUBLISH", result["cmo_feedback"]
-    assert result["cmo_next_action"] == "publish", result["cmo_next_action"]
-    assert result["cmo_selected_variant_index"] >= 0, "CMO should select a campaign variant"
+    assert result["hardness_production_readiness"] in {"ready", "review", "blocked"}
     assert result["cmo_campaign_brief"], "CMO should produce a campaign brief"
-    assert "CMO Jury" in result["cmo_jury_summary"], "CMO should summarize model jury status"
-    assert result["publish_result"], "publisher should produce a result"
+    workflow = result["media_production_workflow"]
+    assert len(workflow["tasks"]) == 9, workflow["tasks"]
+    assert len(workflow["approval_gates"]) == 4, workflow["approval_gates"]
+    assert all(task.get("owner_role") and task.get("deliverables") for task in workflow["tasks"])
+    assert result["production_handoff"], "CMO should produce a handoff"
+    assert not FORBIDDEN_OUTPUT_FIELDS.intersection(result), FORBIDDEN_OUTPUT_FIELDS.intersection(result)
     print("SMOKE OK")
     print("approval_status=", result["approval_status"])
     print("cmo_decision=", result["cmo_decision"])
-    print("publish_result=", result["publish_result"])
+    print("production_tasks=", len(workflow["tasks"]))
 
 
 if __name__ == "__main__":

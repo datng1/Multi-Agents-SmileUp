@@ -1,40 +1,8 @@
-import json
-import re
-
-from graph.state import AgentState, ContentVariant, DraftContent
 from utils import config
 
 
 class GeminiUnavailable(RuntimeError):
     pass
-
-
-def generate_draft_with_gemini(state: AgentState) -> DraftContent:
-    if not config.GEMINI_API_KEY:
-        raise GeminiUnavailable("GEMINI_API_KEY missing")
-
-    try:
-        from google import genai
-    except Exception as exc:
-        raise GeminiUnavailable("google-genai package is not installed") from exc
-
-    response = _generate_with_gemini_models(genai, _build_prompt(state))
-    text = getattr(response, "text", "") or ""
-    return _parse_draft(text)
-
-
-def generate_content_plan_with_gemini(state: AgentState) -> list[ContentVariant]:
-    if not config.GEMINI_API_KEY:
-        raise GeminiUnavailable("GEMINI_API_KEY missing")
-
-    try:
-        from google import genai
-    except Exception as exc:
-        raise GeminiUnavailable("google-genai package is not installed") from exc
-
-    response = _generate_with_gemini_models(genai, _build_campaign_prompt(state))
-    text = getattr(response, "text", "") or ""
-    return _parse_content_plan(text)
 
 
 def generate_text_with_gemini(prompt: str) -> str:
@@ -48,11 +16,13 @@ def generate_text_with_gemini_and_model(prompt: str) -> tuple[str, str]:
 
     try:
         from google import genai
-    except Exception as exc:
+    except ImportError as exc:
         raise GeminiUnavailable("google-genai package is not installed") from exc
 
     response = _generate_with_gemini_models(genai, prompt)
-    return getattr(response, "text", "") or "", str(getattr(response, "_resolved_model", config.GEMINI_MODEL))
+    text = getattr(response, "text", "") or ""
+    model = str(getattr(response, "_resolved_model", config.GEMINI_MODEL))
+    return text, model
 
 
 def _generate_with_gemini_models(genai_module, prompt: str):
@@ -63,12 +33,11 @@ def _generate_with_gemini_models(genai_module, prompt: str):
             response = client.models.generate_content(model=model, contents=prompt)
             try:
                 setattr(response, "_resolved_model", model)
-            except Exception:
+            except (AttributeError, TypeError):
                 pass
             return response
         except Exception as exc:
             errors.append(f"{model}: {exc}")
-            continue
     raise GeminiUnavailable("Gemini models unavailable: " + " | ".join(errors[-3:]))
 
 
@@ -78,273 +47,3 @@ def _gemini_model_candidates() -> list[str]:
         if model and model not in candidates:
             candidates.append(model)
     return candidates
-
-
-def _build_prompt(state: AgentState) -> str:
-    insights = json.dumps(state.get("competitor_insights", []), ensure_ascii=False, indent=2)
-    variation_profile = json.dumps(state.get("creative_variation_profile", {}), ensure_ascii=False, indent=2)
-    trend_analysis = state.get("facebook_trend_analysis") or "Chưa có phân tích trend."
-    visual_brief = state.get("visual_creative_brief") or "Tạo ảnh gốc có nhận diện SmileUp, không dùng ảnh đối thủ."
-    text_report = state.get("text_insight_report") or "Text Insight Agent chưa có đủ caption để phân tích."
-    visual_report = state.get("visual_insight_report") or "Visual Insight Agent chưa có mô tả ảnh."
-    video_report = state.get("video_insight_report") or "Video Insight Agent chưa có transcript/ghi chú video."
-    strategic_direction = state.get("strategic_direction") or "Ưu tiên răng sứ thẩm mỹ và implant với CTA đặt lịch tư vấn."
-    ad_library_report = state.get("ad_library_report") or "Chưa có dữ liệu Meta Ad Library."
-    strategy = state.get("daily_strategy") or "Tư vấn nha khoa cá nhân hóa, minh bạch, an toàn."
-    feedback = state.get("manager_feedback") or "Không có feedback trước đó."
-    return f"""
-Bạn là hội đồng multi-agent marketing nha khoa cho phòng khám SmileUp tại Việt Nam.
-
-Hãy phân tích thật kỹ trong nội bộ trước khi viết, nhưng KHÔNG xuất chain-of-thought. Chỉ xuất JSON cuối cùng.
-
-Luật hiểu đúng bài toán:
-- Mục tiêu không phải tạo caption hay cho vui. Mục tiêu là chiến lược tháng tạo lead nha khoa chất lượng cho SmileUp.
-- Hiệu quả cao nhất nghĩa là tăng xác suất có SĐT/inbox/lịch tư vấn hợp lệ, không phải hứa kết quả y khoa tuyệt đối.
-- CMO là người quyết định cuối. Các agent con cung cấp dữ kiện, suy luận và khuyến nghị trong phạm vi vai trò.
-- Luôn tách rõ hai tuyến: ads_effective để lấy SĐT/inbox và page_care để nuôi page/tăng trust.
-- Không lẫn giọng: ads_effective được bán mạnh hơn, page_care phải mềm hơn và tạo tương tác/chia sẻ/lưu bài.
-- Không copy câu chữ, offer, ảnh, người, logo, text overlay hoặc tài sản nhận diện của đối thủ.
-
-Vai trò từng agent:
-- Text Insight Agent: đọc toàn bộ caption/bài viết đối thủ, tách hook, pain point, offer, CTA, chủ đề lặp lại.
-- Visual Insight Agent: đọc ghi chú ảnh/frame/video still, rút ra bố cục, màu, text overlay, tín hiệu niềm tin; tuyệt đối không sao chép hoặc rebrand ảnh đối thủ.
-- Video Insight Agent: đọc transcript/shot notes video, tách hook 3 giây đầu, nhịp kể, proof, CTA, khả năng lên xu hướng.
-- Trend Agent: phân tích trend Facebook, định dạng caption, câu hỏi kéo comment, chủ đề dễ share/save.
-- Strategy Agent: chọn hướng đúng nhất cho SmileUp dựa trên răng sứ và cấy implant.
-- Copywriting Agent: viết bài Facebook đăng được ngay bằng giọng marketing nha khoa chuyên nghiệp.
-
-Định vị SmileUp cần ưu tiên:
-- Dịch vụ trọng tâm: răng sứ thẩm mỹ, phục hình răng sứ, cấy ghép implant.
-- Tone: chuyên gia, tin cậy, hiện đại, không hù dọa, không phóng đại.
-- Mục tiêu: tạo lịch tư vấn/thăm khám, không hứa hẹn kết quả tuyệt đối.
-
-Dữ liệu insight đối thủ:
-{insights}
-
-Ad Library Agent report:
-{ad_library_report}
-
-Text Insight Agent report:
-{text_report}
-
-Visual Insight Agent report:
-{visual_report}
-
-Video Insight Agent report:
-{video_report}
-
-Phân tích trend Facebook từ dữ liệu đầu vào:
-{trend_analysis}
-
-Creative brief hình ảnh an toàn:
-{visual_brief}
-
-Strategic Direction Agent report:
-{strategic_direction}
-
-Chiến lược hiện tại:
-{strategy}
-
-Feedback cần xử lý:
-{feedback}
-
-Creative variation profile cho lượt chạy này:
-{variation_profile}
-
-Hãy tạo một bài đăng Facebook mới cho SmileUp.
-Yêu cầu:
-- Bám trọng tâm răng sứ hoặc implant, không lan man sang dịch vụ khác nếu insight không yêu cầu.
-- Mặc định bạn là chuyên gia marketing nha khoa 10+ năm kinh nghiệm, hiểu hành vi khách hàng Việt Nam, tâm lý sợ đau/sợ giá cao/sợ làm sai chỉ định.
-- Bài viết phải có giọng marketing thật: hook sắc, nỗi đau rõ, lợi ích cụ thể, lý do tin tưởng, CTA có lực kéo inbox.
-- Chia output thành các phần chính xác: phân tích marketing, góc trend, cấu trúc bài, bài đăng Facebook.
-- Bài đăng Facebook phải đọc như caption có thể đăng ngay: tự nhiên, nổi bật, có nhịp cảm xúc, không khô như báo cáo.
-- Có yếu tố dễ lên xu hướng: hook mạnh, câu hỏi gợi nhu cầu, lợi ích dễ scan, CTA rõ, hashtag hẹp.
-- Không sao chép câu chữ hoặc ảnh của đối thủ.
-- Không cam kết tuyệt đối như 100%, vĩnh viễn, không đau hoàn toàn, chắc chắn khỏi.
-- Có lưu ý kết quả tùy tình trạng răng và cần bác sĩ thăm khám.
-- Có CTA đặt lịch/inbox/gọi hotline.
-- Nếu là bài ads, CTA phải đủ rõ để khách để lại SĐT/inbox số điện thoại; nếu là chăm sóc page thì CTA ưu tiên bình luận, lưu bài, chia sẻ câu hỏi.
-- Hashtag 3-8 cái.
-- image_prompt phải mô tả ảnh gốc/AI mới cho SmileUp, chừa vùng trống sạch để hậu kỳ gắn logo thật, tuyệt đối không yêu cầu chỉnh ảnh đối thủ thành ảnh của SmileUp.
-- image_prompt bắt buộc là ảnh photorealistic có người thật trong phòng khám: một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng. Không được tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí. Tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, bảng giá, khuyến mãi hoặc banner trong ảnh.
-- Bắt buộc áp dụng creative variation profile: đổi hook style, nhịp copy, lead magnet, CTA mode và visual mood theo profile. Không viết lại cùng câu mở đầu/cùng CTA/cùng bối cảnh ảnh với lượt trước nếu keyword giống nhau.
-
-Chỉ trả về JSON thuần, không markdown:
-{{
-  "marketing_analysis": "Phân tích khách hàng mục tiêu, nỗi đau, insight, lý do bài viết nên thu hút khách hàng.",
-  "trend_angle": "Góc bắt trend Facebook nên dùng cho bài này.",
-  "post_structure": "Hook -> Pain point -> SmileUp solution -> Trust proof -> CTA.",
-  "title": "string",
-  "body": "string",
-  "hashtags": ["#tag"],
-  "call_to_action": "string",
-  "image_prompt": "string"
-}}
-""".strip()
-
-
-def _build_campaign_prompt(state: AgentState) -> str:
-    base = _build_prompt(state)
-    high_match_ads = json.dumps(state.get("high_match_ads", []), ensure_ascii=False, indent=2)
-    variation_profile = json.dumps(state.get("creative_variation_profile", {}), ensure_ascii=False, indent=2)
-    monthly_strategy = state.get("monthly_strategy") or state.get("strategic_direction") or "Chưa có chiến lược tháng."
-    return f"""
-{base}
-
-NHIỆM VỤ MỚI CỦA CMO:
-CMO không chỉ viết bài lẻ. CMO phải lập chiến lược tháng và chia content plan thành đúng 2 tuyến:
-1. ads_effective: bài ads hiệu quả, dựa trên các ads có keyword match từ 95% trở lên, mục tiêu khiến khách hàng để lại SĐT/inbox ngay để được gọi tư vấn.
-2. page_care: bài chăm sóc page, nuôi niềm tin và tăng tương tác bằng checklist, hỏi đáp, tình huống đời thường, save/share/comment; không bán gắt.
-
-RUN SEED: {state.get('run_seed', '')}
-Mỗi lượt chạy phải thay đổi hook, góc kể, lead magnet, cấu trúc mở bài và CTA theo seed này. Không trả lại cùng một bộ tiêu đề/caption nếu insight đầu vào giống lần trước.
-
-Creative variation profile bắt buộc dùng ở lượt này:
-{variation_profile}
-
-Luật chống lặp:
-- Nếu cùng keyword được chạy lại, vẫn phải tạo angle/copy/CTA mới theo profile này.
-- Không dùng lại cùng câu title, câu mở đầu body, lead magnet hoặc CTA với lượt trước.
-- Không dùng cùng visual mood cho tất cả ảnh; mỗi variant cần bối cảnh/góc máy/ánh sáng/đạo cụ khác nhau.
-- Nếu insight đầu vào giống nhau, hãy đổi cách tiếp cận thay vì đổi vài chữ bề mặt.
-
-Chiến lược tháng hiện tại:
-{monthly_strategy}
-
-Ads đủ điều kiện keyword match >=95%:
-{high_match_ads}
-
-Yêu cầu cho tuyến ads_effective:
-- Tạo ít nhất 3 bài ads, ưu tiên răng sứ thẩm mỹ, phục hình răng sứ và cấy ghép Implant.
-- Mỗi bài phải có CTA xin SĐT/inbox số điện thoại để SmileUp gọi lại tư vấn.
-- Copy phải đủ lực bán hàng: hook rõ, nỗi đau thật, lợi ích cụ thể, lý do tin tưởng, bước tiếp theo rất dễ làm.
-- Vẫn an toàn y khoa: không cam kết 100%, không nói không đau tuyệt đối, không chỉ định điều trị khi chưa thăm khám, có lưu ý kết quả phụ thuộc tình trạng răng miệng.
-- Không dùng CTA mơ hồ như "liên hệ ngay" nếu không nói khách cần để lại SĐT/inbox để được gọi tư vấn.
-- Không lấy ưu đãi/giảm giá làm lý do chính nếu chưa có dữ kiện hợp lệ từ SmileUp.
-
-Yêu cầu cho tuyến page_care:
-- Tạo ít nhất 2 bài chăm sóc page.
-- Mục tiêu là nuôi page, tăng bình luận/lưu/chia sẻ, giúp khách thấy SmileUp minh bạch và đáng tin.
-- CTA mềm: bình luận câu hỏi, lưu bài, chia sẻ tình huống, inbox nếu muốn được tư vấn thêm; không ép SĐT như bài ads.
-- Nội dung phải có giá trị lưu lại: checklist, câu hỏi cần hỏi bác sĩ, dấu hiệu nên đi khám, sai lầm cần tránh, hoặc tình huống đời thường.
-
-Mỗi bài phải khác biệt hơn các ads đầu vào bằng cách:
-- Không dựa vào giảm giá sốc làm lợi thế chính.
-- Không copy câu chữ, offer, bố cục copy của đối thủ.
-- Làm nổi bật SmileUp: tư vấn cá nhân hóa, quy trình minh bạch, phòng khám hiện đại, an toàn y khoa.
-- Có visual direction riêng và image_prompt riêng. image_prompt bắt buộc yêu cầu ảnh gốc/AI mới, chừa vùng trống sạch để hậu kỳ gắn logo SmileUp thật, không rebrand ảnh đối thủ.
-- image_prompt cho mọi variant bắt buộc là ảnh photorealistic có người thật trong phòng khám: một bác sĩ Việt Nam mặc đồ lâm sàng đang tư vấn hoặc thăm khám cùng một bệnh nhân/khách hàng. Cấm prompt tạo ảnh chỉ có logo, icon răng, biểu tượng, poster chữ, banner, infographic, phòng khám trống hoặc layout trang trí. Tuyệt đối không có chữ, số, watermark, CTA, tiêu đề, bảng giá, khuyến mãi hoặc banner trong ảnh.
-
-Chuẩn output bắt buộc:
-- Tối thiểu 5 variants: 3 ads_effective và 2 page_care.
-- ads_effective phải có service_line thuộc implant, rang_su hoặc phuc_hinh_su.
-- page_care phải có service_line thuộc trust hoặc reels.
-- Mỗi variant phải có angle khác nhau, CTA khác nhau và hook không trùng nhau.
-- Mỗi variant phải thể hiện rõ hook_style/copy_rhythm/lead_magnet/cta_mode từ creative variation profile, nhưng không lộ chữ "run_seed" trong caption.
-- Mỗi body phải có lưu ý an toàn: kết quả/phương án phụ thuộc tình trạng răng miệng và cần bác sĩ thăm khám hoặc tư vấn trực tiếp.
-- Không được trả lời ngoài JSON.
-
-Chỉ trả về JSON thuần theo schema:
-{{
-  "variants": [
-    {{
-      "campaign_track": "ads_effective | page_care",
-      "monthly_role": "vai trò của bài trong chiến lược tháng",
-      "source_ads_count": 0,
-      "service_line": "implant | rang_su | phuc_hinh_su | trust | reels",
-      "angle": "góc nội dung",
-      "differentiation": "SmileUp khác biệt hơn ads đối thủ ở điểm nào",
-      "marketing_analysis": "phân tích ngắn cho bài này",
-      "trend_angle": "trend angle riêng",
-      "post_structure": "Hook -> Pain point -> SmileUp solution -> Trust proof -> CTA",
-      "title": "string",
-      "body": "caption có thể đăng ngay",
-      "hashtags": ["#tag"],
-      "call_to_action": "string",
-      "image_prompt": "prompt ảnh gốc không chữ/banner, chừa vùng trống để gắn logo SmileUp thật bằng hậu kỳ"
-    }}
-  ]
-}}
-""".strip()
-
-
-def _parse_draft(text: str) -> DraftContent:
-    cleaned = text.strip()
-    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-    if match:
-        cleaned = match.group(0)
-
-    payload = json.loads(cleaned)
-    title = str(payload.get("title", "")).strip()
-    body = _dedupe_title_from_body(title, str(payload.get("body", "")).strip())
-    return {
-        "marketing_analysis": str(payload.get("marketing_analysis", "")).strip(),
-        "trend_angle": str(payload.get("trend_angle", "")).strip(),
-        "post_structure": str(payload.get("post_structure", "")).strip(),
-        "title": title,
-        "body": body,
-        "hashtags": [str(tag).strip() for tag in payload.get("hashtags", []) if str(tag).strip()],
-        "call_to_action": str(payload.get("call_to_action", "")).strip(),
-        "image_prompt": str(payload.get("image_prompt", "")).strip() or None,
-    }
-
-
-def _parse_content_plan(text: str) -> list[ContentVariant]:
-    cleaned = text.strip()
-    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-    if match:
-        cleaned = match.group(0)
-
-    payload = json.loads(cleaned)
-    raw_variants = payload.get("variants", [])
-    variants: list[ContentVariant] = []
-    for raw in raw_variants:
-        if not isinstance(raw, dict):
-            continue
-        title = str(raw.get("title", "")).strip()
-        body = _dedupe_title_from_body(title, str(raw.get("body", "")).strip())
-        variants.append(
-            {
-                "campaign_track": str(raw.get("campaign_track", "")).strip(),
-                "monthly_role": str(raw.get("monthly_role", "")).strip(),
-                "source_ads_count": _safe_int(raw.get("source_ads_count", 0)),
-                "service_line": str(raw.get("service_line", "")).strip(),
-                "angle": str(raw.get("angle", "")).strip(),
-                "differentiation": str(raw.get("differentiation", "")).strip(),
-                "marketing_analysis": str(raw.get("marketing_analysis", "")).strip(),
-                "trend_angle": str(raw.get("trend_angle", "")).strip(),
-                "post_structure": str(raw.get("post_structure", "")).strip(),
-                "title": title,
-                "body": body,
-                "hashtags": [str(tag).strip() for tag in raw.get("hashtags", []) if str(tag).strip()],
-                "call_to_action": str(raw.get("call_to_action", "")).strip(),
-                "image_prompt": str(raw.get("image_prompt", "")).strip(),
-            }
-        )
-    if not variants:
-        raise ValueError("Gemini returned no content variants")
-    return variants[:6]
-
-
-def _dedupe_title_from_body(title: str, body: str) -> str:
-    if not title or not body:
-        return body
-
-    normalized_title = _normalize_for_compare(title)
-    normalized_body = _normalize_for_compare(body)
-    if not normalized_body.startswith(normalized_title):
-        return body
-
-    remainder = body[len(title):].lstrip(" \n\r\t-:|")
-    return remainder or body
-
-
-def _normalize_for_compare(value: str) -> str:
-    return " ".join(value.casefold().split())
-
-
-def _safe_int(value) -> int:
-    try:
-        return int(value or 0)
-    except (TypeError, ValueError):
-        return 0
