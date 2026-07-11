@@ -72,6 +72,8 @@ class AgentState(TypedDict):
     ad_library_scan_mode: str
     ad_library_competitor_urls: list[str]
     ad_library_competitor_ratio: float
+    ad_library_scanned_at: str
+    ad_library_scan_id: str
     market_trend_summary: str
     facebook_trend_analysis: str
     visual_direction: str
@@ -126,6 +128,8 @@ def create_initial_state() -> AgentState:
         "ad_library_scan_mode": "auto",
         "ad_library_competitor_urls": [],
         "ad_library_competitor_ratio": 0.8,
+        "ad_library_scanned_at": "",
+        "ad_library_scan_id": "",
         "market_trend_summary": "",
         "facebook_trend_analysis": "",
         "visual_direction": "",
@@ -146,8 +150,8 @@ def create_initial_state() -> AgentState:
         "hardness_production_readiness": "unknown",
         "hardness_report": "",
         "cmo_objective": (
-            "Phân tích tín hiệu thị trường, chọn một hướng media 7 ngày và giao việc "
-            "cho Biên kịch, Đạo diễn AI và Video Editor."
+            "Phân tích tín hiệu Meta mới nhất, xây chiến dịch media 1 tháng chia 4 tuần, "
+            "đề xuất brand lane SmileUp và giao việc cho ba vai trò media."
         ),
         "cmo_decision": "",
         "cmo_feedback": "",

@@ -14,7 +14,7 @@ def run_text_insight_agent(state: AgentState) -> AgentState:
     report, provider = reason_with_agent_api(
         agent_name="Text Insight Agent",
         role="Đọc caption/bài viết/ads, tách hook, pain point, objection, offer, CTA và ngôn ngữ khách hàng.",
-        task="Tạo report cho CMO: đâu là insight chữ viết đáng dùng cho định hướng media 7 ngày và nhu cầu tư vấn đủ điều kiện.",
+        task="Tạo report cho CMO: đâu là insight chữ viết đáng dùng cho chiến dịch media 1 tháng và nhu cầu tư vấn đủ điều kiện.",
         context={
             "focus_keyword": focus_keyword,
             "competitor_insights": state.get("competitor_insights", []),

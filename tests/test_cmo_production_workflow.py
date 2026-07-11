@@ -44,7 +44,7 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         state["visual_insight_report"] = "Visual can co bac si, benh nhan va quy trinh tham kham."
         state["video_insight_report"] = "Video 30-45 giay, hook 3 giay dau, CTA tu van."
         state["strategic_direction"] = "Tap trung rang su va implant, tach paid media va organic."
-        state["weekly_strategy"] = "- Tín hiệu ưu tiên: khách hàng cần hiểu chỉ định và kỳ vọng thực tế trước khi đặt lịch."
+        state["monthly_strategy"] = "- Tín hiệu ưu tiên: khách hàng cần hiểu chỉ định và kỳ vọng thực tế trước khi đặt lịch."
         state["compliance_report"] = "Khong claim tuyet doi; bat buoc disclaimer tham kham."
         state["hardness_score"] = 90
         state["hardness_production_readiness"] = "ready"
@@ -57,50 +57,77 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         tasks = workflow["tasks"]
         self.assertEqual(result["cmo_decision"], "READY_FOR_PRODUCTION")
         self.assertEqual(result["cmo_next_action"], "dispatch")
-        self.assertEqual(workflow["planning_horizon"], "7 ngày")
-        self.assertEqual(len(tasks), 3)
-        self.assertEqual(len(workflow["approval_gates"]), 1)
-        self.assertEqual(
-            [task["owner_role"] for task in tasks],
-            ["Biên kịch", "Đạo diễn AI", "Video Editor"],
-        )
+        self.assertEqual(workflow["planning_horizon"], "1 tháng / 4 tuần")
+        self.assertEqual(len(tasks), 12)
+        self.assertEqual(len(workflow["approval_gates"]), 4)
+        self.assertEqual([gate["id"] for gate in workflow["approval_gates"]], ["QW1", "QW2", "QW3", "QW4"])
+        self.assertEqual(workflow["team_roles"], ["Biên kịch", "Đạo diễn AI", "Video Editor"])
+        self.assertEqual(len(workflow["weeks"]), 4)
+        for week in workflow["weeks"]:
+            self.assertEqual(
+                [assignment["owner_role"] for assignment in week["assignments"]],
+                ["Biên kịch", "Đạo diễn AI", "Video Editor"],
+            )
+            self.assertEqual(len(week["content_outputs"]), 3)
         self.assertEqual(tasks[0]["status"], "queued")
         self.assertTrue(all(task["status"] == "waiting_dependency" for task in tasks[1:]))
 
         task_ids = [task["id"] for task in tasks]
+        dependency_ids = set(task_ids) | {gate["id"] for gate in workflow["approval_gates"]}
         self.assertEqual(len(task_ids), len(set(task_ids)))
         for task in tasks:
             self.assertTrue(task["owner_role"])
             self.assertTrue(task["deliverables"])
             self.assertTrue(task["acceptance_criteria"])
-            self.assertTrue(set(task["dependencies"]).issubset(set(task_ids)))
+            self.assertTrue(set(task["dependencies"]).issubset(dependency_ids))
+        self.assertEqual(tasks[3]["dependencies"], ["QW1"])
 
         self.assertTrue(result["media_production_brief"])
         self.assertEqual(workflow["focus_keyword"], "implant toàn hàm")
-        direction = workflow["weekly_direction"]
-        self.assertEqual(direction["focus_topic"], "implant toàn hàm")
-        self.assertTrue(direction["primary_push"])
-        self.assertEqual(len(direction["recommended_outputs"]), 3)
-        self.assertIn("20 ads", direction["objective_basis"])
-        self.assertIn("không phải bằng chứng", direction["evidence_caveat"].lower())
-        self.assertTrue(direction["not_recommended"])
-        self.assertIn("7 NGÀY", result["media_production_brief"])
+        campaign = workflow["monthly_campaign"]
+        self.assertEqual(campaign["focus_topic"], "implant toàn hàm")
+        self.assertTrue(campaign["campaign_thesis"])
+        self.assertIn("20 ads", campaign["meta_evidence"]["basis"])
+        self.assertIn("không phải bằng chứng", campaign["meta_evidence"]["caveat"].lower())
+        self.assertIn("lượt quét hiện tại", campaign["meta_evidence"]["source"])
+        self.assertTrue(campaign["meta_evidence"]["scan_id"].startswith("META-"))
+        self.assertTrue(campaign["meta_evidence"]["analyzed_at"])
+        self.assertTrue(campaign["meta_evidence"]["reference_pages"])
+        self.assertTrue(campaign["meta_evidence"]["message_samples"])
+        brand = workflow["brand_platform"]
+        for field in ("brand_idea", "positioning", "promise", "voice", "visual_system", "signature_series", "guardrails"):
+            self.assertTrue(brand[field], field)
+        self.assertIn("SmileUp", brand["brand_idea"])
+        self.assertIn("1 THÁNG", result["media_production_brief"])
+        self.assertIn("TUẦN 1", result["media_production_brief"])
+        self.assertIn("SMILEUP BRAND", result["media_production_brief"])
         self.assertIn("implant toàn hàm", result["media_production_brief"])
         self.assertTrue(result["production_handoff"])
         self.assertTrue(FORBIDDEN_OUTPUT_FIELDS.isdisjoint(result))
 
-    def test_weekly_direction_changes_with_strategy_evidence(self) -> None:
+    def test_monthly_campaign_changes_with_strategy_evidence(self) -> None:
         first_state = self._ready_state()
-        first_state["weekly_strategy"] = "- Tín hiệu ưu tiên: khách hàng lo ngại thời gian hồi phục sau điều trị."
+        first_state["monthly_strategy"] = "- Tín hiệu ưu tiên: khách hàng lo ngại thời gian hồi phục sau điều trị."
         second_state = self._ready_state()
-        second_state["weekly_strategy"] = "- Tín hiệu ưu tiên: khách hàng cần hiểu điều kiện xương trước khi điều trị."
+        second_state["monthly_strategy"] = "- Tín hiệu ưu tiên: khách hàng cần hiểu điều kiện xương trước khi điều trị."
 
-        first = run_manager_agent(first_state)["media_production_workflow"]["weekly_direction"]
-        second = run_manager_agent(second_state)["media_production_workflow"]["weekly_direction"]
+        first = run_manager_agent(first_state)["media_production_workflow"]["monthly_campaign"]
+        second = run_manager_agent(second_state)["media_production_workflow"]["monthly_campaign"]
 
-        self.assertNotEqual(first["evidence_signal"], second["evidence_signal"])
-        self.assertIn("hồi phục", first["primary_push"])
-        self.assertIn("điều kiện xương", second["objective_basis"])
+        self.assertNotEqual(first["meta_evidence"]["selected_signal"], second["meta_evidence"]["selected_signal"])
+        self.assertIn("hồi phục", first["campaign_thesis"])
+        self.assertIn("điều kiện xương", second["meta_evidence"]["basis"])
+
+    def test_monthly_campaign_keeps_current_scan_sources_and_messages(self) -> None:
+        state = self._ready_state()
+        state["ad_library_ads"][0]["page_name"] = "Current Scan Dental"
+        state["ad_library_ads"][0]["ad_text"] = "Thông điệp chỉ có trong lượt quét hiện tại"
+
+        campaign = run_manager_agent(state)["media_production_workflow"]["monthly_campaign"]
+
+        self.assertIn("Current Scan Dental", campaign["meta_evidence"]["reference_pages"])
+        self.assertIn("Thông điệp chỉ có trong lượt quét hiện tại", campaign["meta_evidence"]["message_samples"])
+        self.assertIn(campaign["meta_evidence"]["scan_id"], run_manager_agent(state)["media_production_brief"])
 
     def test_cmo_requests_more_research_when_evidence_is_thin(self) -> None:
         result = run_manager_agent(create_initial_state())
@@ -108,6 +135,15 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         self.assertEqual(result["cmo_decision"], "NEEDS_MORE_RESEARCH")
         self.assertEqual(result["cmo_next_action"], "rescan")
         self.assertEqual(result["media_production_workflow"]["status"], "needs_research")
+
+    def test_cmo_does_not_dispatch_without_compliance_report(self) -> None:
+        state = self._ready_state()
+        state["compliance_report"] = ""
+
+        result = run_manager_agent(state)
+
+        self.assertEqual(result["cmo_decision"], "NEEDS_MORE_RESEARCH")
+        self.assertIn("compliance", result["cmo_feedback"])
 
     def test_graph_contains_analysis_and_dispatch_roles_only(self) -> None:
         self.assertEqual(
@@ -149,7 +185,20 @@ class CMOProductionWorkflowTests(unittest.TestCase):
 
     def test_keyword_propagates_through_specialist_reports_and_workflow(self) -> None:
         keyword = "niềng răng trong suốt"
-        result = build_workflow().invoke(_build_initial_state({"ad_library_keywords": keyword}))
+        ads = [
+            {
+                "library_id": f"keyword-ad-{index}",
+                "page_name": "Controlled Dental",
+                "ad_text": f"{keyword} tư vấn minh bạch {index}",
+                "source_type": "keyword_scan",
+                "similarity": 0.99,
+            }
+            for index in range(20)
+        ]
+        with patch.object(crawler_agent.config, "AD_LIBRARY_ENABLED", True), patch.object(
+            crawler_agent, "collect_ad_library_ads", return_value=ads
+        ):
+            result = build_workflow().invoke(_build_initial_state({"ad_library_keywords": keyword}))
 
         for field in (
             "text_insight_report",
@@ -186,6 +235,8 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         self.assertEqual(collect.call_args.kwargs["keywords"], keyword)
         self.assertEqual(len(result["ad_library_ads"]), 20)
         self.assertEqual(result["data_source"], "ad_library")
+        self.assertTrue(result["ad_library_scan_id"].startswith("META-"))
+        self.assertTrue(result["ad_library_scanned_at"])
 
 
 if __name__ == "__main__":

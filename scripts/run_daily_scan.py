@@ -53,9 +53,11 @@ def main() -> None:
     print(f"data_source={result.get('data_source')}")
     print(f"ads={len(result.get('ad_library_ads', []))}")
     workflow = result.get("media_production_workflow", {})
-    print(f"planning_horizon={workflow.get('planning_horizon', '7 ngày')}")
-    print(f"media_roles={len(workflow.get('tasks', []))}")
-    print(f"final_checkpoints={len(workflow.get('approval_gates', []))}")
+    print(f"planning_horizon={workflow.get('planning_horizon', '1 tháng / 4 tuần')}")
+    print(f"campaign_weeks={len(workflow.get('weeks', []))}")
+    print(f"media_roles={len(workflow.get('team_roles', []))}")
+    print(f"media_assignments={len(workflow.get('tasks', []))}")
+    print(f"weekly_checkpoints={len(workflow.get('approval_gates', []))}")
 
 
 if __name__ == "__main__":

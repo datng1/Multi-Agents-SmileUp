@@ -24,7 +24,7 @@ def run_compliance_agent(state: AgentState) -> AgentState:
         agent_name="Compliance Agent",
         role="Thiết lập guardrail y khoa, pháp lý, quyền hình ảnh và brand safety cho quy trình sản xuất media nha khoa.",
         task=(
-            "Đánh giá định hướng 7 ngày và insight trước khi sản xuất. Chỉ ra các rủi ro cần kiểm tra ở checkpoint cuối "
+            "Đánh giá chiến dịch 1 tháng, brand lane và insight trước khi sản xuất. Chỉ ra các rủi ro cần kiểm tra theo tuần "
             "về chuyên môn, thương hiệu và quyền media. Không viết caption và không tạo nội dung đăng bài."
         ),
         context={
@@ -49,6 +49,6 @@ def _fallback_report() -> str:
         [
             "Production compliance guardrails:",
             *[f"- {item}" for item in PRODUCTION_GUARDRAILS],
-            "Required checkpoint: final medical, brand and asset-rights review before handoff.",
+            "Required checkpoints: medical, brand and asset-rights review at the end of every week before the next brief opens.",
         ]
     )

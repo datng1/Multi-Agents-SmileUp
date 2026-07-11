@@ -44,9 +44,10 @@ def main() -> None:
     assert result["hardness_production_readiness"] in {"ready", "review", "blocked"}
     assert result["cmo_campaign_brief"], "CMO should produce a campaign brief"
     workflow = result["media_production_workflow"]
-    assert len(workflow["tasks"]) == 3, workflow["tasks"]
-    assert len(workflow["approval_gates"]) == 1, workflow["approval_gates"]
-    assert [task["owner_role"] for task in workflow["tasks"]] == ["Biên kịch", "Đạo diễn AI", "Video Editor"]
+    assert len(workflow["tasks"]) == 12, workflow["tasks"]
+    assert len(workflow["approval_gates"]) == 4, workflow["approval_gates"]
+    assert len(workflow["weeks"]) == 4, workflow["weeks"]
+    assert workflow["team_roles"] == ["Biên kịch", "Đạo diễn AI", "Video Editor"]
     assert all(task.get("owner_role") and task.get("deliverables") for task in workflow["tasks"])
     assert result["production_handoff"], "CMO should produce a handoff"
     assert not FORBIDDEN_OUTPUT_FIELDS.intersection(result), FORBIDDEN_OUTPUT_FIELDS.intersection(result)

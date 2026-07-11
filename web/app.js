@@ -47,7 +47,8 @@ const elements = Object.fromEntries(
     "productionBrief",
     "productionHandoff",
     "taskStatusText",
-    "productionTasks",
+    "brandPlatform",
+    "campaignWeeks",
     "successMetrics",
     "riskList",
     "adsSummary",
@@ -363,7 +364,7 @@ async function runWorkflow() {
   elements.keywordInput.value = keyword;
   setRunning(true);
   jobStartedAt = Date.now();
-  elements.runMessage.textContent = `Đang quét 20 ads theo "${keyword}" và xây production workflow.`;
+  elements.runMessage.textContent = `Đang quét 20 ads theo "${keyword}" và xây chiến dịch 1 tháng.`;
   elements.logOutput.textContent = "Workflow queued.";
   renderAgentProgress({}, "crawler");
   if (window.matchMedia("(max-width: 860px)").matches) {
@@ -395,7 +396,7 @@ async function pollJob(jobId) {
     if (payload.status === "completed") {
       renderResult(payload.result || {}, payload.logs || "");
       setRunning(false);
-      elements.runMessage.textContent = "CMO đã hoàn thành production workflow.";
+      elements.runMessage.textContent = "CMO đã hoàn thành chiến dịch 1 tháng.";
       currentJobId = "";
       await loadHistory();
       return;
@@ -410,20 +411,26 @@ async function pollJob(jobId) {
 function renderResult(result, logs = "") {
   const workflow = result.media_production_workflow || {};
   const keyword = String(result.ad_library_keywords || workflow.focus_keyword || elements.keywordInput.value).trim();
-  const tasks = Array.isArray(workflow.tasks) ? workflow.tasks : [];
+  const teamRoles = Array.isArray(workflow.team_roles) ? workflow.team_roles : [];
+  const weeks = Array.isArray(workflow.weeks) ? workflow.weeks : [];
+  const plannedVideos = weeks.reduce(
+    (total, week) => total + (Array.isArray(week.content_outputs) ? week.content_outputs.length : 0),
+    0,
+  );
 
   elements.cmoDecision.textContent = formatDecision(result.cmo_decision);
   elements.cmoFeedback.textContent = result.cmo_feedback || "CMO chưa có kết luận.";
   elements.hardnessScore.textContent = `${Number(result.hardness_score || 0)}/100`;
-  elements.teamCount.textContent = tasks.length ? `${tasks.length} vai trò` : "Chưa có";
-  elements.planWindow.textContent = workflow.planning_horizon || "7 ngày";
+  elements.teamCount.textContent = teamRoles.length ? `${teamRoles.length} vai trò` : "Chưa có";
+  elements.planWindow.textContent = workflow.planning_horizon || "1 tháng";
   elements.workflowStatus.textContent = workflow.status || "pending";
   elements.workflowStatus.className = `status-pill ${workflow.status === "ready_for_dispatch" ? "ready" : "warning"}`;
   elements.productionBrief.textContent = result.media_production_brief || "Chưa có production brief.";
   elements.productionHandoff.textContent = result.production_handoff || "Chưa có handoff.";
-  elements.taskStatusText.textContent = `${tasks.length} vai trò · 3 video`;
+  elements.taskStatusText.textContent = `${weeks.length} tuần · ${plannedVideos} video`;
 
-  renderTasks(tasks);
+  renderBrandPlatform(workflow.brand_platform || {});
+  renderCampaignWeeks(weeks);
   elements.successMetrics.innerHTML = formatList(workflow.metrics);
   elements.riskList.innerHTML = formatList(workflow.risks, "Không có rủi ro lớn được ghi nhận.");
   renderReports(result);
@@ -438,37 +445,63 @@ function formatDecision(decision) {
   return decision || "PENDING";
 }
 
-function renderTasks(tasks) {
-  if (!tasks.length) {
-    elements.productionTasks.className = "task-list empty-state";
-    elements.productionTasks.textContent = "Chưa có task.";
+function renderBrandPlatform(brand) {
+  if (!brand.brand_idea) {
+    elements.brandPlatform.className = "brand-platform empty-state";
+    elements.brandPlatform.textContent = "Brand lane sẽ hiện ở đây.";
     return;
   }
-  elements.productionTasks.className = "task-list";
-  elements.productionTasks.innerHTML = tasks.map((task) => {
-    const dependencies = task.dependencies?.length ? task.dependencies.join(", ") : "Định hướng tuần";
-    return `
-      <article class="task-row">
-        <div class="task-code"><strong>${escapeHtml(task.id)}</strong><span>${escapeHtml(task.priority || "P1")}</span></div>
-        <div class="task-main">
-          <div class="task-title-line"><h3>${escapeHtml(task.title)}</h3><span class="task-owner">${escapeHtml(task.owner_role)}</span></div>
-          <p>${escapeHtml(task.objective)}</p>
-          <div class="task-detail-grid">
-            <div><span>Đầu ra</span><ul>${formatList(task.deliverables)}</ul></div>
-            <div><span>Tiêu chí hoàn thành</span><ul>${formatList(task.acceptance_criteria)}</ul></div>
-          </div>
-        </div>
-        <dl class="task-meta">
-          <div><dt>Nhận từ</dt><dd>${escapeHtml(dependencies)}</dd></div>
-          <div><dt>Thời điểm</dt><dd>${escapeHtml(task.estimated_duration || "-")}</dd></div>
-          <div><dt>Trạng thái</dt><dd>${escapeHtml(task.status || "queued")}</dd></div>
-        </dl>
-      </article>`;
-  }).join("");
+  elements.brandPlatform.className = "brand-platform";
+  elements.brandPlatform.innerHTML = `
+    <div class="brand-core">
+      <div class="brand-mark-row">
+        <img src="/assets/smileup-logo.jfif" alt="SmileUp" />
+        <div><span>Brand idea</span><h3>${escapeHtml(brand.brand_idea)}</h3></div>
+      </div>
+      <p><strong>Định vị:</strong> ${escapeHtml(brand.positioning)}</p>
+      <p><strong>Lời hứa:</strong> ${escapeHtml(brand.promise)}</p>
+      <div class="brand-swatches" aria-label="Màu nhận diện SmileUp">
+        <i class="swatch-cyan" title="SmileUp cyan"></i><i class="swatch-blue" title="SmileUp blue"></i><i class="swatch-white" title="Clinical white"></i>
+      </div>
+    </div>
+    <div class="brand-rules">
+      <div><span>Giọng nói</span><ul>${formatList(brand.voice)}</ul></div>
+      <div><span>Hệ hình ảnh</span><ul>${formatList(brand.visual_system)}</ul></div>
+      <div><span>Series nhận diện</span><ul>${formatList(brand.signature_series)}</ul></div>
+      <div><span>Không sử dụng</span><ul>${formatList(brand.guardrails)}</ul></div>
+    </div>`;
+}
+
+function renderCampaignWeeks(weeks) {
+  if (!weeks.length) {
+    elements.campaignWeeks.className = "campaign-weeks empty-state";
+    elements.campaignWeeks.textContent = "Chưa có kế hoạch tháng.";
+    return;
+  }
+  elements.campaignWeeks.className = "campaign-weeks";
+  elements.campaignWeeks.innerHTML = weeks.map((week) => `
+    <section class="campaign-week">
+      <div class="week-heading">
+        <div class="week-number">${escapeHtml(week.label)}</div>
+        <div><h3>${escapeHtml(week.theme)}</h3><p>${escapeHtml(week.objective)}</p></div>
+      </div>
+      <p class="week-evidence"><strong>Tín hiệu Meta:</strong> ${escapeHtml(week.evidence_link)}</p>
+      <div class="week-outputs"><span>3 nội dung</span><ol>${formatList(week.content_outputs)}</ol></div>
+      <div class="assignment-grid">
+        ${(week.assignments || []).map((task) => `
+          <article class="assignment-item">
+            <div><span>${escapeHtml(task.owner_role)}</span><small>${escapeHtml(task.estimated_duration || "")}</small></div>
+            <h4>${escapeHtml(task.title)}</h4>
+            <p>${escapeHtml(task.objective)}</p>
+            <ul>${formatList(task.deliverables)}</ul>
+          </article>`).join("")}
+      </div>
+      <p class="week-review">${escapeHtml(week.review_focus)}</p>
+    </section>`).join("");
 }
 
 function renderReports(result) {
-  elements.strategyReport.textContent = result.weekly_strategy || result.strategic_direction || result.monthly_strategy || "Chưa có dữ liệu.";
+  elements.strategyReport.textContent = result.monthly_strategy || result.strategic_direction || result.weekly_strategy || "Chưa có dữ liệu.";
   elements.textReport.textContent = result.text_insight_report || "Chưa có dữ liệu.";
   elements.trendReport.textContent = result.facebook_trend_analysis || "Chưa có dữ liệu.";
   elements.visualReport.textContent = result.visual_insight_report || result.visual_direction || "Chưa có dữ liệu.";
@@ -515,7 +548,8 @@ function renderHistory(items) {
       <button class="history-open" type="button" data-history-id="${escapeHtml(item.history_id)}">
         <strong>${escapeHtml(item.title || "Media workflow")}</strong>
         <span>${escapeHtml(item.created_at || "")} · ${Number(item.ads_count || 0)} ads</span>
-        <small>${escapeHtml(item.keyword || "")} · ${escapeHtml(item.workflow_status || item.cmo_decision || "pending")} · ${Number(item.tasks_count || 0)} vai trò</small>
+        <span>${escapeHtml(item.scan_id || "Chưa có Scan ID")}</span>
+        <small>${escapeHtml(item.keyword || "")} · ${escapeHtml(item.workflow_status || item.cmo_decision || "pending")} · ${Number(item.tasks_count || 0)} đầu việc</small>
       </button>
       <button class="history-delete" type="button" data-delete-history-id="${escapeHtml(item.history_id)}" aria-label="Xóa workflow">Xóa</button>
     </article>`).join("");

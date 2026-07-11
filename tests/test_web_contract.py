@@ -9,16 +9,18 @@ class WebContractTests(unittest.TestCase):
     def test_dashboard_is_automatic_production_control_surface(self) -> None:
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
-        for required_id in ("keywordInput", "runButton", "productionTasks", "teamCount", "planWindow", "adsTableBody"):
+        for required_id in ("keywordInput", "runButton", "campaignWeeks", "brandPlatform", "teamCount", "planWindow", "adsTableBody"):
             self.assertIn(f'id="{required_id}"', html)
         for removed_id in ("approvalGates", "workflowGraph", "taskCount", "gateCount"):
             self.assertNotIn(f'id="{removed_id}"', html)
         self.assertIn("20 ads", html)
-        self.assertIn("Định hướng 7 ngày", html)
-        self.assertIn("Phân việc đội media", html)
+        self.assertIn("Chiến dịch 1 tháng", html)
+        self.assertIn("SmileUp brand lane", html)
+        self.assertIn("Kế hoạch theo 4 tuần", html)
         self.assertNotIn("tasks.length || 3", script)
         self.assertIn('fetchJson("/api/run"', script)
         self.assertIn("ad_library_keywords: keyword", script)
+        self.assertIn("item.scan_id", script)
         for forbidden in ("manualInput", "publishButton", "facebookPreview", "imageUpload", "captionEditor"):
             self.assertNotIn(forbidden, html + script)
 

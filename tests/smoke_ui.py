@@ -42,7 +42,8 @@ def main() -> None:
             overflow = scroll_width - client_width
             assert overflow <= 2, f"{width}x{height} horizontal overflow: {overflow}px"
             assert driver.find_element(By.ID, "runButton").is_displayed()
-            assert driver.find_element(By.ID, "productionTasks").is_displayed()
+            assert driver.find_element(By.ID, "campaignWeeks").is_displayed()
+            assert driver.find_element(By.ID, "brandPlatform").is_displayed()
             assert driver.find_element(By.ID, "planWindow").is_displayed()
             assert "20 ads" in body_text
             assert "đăng bài" not in body_text

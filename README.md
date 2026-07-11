@@ -1,6 +1,6 @@
 # SmileUp CMO Media Lead
 
-Ứng dụng điều hành kế hoạch media tuần cho SmileUp. Người dùng nhập một keyword, CMO tự động quét đúng 20 quảng cáo tham chiếu, chọn một hướng cần đẩy trong 7 ngày và giao việc cho Biên kịch, Đạo diễn AI và Video Editor.
+Ứng dụng điều hành chiến dịch media tháng cho SmileUp. Người dùng nhập một keyword, CMO tự động quét đúng 20 quảng cáo Meta tham chiếu, xây một campaign thesis, chia thành 4 tuần và giao việc cho Biên kịch, Đạo diễn AI và Video Editor.
 
 Ứng dụng dừng ở kế hoạch và bàn giao video đã duyệt. Keyword là đầu vào duy nhất; không có chức năng nhập ads thủ công, viết bài hoàn chỉnh, tạo ảnh/video hoặc đăng lên Facebook. Dữ liệu Ad Library được trình bày như tín hiệu thị trường, không phải bằng chứng doanh thu hay chuyển đổi.
 
@@ -20,11 +20,13 @@ Crawler (20 ads)
 
 Đầu ra của CMO gồm:
 
-- `media_production_brief`: định hướng tổng quát trong 7 ngày.
-- `weekly_direction`: chủ đề, mục tiêu, cơ sở khách quan, ba video đề xuất và điều không nên làm.
-- `media_production_workflow`: ba gói việc W01-W03 cho đúng ba vai trò của đội media.
-- `approval_gates`: một checkpoint Q01 để duyệt chuyên môn, thương hiệu và quyền media.
-- `production_handoff`: lịch bàn giao từ ngày 1 đến ngày 7.
+- `media_production_brief`: chiến dịch tổng quát trong 1 tháng và kế hoạch 4 tuần.
+- `monthly_campaign`: campaign thesis, Meta evidence snapshot, audience, mục tiêu và giới hạn dữ liệu.
+- `brand_platform`: brand idea, định vị, lời hứa, voice, visual system và signature series của SmileUp.
+- `weeks`: 4 tuần, mỗi tuần có 3 nội dung và 3 assignment cho đúng ba vai trò media.
+- `media_production_workflow`: 12 assignment trong tháng, được nhóm theo tuần.
+- `approval_gates`: bốn checkpoint QW1-QW4 để duyệt chuyên môn, thương hiệu và quyền media trước khi mở tuần kế.
+- `production_handoff`: nhịp bàn giao lặp lại theo từng tuần; QW4 là checkpoint cuối tháng.
 - `cmo_decision`: `READY_FOR_PRODUCTION` hoặc `NEEDS_MORE_RESEARCH`.
 
 Trong lúc workflow chạy, dashboard hiển thị một virtual operations floor bằng Canvas 2D với 9 workstation bám theo trạng thái agent. Scene chạy hoàn toàn trong trình duyệt, không gọi API hoặc tải asset bên ngoài.

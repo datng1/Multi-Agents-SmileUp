@@ -1,3 +1,7 @@
+import hashlib
+import json
+from datetime import datetime
+
 from graph.state import AgentState
 from tools.ad_library_scraper import (
     ads_to_competitor_insights,
@@ -41,6 +45,8 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         strategy_ads = high_match_ads or ads
         insights = ads_to_competitor_insights(strategy_ads)
         state["ad_library_ads"] = ads
+        state["ad_library_scanned_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        state["ad_library_scan_id"] = _ad_library_scan_id(keywords, ads)
         state["high_match_ads"] = high_match_ads
         state["high_match_threshold"] = 0.95
         state["ad_library_keywords"] = keywords
@@ -81,6 +87,27 @@ def run_crawler_agent(state: AgentState) -> AgentState:
     state["market_trend_summary"] = _market_summary(insights)
     state["current_step"] = "crawler"
     return state
+
+
+def _ad_library_scan_id(keywords: str, ads: list[dict]) -> str:
+    snapshot = {
+        "keywords": keywords,
+        "ads": [
+            {
+                "library_id": ad.get("library_id", ""),
+                "page_name": ad.get("page_name", ""),
+                "ad_text": ad.get("ad_text", ""),
+                "source_type": ad.get("source_type", ""),
+            }
+            for ad in ads
+        ],
+    }
+    digest = hashlib.sha256(
+        json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:16].upper()
+    return f"META-{digest}"
+
+
 def _market_summary(insights: list[dict]) -> str:
     topics: dict[str, int] = {}
     for insight in insights:

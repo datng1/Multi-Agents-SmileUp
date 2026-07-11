@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0f766e" />
-    <title>SmileUp CMO - Media Production Lead</title>
+    <title>SmileUp CMO - Monthly Media Campaign</title>
     <link rel="icon" href="/assets/favicon.ico" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
@@ -45,7 +45,7 @@
             <div><dt>Chế độ</dt><dd>Tự động</dd></div>
             <div><dt>Nguồn</dt><dd>Meta Ad Library</dd></div>
             <div><dt>Khối lượng</dt><dd>20 ads</dd></div>
-            <div><dt>Đầu ra</dt><dd>Kế hoạch 7 ngày</dd></div>
+            <div><dt>Đầu ra</dt><dd>Chiến dịch 1 tháng</dd></div>
           </dl>
           <button id="runButton" class="primary-button" type="button">Chạy CMO và giao việc</button>
           <p id="runMessage" class="run-message" role="status">Sẵn sàng · 20 ads mỗi lượt.</p>
@@ -83,38 +83,49 @@
         <section class="summary-band" aria-labelledby="summaryTitle">
           <div class="summary-copy">
             <p class="eyebrow">Executive control</p>
-            <h2 id="summaryTitle">Điều hành media tuần</h2>
-            <p id="cmoFeedback">Chạy CMO để nhận hướng tuần và phân việc cho đội media.</p>
+            <h2 id="summaryTitle">Điều hành chiến dịch tháng</h2>
+            <p id="cmoFeedback">Chạy CMO để nhận chiến dịch 4 tuần, brand lane và phân việc đội media.</p>
           </div>
           <dl class="summary-metrics">
             <div><dt>Decision</dt><dd id="cmoDecision">PENDING</dd></div>
             <div><dt>Evidence</dt><dd id="hardnessScore">0/100</dd></div>
             <div><dt>Team</dt><dd id="teamCount">3 vai trò</dd></div>
-            <div><dt>Window</dt><dd id="planWindow">7 ngày</dd></div>
+            <div><dt>Window</dt><dd id="planWindow">1 tháng</dd></div>
           </dl>
         </section>
 
         <section class="content-section" aria-labelledby="briefTitle">
           <div class="section-heading horizontal-heading">
             <div>
-              <p class="eyebrow">Weekly direction</p>
-              <h2 id="briefTitle">Định hướng 7 ngày</h2>
+              <p class="eyebrow">Monthly campaign</p>
+              <h2 id="briefTitle">Chiến dịch 1 tháng</h2>
             </div>
             <span id="workflowStatus" class="status-pill neutral">pending</span>
           </div>
-          <pre id="productionBrief" class="brief-output">Định hướng tuần sẽ hiện ở đây.</pre>
+          <pre id="productionBrief" class="brief-output">Chiến dịch tháng sẽ hiện ở đây.</pre>
           <p id="productionHandoff" class="handoff-note">Chưa có handoff.</p>
+        </section>
+
+        <section class="content-section" aria-labelledby="brandTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Distinctive identity</p>
+              <h2 id="brandTitle">SmileUp brand lane</h2>
+            </div>
+            <span class="section-meta">Ownable system</span>
+          </div>
+          <div id="brandPlatform" class="brand-platform empty-state">Brand lane sẽ hiện ở đây.</div>
         </section>
 
         <section class="content-section" aria-labelledby="taskTitle">
           <div class="section-heading horizontal-heading">
             <div>
               <p class="eyebrow">Three-role team</p>
-              <h2 id="taskTitle">Phân việc đội media</h2>
+              <h2 id="taskTitle">Kế hoạch theo 4 tuần</h2>
             </div>
-            <span id="taskStatusText" class="section-meta">3 vai trò</span>
+            <span id="taskStatusText" class="section-meta">4 tuần · 12 video</span>
           </div>
-          <div id="productionTasks" class="task-list empty-state">Chưa có task.</div>
+          <div id="campaignWeeks" class="campaign-weeks empty-state">Chưa có kế hoạch tháng.</div>
         </section>
 
         <section class="content-section" aria-labelledby="riskTitle">
@@ -123,7 +134,7 @@
             <h2 id="riskTitle">Chỉ số và giới hạn dữ liệu</h2>
           </div>
           <div class="split-list">
-            <div><h3>Tiêu chí tuần</h3><ul id="successMetrics"><li>Chưa có dữ liệu.</li></ul></div>
+            <div><h3>Tiêu chí tháng</h3><ul id="successMetrics"><li>Chưa có dữ liệu.</li></ul></div>
             <div><h3>Rủi ro cần kiểm soát</h3><ul id="riskList"><li>Chưa có dữ liệu.</li></ul></div>
           </div>
         </section>

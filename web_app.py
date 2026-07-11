@@ -33,7 +33,7 @@ AUTH_COOKIE_NAME = "smileup_session"
 CLIENT_SESSION_COOKIE_NAME = "smileup_client_session"
 AUTH_SESSION_SECONDS = 12 * 60 * 60
 CLIENT_SESSION_SECONDS = 30 * 24 * 60 * 60
-WORKFLOW_CONTEXT_CACHE_VERSION = 1
+WORKFLOW_CONTEXT_CACHE_VERSION = 2
 WORKFLOW_CONTEXT_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 WORKFLOW_CONTEXT_CACHE_CLEANUP_INTERVAL_SECONDS = 60 * 60
 JOB_TTL_SECONDS = 24 * 60 * 60
@@ -513,7 +513,7 @@ def _run_workflow_payload(request_payload: dict, session_id: str, username: str)
     output = {
         "result": result,
         "duration_ms": duration_ms,
-        "logs": "Weekly media direction completed with three-role assignment contract.",
+        "logs": "Monthly media campaign completed with four-week and SmileUp brand contracts.",
         "history_hit": False,
         "context_cache_key": context_key,
     }
@@ -685,6 +685,8 @@ def _workflow_context_history_summary(output: dict, request_payload: dict, cache
     result = output.get("result") or {}
     ads = result.get("ad_library_ads") or []
     workflow = result.get("media_production_workflow") or {}
+    campaign = workflow.get("monthly_campaign") or {}
+    evidence = campaign.get("meta_evidence") or {}
     keyword = _normalize_scan_keyword(
         request_payload.get("ad_library_keywords") or result.get("ad_library_keywords")
     )
@@ -696,9 +698,11 @@ def _workflow_context_history_summary(output: dict, request_payload: dict, cache
         "approval_status": result.get("approval_status") or "",
         "cmo_decision": result.get("cmo_decision") or "",
         "ads_count": len(ads),
+        "scan_id": evidence.get("scan_id") or result.get("ad_library_scan_id") or "",
+        "scanned_at": evidence.get("analyzed_at") or result.get("ad_library_scanned_at") or "",
         "competitor_ads": sum(1 for ad in ads if ad.get("source_type") == "competitor_page"),
         "keyword_ads": sum(1 for ad in ads if ad.get("source_type") == "keyword_scan"),
-        "title": workflow.get("workflow_id") or "Media production workflow",
+        "title": workflow.get("workflow_id") or "Monthly media campaign",
         "workflow_status": workflow.get("status") or "pending",
         "tasks_count": len(workflow.get("tasks") or []),
         "duration_ms": output.get("duration_ms", 0),
@@ -734,8 +738,8 @@ def _build_initial_state(request_payload: dict) -> dict:
     initial_state["production_focus_profile"] = _production_focus_profile(run_seed, ad_library_keywords)
     initial_state["ad_library_keywords"] = ad_library_keywords
     initial_state["cmo_objective"] = (
-        f"Phân tích tín hiệu thị trường theo keyword '{ad_library_keywords}', chọn một hướng media 7 ngày "
-        "và giao việc cho Biên kịch, Đạo diễn AI và Video Editor."
+        f"Phân tích tín hiệu Meta mới nhất theo keyword '{ad_library_keywords}', xây chiến dịch media 1 tháng chia 4 tuần, "
+        "đề xuất brand lane SmileUp và giao việc cho Biên kịch, Đạo diễn AI, Video Editor."
     )
     initial_state["ad_library_scan_mode"] = scan_mode
     initial_state["ad_library_max_ads"] = max_ads
