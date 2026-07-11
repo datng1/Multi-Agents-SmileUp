@@ -513,7 +513,7 @@ def _run_workflow_payload(request_payload: dict, session_id: str, username: str)
     output = {
         "result": result,
         "duration_ms": duration_ms,
-        "logs": "Workflow completed with production task contract.",
+        "logs": "Weekly media direction completed with three-role assignment contract.",
         "history_hit": False,
         "context_cache_key": context_key,
     }
@@ -734,8 +734,8 @@ def _build_initial_state(request_payload: dict) -> dict:
     initial_state["production_focus_profile"] = _production_focus_profile(run_seed, ad_library_keywords)
     initial_state["ad_library_keywords"] = ad_library_keywords
     initial_state["cmo_objective"] = (
-        f"Phân tích thị trường theo keyword '{ad_library_keywords}' và giao việc cho đội ngũ tạo workflow "
-        "sản xuất media có đầu ra, dependency, tiêu chí nghiệm thu và điểm duyệt rõ ràng."
+        f"Phân tích tín hiệu thị trường theo keyword '{ad_library_keywords}', chọn một hướng media 7 ngày "
+        "và giao việc cho Biên kịch, Đạo diễn AI và Video Editor."
     )
     initial_state["ad_library_scan_mode"] = scan_mode
     initial_state["ad_library_max_ads"] = max_ads

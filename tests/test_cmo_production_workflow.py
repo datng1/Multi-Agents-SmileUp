@@ -44,7 +44,7 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         state["visual_insight_report"] = "Visual can co bac si, benh nhan va quy trinh tham kham."
         state["video_insight_report"] = "Video 30-45 giay, hook 3 giay dau, CTA tu van."
         state["strategic_direction"] = "Tap trung rang su va implant, tach paid media va organic."
-        state["monthly_strategy"] = "Chien luoc thang dua tren 20 ads tham chieu."
+        state["weekly_strategy"] = "- Tín hiệu ưu tiên: khách hàng cần hiểu chỉ định và kỳ vọng thực tế trước khi đặt lịch."
         state["compliance_report"] = "Khong claim tuyet doi; bat buoc disclaimer tham kham."
         state["hardness_score"] = 90
         state["hardness_production_readiness"] = "ready"
@@ -57,8 +57,13 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         tasks = workflow["tasks"]
         self.assertEqual(result["cmo_decision"], "READY_FOR_PRODUCTION")
         self.assertEqual(result["cmo_next_action"], "dispatch")
-        self.assertGreaterEqual(len(tasks), 7)
-        self.assertGreaterEqual(len(workflow["approval_gates"]), 3)
+        self.assertEqual(workflow["planning_horizon"], "7 ngày")
+        self.assertEqual(len(tasks), 3)
+        self.assertEqual(len(workflow["approval_gates"]), 1)
+        self.assertEqual(
+            [task["owner_role"] for task in tasks],
+            ["Biên kịch", "Đạo diễn AI", "Video Editor"],
+        )
         self.assertEqual(tasks[0]["status"], "queued")
         self.assertTrue(all(task["status"] == "waiting_dependency" for task in tasks[1:]))
 
@@ -72,9 +77,30 @@ class CMOProductionWorkflowTests(unittest.TestCase):
 
         self.assertTrue(result["media_production_brief"])
         self.assertEqual(workflow["focus_keyword"], "implant toàn hàm")
+        direction = workflow["weekly_direction"]
+        self.assertEqual(direction["focus_topic"], "implant toàn hàm")
+        self.assertTrue(direction["primary_push"])
+        self.assertEqual(len(direction["recommended_outputs"]), 3)
+        self.assertIn("20 ads", direction["objective_basis"])
+        self.assertIn("không phải bằng chứng", direction["evidence_caveat"].lower())
+        self.assertTrue(direction["not_recommended"])
+        self.assertIn("7 NGÀY", result["media_production_brief"])
         self.assertIn("implant toàn hàm", result["media_production_brief"])
         self.assertTrue(result["production_handoff"])
         self.assertTrue(FORBIDDEN_OUTPUT_FIELDS.isdisjoint(result))
+
+    def test_weekly_direction_changes_with_strategy_evidence(self) -> None:
+        first_state = self._ready_state()
+        first_state["weekly_strategy"] = "- Tín hiệu ưu tiên: khách hàng lo ngại thời gian hồi phục sau điều trị."
+        second_state = self._ready_state()
+        second_state["weekly_strategy"] = "- Tín hiệu ưu tiên: khách hàng cần hiểu điều kiện xương trước khi điều trị."
+
+        first = run_manager_agent(first_state)["media_production_workflow"]["weekly_direction"]
+        second = run_manager_agent(second_state)["media_production_workflow"]["weekly_direction"]
+
+        self.assertNotEqual(first["evidence_signal"], second["evidence_signal"])
+        self.assertIn("hồi phục", first["primary_push"])
+        self.assertIn("điều kiện xương", second["objective_basis"])
 
     def test_cmo_requests_more_research_when_evidence_is_thin(self) -> None:
         result = run_manager_agent(create_initial_state())

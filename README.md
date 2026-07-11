@@ -1,8 +1,8 @@
-# SmileUp CMO Production Lead
+# SmileUp CMO Media Lead
 
-Ứng dụng điều hành workflow sản xuất media cho SmileUp. Người dùng nhập một keyword, CMO tự động quét đúng 20 quảng cáo tham chiếu theo keyword đó, tổng hợp evidence từ các specialist và giao một quy trình có owner, dependency, deliverable, tiêu chí nghiệm thu và approval gate.
+Ứng dụng điều hành kế hoạch media tuần cho SmileUp. Người dùng nhập một keyword, CMO tự động quét đúng 20 quảng cáo tham chiếu, chọn một hướng cần đẩy trong 7 ngày và giao việc cho Biên kịch, Đạo diễn AI và Video Editor.
 
-Ứng dụng dừng ở `approved media pack` và `experiment plan`. Keyword là đầu vào duy nhất; không có chức năng nhập ads thủ công, viết bài hoàn chỉnh, tạo ảnh/video hoặc đăng lên Facebook.
+Ứng dụng dừng ở kế hoạch và bàn giao video đã duyệt. Keyword là đầu vào duy nhất; không có chức năng nhập ads thủ công, viết bài hoàn chỉnh, tạo ảnh/video hoặc đăng lên Facebook. Dữ liệu Ad Library được trình bày như tín hiệu thị trường, không phải bằng chứng doanh thu hay chuyển đổi.
 
 ## Workflow
 
@@ -15,15 +15,16 @@ Crawler (20 ads)
   -> Strategy
   -> Compliance
   -> Evidence Readiness
-  -> CMO Production Lead
+  -> CMO Media Lead
 ```
 
 Đầu ra của CMO gồm:
 
-- `media_production_brief`: brief cấp phòng ban.
-- `media_production_workflow`: 9 task từ T01 đến T09.
-- `approval_gates`: G01 brief, G02 tiền kỳ, G03 compliance, G04 nghiệm thu.
-- `production_handoff`: chỉ dẫn giao task tiếp theo.
+- `media_production_brief`: định hướng tổng quát trong 7 ngày.
+- `weekly_direction`: chủ đề, mục tiêu, cơ sở khách quan, ba video đề xuất và điều không nên làm.
+- `media_production_workflow`: ba gói việc W01-W03 cho đúng ba vai trò của đội media.
+- `approval_gates`: một checkpoint Q01 để duyệt chuyên môn, thương hiệu và quyền media.
+- `production_handoff`: lịch bàn giao từ ngày 1 đến ngày 7.
 - `cmo_decision`: `READY_FOR_PRODUCTION` hoặc `NEEDS_MORE_RESEARCH`.
 
 Trong lúc workflow chạy, dashboard hiển thị một virtual operations floor bằng Canvas 2D với 9 workstation bám theo trạng thái agent. Scene chạy hoàn toàn trong trình duyệt, không gọi API hoặc tải asset bên ngoài.

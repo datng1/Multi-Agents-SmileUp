@@ -14,7 +14,7 @@
         <img src="/assets/smileup-logo.jfif" alt="SmileUp" class="brand-logo" />
         <div>
           <p class="eyebrow">Media operations</p>
-          <h1>CMO Production Lead</h1>
+          <h1>CMO Media Lead</h1>
         </div>
       </div>
       <div class="header-status" aria-live="polite">
@@ -45,7 +45,7 @@
             <div><dt>Chế độ</dt><dd>Tự động</dd></div>
             <div><dt>Nguồn</dt><dd>Meta Ad Library</dd></div>
             <div><dt>Khối lượng</dt><dd>20 ads</dd></div>
-            <div><dt>Đầu ra</dt><dd>Production tasks</dd></div>
+            <div><dt>Đầu ra</dt><dd>Kế hoạch 7 ngày</dd></div>
           </dl>
           <button id="runButton" class="primary-button" type="button">Chạy CMO và giao việc</button>
           <p id="runMessage" class="run-message" role="status">Sẵn sàng · 20 ads mỗi lượt.</p>
@@ -83,70 +83,49 @@
         <section class="summary-band" aria-labelledby="summaryTitle">
           <div class="summary-copy">
             <p class="eyebrow">Executive control</p>
-            <h2 id="summaryTitle">Workflow sản xuất media</h2>
-            <p id="cmoFeedback">Chạy CMO để nhận production brief và danh sách giao việc.</p>
+            <h2 id="summaryTitle">Điều hành media tuần</h2>
+            <p id="cmoFeedback">Chạy CMO để nhận hướng tuần và phân việc cho đội media.</p>
           </div>
           <dl class="summary-metrics">
             <div><dt>Decision</dt><dd id="cmoDecision">PENDING</dd></div>
             <div><dt>Evidence</dt><dd id="hardnessScore">0/100</dd></div>
-            <div><dt>Tasks</dt><dd id="taskCount">0</dd></div>
-            <div><dt>Gates</dt><dd id="gateCount">0</dd></div>
+            <div><dt>Team</dt><dd id="teamCount">3 vai trò</dd></div>
+            <div><dt>Window</dt><dd id="planWindow">7 ngày</dd></div>
           </dl>
         </section>
 
         <section class="content-section" aria-labelledby="briefTitle">
           <div class="section-heading horizontal-heading">
             <div>
-              <p class="eyebrow">Department brief</p>
-              <h2 id="briefTitle">Production brief</h2>
+              <p class="eyebrow">Weekly direction</p>
+              <h2 id="briefTitle">Định hướng 7 ngày</h2>
             </div>
             <span id="workflowStatus" class="status-pill neutral">pending</span>
           </div>
-          <pre id="productionBrief" class="brief-output">Production brief sẽ hiện ở đây.</pre>
+          <pre id="productionBrief" class="brief-output">Định hướng tuần sẽ hiện ở đây.</pre>
           <p id="productionHandoff" class="handoff-note">Chưa có handoff.</p>
         </section>
 
         <section class="content-section" aria-labelledby="taskTitle">
           <div class="section-heading horizontal-heading">
             <div>
-              <p class="eyebrow">Ownership map</p>
-              <h2 id="taskTitle">Danh sách giao việc</h2>
+              <p class="eyebrow">Three-role team</p>
+              <h2 id="taskTitle">Phân việc đội media</h2>
             </div>
-            <span id="taskStatusText" class="section-meta">0 task</span>
+            <span id="taskStatusText" class="section-meta">3 vai trò</span>
           </div>
           <div id="productionTasks" class="task-list empty-state">Chưa có task.</div>
         </section>
 
-        <div class="two-column-band">
-          <section class="content-section" aria-labelledby="gateTitle">
-            <div class="section-heading compact-heading">
-              <p class="eyebrow">Quality control</p>
-              <h2 id="gateTitle">Approval gates</h2>
-            </div>
-            <div id="approvalGates" class="gate-list empty-state">Chưa có approval gate.</div>
-          </section>
-
-          <section class="content-section" aria-labelledby="riskTitle">
-            <div class="section-heading compact-heading">
-              <p class="eyebrow">Readiness</p>
-              <h2 id="riskTitle">Metrics và rủi ro</h2>
-            </div>
-            <div class="split-list">
-              <div><h3>Success metrics</h3><ul id="successMetrics"><li>Chưa có dữ liệu.</li></ul></div>
-              <div><h3>Risks</h3><ul id="riskList"><li>Chưa có dữ liệu.</li></ul></div>
-            </div>
-          </section>
-        </div>
-
-        <section class="content-section" aria-labelledby="graphTitle">
-          <div class="section-heading horizontal-heading">
-            <div>
-              <p class="eyebrow">Dependencies</p>
-              <h2 id="graphTitle">Luồng bàn giao</h2>
-            </div>
-            <span id="graphSummary" class="section-meta">Chưa có graph.</span>
+        <section class="content-section" aria-labelledby="riskTitle">
+          <div class="section-heading compact-heading">
+            <p class="eyebrow">Objective review</p>
+            <h2 id="riskTitle">Chỉ số và giới hạn dữ liệu</h2>
           </div>
-          <div id="workflowGraph" class="workflow-graph empty-state">Chưa có dependency map.</div>
+          <div class="split-list">
+            <div><h3>Tiêu chí tuần</h3><ul id="successMetrics"><li>Chưa có dữ liệu.</li></ul></div>
+            <div><h3>Rủi ro cần kiểm soát</h3><ul id="riskList"><li>Chưa có dữ liệu.</li></ul></div>
+          </div>
         </section>
 
         <section class="content-section" aria-labelledby="reportTitle">

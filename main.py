@@ -28,17 +28,13 @@ def run_daily_marketing() -> AgentState:
 def _show_result(result: AgentState) -> None:
     print("\n=== BAO CAO NGAY ===")
     print(result["daily_report"])
-    print("\n=== PRODUCTION BRIEF ===")
+    print("\n=== DINH HUONG MEDIA 7 NGAY ===")
     print(result.get("media_production_brief", ""))
-    print("\n=== TASK ASSIGNMENTS ===")
+    print("\n=== PHAN VIEC DOI MEDIA ===")
     workflow = result.get("media_production_workflow", {})
     for task in workflow.get("tasks", []):
-        dependencies = ", ".join(task.get("dependencies", [])) or "none"
-        print(f"{task.get('id')} | {task.get('owner_role')} | {task.get('title')} | deps: {dependencies}")
-    print("\n=== APPROVAL GATES ===")
-    for gate in workflow.get("approval_gates", []):
-        print(f"{gate.get('id')} | after {gate.get('after_task')} | {gate.get('approver_role')}")
-    print("\n=== PRODUCTION HANDOFF ===")
+        print(f"{task.get('id')} | {task.get('owner_role')} | {task.get('title')} | {task.get('estimated_duration')}")
+    print("\n=== BAN GIAO TUAN ===")
     print(result.get("production_handoff", ""))
 
 

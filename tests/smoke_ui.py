@@ -43,7 +43,7 @@ def main() -> None:
             assert overflow <= 2, f"{width}x{height} horizontal overflow: {overflow}px"
             assert driver.find_element(By.ID, "runButton").is_displayed()
             assert driver.find_element(By.ID, "productionTasks").is_displayed()
-            assert driver.find_element(By.ID, "approvalGates").is_displayed()
+            assert driver.find_element(By.ID, "planWindow").is_displayed()
             assert "20 ads" in body_text
             assert "đăng bài" not in body_text
             assert "tải ảnh" not in body_text

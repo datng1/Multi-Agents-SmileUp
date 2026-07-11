@@ -23,7 +23,8 @@ def run_manager_agent(state: AgentState) -> AgentState:
     logger.info("CMO Agent building the media production operating plan")
     missing = _missing_evidence(state)
     ready = not missing
-    tasks = _production_tasks(state, ready)
+    weekly_direction = _weekly_direction(state)
+    tasks = _production_tasks(state, ready, weekly_direction)
     gates = _approval_gates()
     workflow_id = _workflow_id(state)
 
@@ -31,18 +32,20 @@ def run_manager_agent(state: AgentState) -> AgentState:
         "workflow_id": workflow_id,
         "status": "ready_for_dispatch" if ready else "needs_research",
         "focus_keyword": state.get("ad_library_keywords", ""),
+        "planning_horizon": "7 ngày",
         "objective": state.get("cmo_objective", ""),
         "source_ads_count": len(state.get("ad_library_ads", [])),
         "high_match_ads_count": len(state.get("high_match_ads", [])),
+        "weekly_direction": weekly_direction,
         "tasks": tasks,
         "approval_gates": gates,
         "metrics": _success_metrics(),
         "risks": _production_risks(state, missing),
         "operating_rules": [
-            "CMO giao việc và duyệt gate; không tự viết bài, tạo media hoặc đăng bài.",
-            "Mỗi owner chỉ bắt đầu khi dependency đã hoàn tất và gate liên quan đã được duyệt.",
+            "CMO chọn một trọng tâm cho 7 ngày và giao việc; ứng dụng không đăng bài.",
+            "Ba vai trò bàn giao tuần tự: Biên kịch -> Đạo diễn AI -> Video Editor.",
             "Tài sản đối thủ chỉ dùng làm dữ liệu tham chiếu, không sao chép caption, hình ảnh hoặc nhận diện.",
-            "Mọi asset có người thật phải có quyền sử dụng, consent và lưu vết nguồn.",
+            "Mọi nội dung nha khoa phải qua kiểm tra chuyên môn và quyền sử dụng trước khi bàn giao.",
         ],
     }
     state["media_production_workflow"] = workflow
@@ -57,7 +60,7 @@ def run_manager_agent(state: AgentState) -> AgentState:
         state["cmo_decision"] = "READY_FOR_PRODUCTION"
         state["cmo_next_action"] = "dispatch"
         state["cmo_feedback"] = (
-            f"Workflow {workflow_id} đủ dữ liệu để giao việc. Bắt đầu từ T01 và chỉ chuyển stage sau khi gate được duyệt."
+            f"Đã chốt hướng media 7 ngày cho '{workflow['focus_keyword']}' và giao việc cho 3 vai trò trong đội."
         )
     else:
         state["approval_status"] = "needs_revision"
@@ -98,132 +101,111 @@ def _missing_evidence(state: AgentState) -> list[str]:
     return missing
 
 
-def _production_tasks(state: AgentState, ready: bool) -> list[ProductionTask]:
-    common_status = "queued" if ready else "blocked"
+def _weekly_direction(state: AgentState) -> dict:
+    keyword = str(state.get("ad_library_keywords", "")).strip() or "dịch vụ nha khoa trọng tâm"
     ads_count = len(state.get("ad_library_ads", []))
+    high_match_count = len(state.get("high_match_ads", []))
+    evidence_signal = _evidence_signal(state)
+    return {
+        "focus_topic": keyword,
+        "primary_push": (
+            f"Đẩy mạnh chuỗi video tư vấn về '{keyword}': giúp khách hàng nhận diện nhu cầu, "
+            f"hiểu quy trình thăm khám và giải tỏa băn khoăn trước khi đặt lịch. Góc ưu tiên từ phân tích: {evidence_signal}"
+        ),
+        "business_goal": "Tăng nhu cầu tư vấn đủ điều kiện và củng cố niềm tin chuyên môn, không chạy theo lượt xem đơn thuần.",
+        "target_audience": f"Người đang cân nhắc '{keyword}', còn băn khoăn về độ phù hợp, quy trình, rủi ro và chi phí.",
+        "objective_basis": (
+            f"Phân tích {ads_count} ads công khai theo keyword, trong đó {high_match_count} ads có mức độ liên quan cao, "
+            f"kết hợp insight chữ, hình, video và kiểm tra tuân thủ. Tín hiệu được chọn: {evidence_signal}"
+        ),
+        "evidence_signal": evidence_signal,
+        "evidence_caveat": (
+            "Ads công khai chỉ phản ánh tín hiệu thông điệp và mức độ cạnh tranh; đây không phải bằng chứng về doanh thu, "
+            "tỷ lệ chuyển đổi hoặc hiệu quả thực tế của đối thủ."
+        ),
+        "recommended_outputs": [
+            f"Video 1 - Nhận diện vấn đề: khi nào nên tìm hiểu '{keyword}'.",
+            "Video 2 - Giải thích chuyên môn: quy trình thăm khám và tiêu chí đánh giá phù hợp.",
+            "Video 3 - Gỡ băn khoăn: rủi ro, kỳ vọng thực tế và câu hỏi thường gặp.",
+        ],
+        "weekly_cadence": [
+            "Ngày 1: chốt 3 kịch bản và thông điệp chính.",
+            "Ngày 2: khóa storyboard, nhịp dựng và hướng hình ảnh bằng AI.",
+            "Ngày 3-6: dựng 3 video dọc, phụ đề và kiểm tra chất lượng.",
+            "Ngày 7: duyệt chuyên môn, thương hiệu và bàn giao cho đội kênh.",
+        ],
+        "not_recommended": [
+            "Không dàn trải nhiều dịch vụ trong cùng tuần.",
+            "Không sao chép quảng cáo đối thủ hoặc dùng claim tuyệt đối.",
+            "Không kết luận một thông điệp hiệu quả chỉ vì xuất hiện nhiều trong Ad Library.",
+        ],
+    }
+
+
+def _evidence_signal(state: AgentState) -> str:
+    reports = (
+        state.get("weekly_strategy", ""),
+        state.get("strategic_direction", ""),
+        state.get("text_insight_report", ""),
+        state.get("video_insight_report", ""),
+    )
+    skipped_prefixes = ("focus keyword:", "định hướng media 7 ngày", "strategic direction agent:")
+    for report in reports:
+        for raw_line in str(report or "").splitlines():
+            line = raw_line.strip().lstrip("-• ").strip()
+            if len(line) < 20 or line.lower().startswith(skipped_prefixes):
+                continue
+            return line[:280].rstrip()
+    return "Chưa có tín hiệu nội dung đủ rõ; giữ hướng tư vấn nền và không suy diễn hiệu quả."
+
+
+def _production_tasks(state: AgentState, ready: bool, direction: dict) -> list[ProductionTask]:
+    common_status = "queued" if ready else "blocked"
     focus_keyword = state.get("ad_library_keywords", "")
     tasks = [
         _task(
-            "T01",
-            "01_strategy",
-            "Khóa production brief",
-            "Strategy Lead",
-            f"Chuyển phân tích {ads_count} ads theo keyword '{focus_keyword}' thành một brief sản xuất duy nhất cho tháng.",
-            ["Ad Library report", "Text/Trend/Visual/Video insight", "Strategic direction"],
-            ["Production brief 1 trang", "Audience và message hierarchy", "Danh sách format cần sản xuất"],
+            "W01",
+            "01_script",
+            "Viết 3 kịch bản video trong tuần",
+            "Biên kịch",
+            f"Chuyển hướng tuần về '{focus_keyword}' thành 3 kịch bản ngắn, rõ một mục tiêu và một CTA cho mỗi video.",
+            ["Định hướng 7 ngày", "Text insight", "Compliance guardrails"],
+            ["3 kịch bản video 30-45 giây", "Hook 3 giây đầu", "Lời thoại, CTA và lưu ý chuyên môn"],
             [],
-            ["Mục tiêu kinh doanh và audience rõ", "Mỗi insight có nguồn", "Không chứa final caption hoặc asset"],
+            ["Đúng 3 góc nội dung đã chốt", "Ngôn ngữ dễ hiểu, khách quan", "Không claim tuyệt đối hoặc hứa kết quả"],
             common_status,
-            "0.5 ngày",
+            "Ngày 1",
         ),
         _task(
-            "T02",
-            "02_messaging",
-            "Lập message matrix",
-            "Copy Lead",
-            "Biến chiến lược thành khung thông điệp để đội script và design cùng dùng.",
-            ["T01 production brief", "Compliance guardrails"],
-            ["Hook bank", "Pain point/objection matrix", "CTA và disclaimer library"],
-            ["T01"],
-            ["Có paid/organic lane", "Không claim tuyệt đối", "Mỗi CTA gắn đúng intent"],
+            "W02",
+            "02_ai_direction",
+            "Đạo diễn hình ảnh và nhịp kể bằng AI",
+            "Đạo diễn AI",
+            "Biến 3 kịch bản thành hướng quay/dựng nhất quán, khả thi với nguồn lực hiện có.",
+            ["3 kịch bản W01", "Visual/Video insight", "Brand guardrails"],
+            ["3 storyboard/shot plan", "Prompt và reference có nguồn cho từng cảnh", "Chỉ dẫn nhịp, text on screen và âm thanh"],
+            ["W01"],
+            ["Mỗi cảnh phục vụ thông điệp", "Hình ảnh nha khoa chính xác và chuyên nghiệp", "Không dùng tài sản thiếu quyền"],
             common_status,
-            "0.5 ngày",
+            "Ngày 2",
         ),
         _task(
-            "T03",
-            "03_concept",
-            "Phát triển concept media",
-            "Creative Director",
-            "Đề xuất hệ concept đủ rõ để sản xuất ảnh, carousel và short video.",
-            ["T01 production brief", "T02 message matrix", "Visual/Video insight"],
-            ["3 concept routes", "Format map", "Visual language và reference board có nguồn"],
-            ["T01", "T02"],
-            ["Mỗi concept bám một business objective", "Không sao chép asset đối thủ", "Khả thi với nguồn lực công ty"],
+            "W03",
+            "03_edit",
+            "Dựng và hoàn thiện 3 video",
+            "Video Editor",
+            "Dựng ba video dọc theo storyboard, ưu tiên khả năng hiểu nhanh, độ tin cậy và nhịp xem tự nhiên.",
+            ["Storyboard W02", "Voice/footage/AI assets đã được duyệt", "Brand kit"],
+            ["3 video dọc 9:16 hoàn chỉnh", "Phụ đề và audio mix", "Master file và bản bàn giao có version"],
+            ["W02"],
+            ["30-45 giây/video", "Hook rõ trong 3 giây đầu", "Phụ đề dễ đọc", "Không thêm claim ngoài kịch bản"],
             common_status,
-            "1 ngày",
-        ),
-        _task(
-            "T04",
-            "04_script",
-            "Viết script và storyboard",
-            "Scriptwriter",
-            "Tạo blueprint nội dung cho từng format mà chưa xuất bản thành bài hoàn chỉnh.",
-            ["T02 message matrix", "T03 concept routes"],
-            ["Video scripts", "Storyboard/shot-by-shot", "Carousel frame outline"],
-            ["T02", "T03"],
-            ["Hook xuất hiện trong 3 giây đầu", "CTA đúng lane", "Script có disclaimer và shot khả thi"],
-            common_status,
-            "1 ngày",
-        ),
-        _task(
-            "T05",
-            "05_preproduction",
-            "Lập kế hoạch tiền kỳ",
-            "Media Producer",
-            "Khóa lịch, nhân sự, bối cảnh và quyền sử dụng trước khi quay/chụp.",
-            ["T03 concept routes", "T04 scripts/storyboards"],
-            ["Shot list", "Call sheet", "Lịch sản xuất", "Consent và asset rights checklist"],
-            ["T03", "T04"],
-            ["Có owner cho từng shot", "Có phương án dự phòng", "Consent được chuẩn bị trước ngày quay"],
-            common_status,
-            "0.5 ngày",
-        ),
-        _task(
-            "T06",
-            "06_production",
-            "Quay và chụp media gốc",
-            "Photo/Video Team",
-            "Sản xuất raw media thuộc quyền sử dụng của công ty theo shot list đã duyệt.",
-            ["T05 call sheet và shot list"],
-            ["Raw video", "Raw photo", "Audio", "Asset log và consent record"],
-            ["T05"],
-            ["Đủ shot bắt buộc", "Âm thanh/hình ảnh đạt chuẩn kỹ thuật", "Asset log khớp file"],
-            common_status,
-            "1 ngày",
-        ),
-        _task(
-            "T07",
-            "07_postproduction",
-            "Dựng và thiết kế asset",
-            "Designer + Video Editor",
-            "Biến raw media thành bộ asset theo format map và brand system.",
-            ["T06 raw media", "T03 visual language", "T04 storyboard"],
-            ["Master assets", "Platform variants", "Subtitle/caption file", "Version manifest"],
-            ["T06"],
-            ["Đúng kích thước từng format", "Brand nhất quán", "Không chèn claim ngoài brief", "File có version rõ"],
-            common_status,
-            "1-2 ngày",
-        ),
-        _task(
-            "T08",
-            "08_compliance_qa",
-            "Kiểm tra y khoa, pháp lý và quyền media",
-            "Medical Compliance + Brand QA",
-            "Chặn asset có claim, consent hoặc nhận diện không đạt trước bàn giao.",
-            ["T07 master assets", "Compliance guardrails", "Consent record"],
-            ["QA checklist", "Issue list", "Approved asset manifest"],
-            ["T07"],
-            ["Không claim tuyệt đối", "Có disclaimer phù hợp", "Consent và nguồn asset hợp lệ", "Issue nghiêm trọng bằng 0"],
-            common_status,
-            "0.5 ngày",
-        ),
-        _task(
-            "T09",
-            "09_handoff",
-            "Nghiệm thu và bàn giao media pack",
-            "CMO + Performance Lead",
-            "Nghiệm thu bộ media và bàn giao cho kênh triển khai bên ngoài CMO app.",
-            ["T08 approved asset manifest", "Production metrics"],
-            ["Approved media pack", "Experiment matrix", "Naming/UTM convention", "Measurement checklist"],
-            ["T08"],
-            ["Mỗi asset có objective và audience", "Có test hypothesis", "Có owner đo lường", "Không có hành động đăng bài trong workflow này"],
-            common_status,
-            "0.5 ngày",
+            "Ngày 3-6",
         ),
     ]
     if ready:
         for task in tasks:
-            task["status"] = "queued" if task["id"] == "T01" else "waiting_dependency"
+            task["status"] = "queued" if task["id"] == "W01" else "waiting_dependency"
     return tasks
 
 
@@ -250,7 +232,7 @@ def _task(
         "deliverables": deliverables,
         "dependencies": dependencies,
         "acceptance_criteria": acceptance_criteria,
-        "priority": "P0" if task_id in {"T01", "T05", "T08", "T09"} else "P1",
+        "priority": "P0" if task_id in {"W01", "W03"} else "P1",
         "status": status,
         "estimated_duration": estimated_duration,
     }
@@ -259,73 +241,65 @@ def _task(
 def _approval_gates() -> list[ApprovalGate]:
     return [
         {
-            "id": "G01",
-            "after_task": "T01",
-            "approver_role": "CMO",
-            "checks": ["Business objective", "Audience", "Evidence traceability", "Format scope"],
-            "failure_action": "Trả T01 cho Strategy Lead, không mở T02/T03.",
-        },
-        {
-            "id": "G02",
-            "after_task": "T05",
-            "approver_role": "CMO + Media Producer",
-            "checks": ["Shot list", "Budget/resource fit", "Consent plan", "Production schedule"],
-            "failure_action": "Dừng ngày quay và sửa pre-production pack.",
-        },
-        {
-            "id": "G03",
-            "after_task": "T08",
-            "approver_role": "Medical Compliance",
-            "checks": ["Medical claims", "Disclaimer", "Asset rights", "Brand safety"],
-            "failure_action": "Trả đúng asset lỗi về T07; không bàn giao media pack.",
-        },
-        {
-            "id": "G04",
-            "after_task": "T09",
-            "approver_role": "CMO",
-            "checks": ["Objective mapping", "Experiment plan", "Measurement owner", "Version manifest"],
-            "failure_action": "Giữ workflow ở trạng thái review, không chuyển cho kênh triển khai.",
+            "id": "Q01",
+            "after_task": "W03",
+            "approver_role": "CMO + phụ trách chuyên môn",
+            "checks": ["Medical claims", "Kỳ vọng thực tế", "Brand consistency", "Asset rights"],
+            "failure_action": "Trả đúng video có lỗi về Video Editor trước khi bàn giao cho đội kênh.",
         },
     ]
 
 
 def _success_metrics() -> list[str]:
     return [
-        "100% task có owner, dependency và deliverable",
-        "100% asset có objective, audience và nguồn/consent",
-        "0 issue compliance nghiêm trọng ở final gate",
-        "Tỷ lệ asset vượt QA ngay vòng đầu",
-        "Thời gian từ brief approved đến media pack approved",
-        "Kết quả thử nghiệm theo hook, format và audience sau khi đội kênh triển khai",
+        "3 kịch bản được khóa trong ngày 1",
+        "3 video 9:16 hoàn tất chậm nhất ngày 6",
+        "Mỗi video chỉ có một mục tiêu và một CTA chính",
+        "0 claim y khoa thiếu căn cứ hoặc tài sản thiếu quyền ở checkpoint cuối",
+        "Sau khi đội kênh triển khai: theo dõi giữ chân 3 giây, tỷ lệ xem hết và số tư vấn đủ điều kiện",
     ]
 
 
 def _production_risks(state: AgentState, missing: list[str]) -> list[str]:
     risks = list(missing)
     risks.extend(state.get("hardness_missing_evidence", []) or [])
+    if not missing:
+        risks.extend(
+            [
+                "Dữ liệu Ad Library không cho biết chi tiêu, doanh thu hoặc tỷ lệ chuyển đổi của đối thủ.",
+                "Nội dung y khoa cần người phụ trách chuyên môn xác nhận trước khi bàn giao.",
+                "Không mở rộng sang dịch vụ khác trong tuần nếu chưa có dữ liệu mới.",
+            ]
+        )
     return _unique(risks)
 
 
 def _production_brief(state: AgentState, workflow: dict, missing: list[str]) -> str:
     readiness = "Sẵn sàng giao việc" if not missing else "Chưa giao việc"
+    direction = workflow.get("weekly_direction", {})
+    outputs = "\n".join(f"  {index}. {item}" for index, item in enumerate(direction.get("recommended_outputs", []), 1))
+    cadence = "\n".join(f"  - {item}" for item in direction.get("weekly_cadence", []))
+    avoid = "\n".join(f"  - {item}" for item in direction.get("not_recommended", []))
     return (
-        f"{readiness} - Workflow {workflow['workflow_id']}\n"
-        f"Keyword: {workflow.get('focus_keyword', '')}\n"
-        f"Mục tiêu: {workflow['objective']}\n"
-        f"Nguồn: {workflow['source_ads_count']} ads, {workflow['high_match_ads_count']} ads high-match.\n"
-        f"Chiến lược: {state.get('strategic_direction', '')}\n"
-        f"Guardrail: {state.get('compliance_report', '')}\n"
-        f"Phạm vi: {len(workflow['tasks'])} task, {len(workflow['approval_gates'])} approval gate; kết thúc ở media pack đã nghiệm thu, không đăng bài."
+        f"ĐỊNH HƯỚNG MEDIA 7 NGÀY - {readiness}\n\n"
+        f"Chủ đề trọng tâm: {direction.get('focus_topic', '')}\n"
+        f"Cần đẩy mạnh: {direction.get('primary_push', '')}\n"
+        f"Mục tiêu kinh doanh: {direction.get('business_goal', '')}\n"
+        f"Khán giả chính: {direction.get('target_audience', '')}\n\n"
+        f"Cơ sở khách quan: {direction.get('objective_basis', '')}\n"
+        f"Giới hạn dữ liệu: {direction.get('evidence_caveat', '')}\n\n"
+        f"Sản lượng đề xuất:\n{outputs}\n\n"
+        f"Nhịp triển khai:\n{cadence}\n\n"
+        f"Không nên làm:\n{avoid}"
     )
 
 
 def _handoff(workflow: dict, missing: list[str]) -> str:
     if missing:
-        return "CMO giữ workflow ở Research. Bổ sung dữ liệu còn thiếu rồi chạy lại trước khi giao T01."
-    first = workflow["tasks"][0]
+        return "CMO giữ kế hoạch ở bước nghiên cứu. Bổ sung dữ liệu còn thiếu rồi chạy lại trước khi giao việc."
     return (
-        f"Giao {first['id']} cho {first['owner_role']}. "
-        "CMO duyệt G01 trước khi mở các task concept; mọi task cập nhật status và đính kèm deliverable theo đúng ID."
+        "Bàn giao tuần: Biên kịch chốt W01 ngày 1; Đạo diễn AI nhận W02 ngày 2; "
+        "Video Editor hoàn thiện W03 trong ngày 3-6. Ngày 7 duyệt Q01 rồi chuyển video cho đội kênh; ứng dụng không đăng bài."
     )
 
 
@@ -351,39 +325,27 @@ def _decision_graph(tasks: list[ProductionTask], gates: list[ApprovalGate], read
     for gate in gates:
         nodes.append({"id": gate["id"], "label": f"{gate['id']} {gate['approver_role']}", "type": "gate", "status": "neutral"})
         edges.append({"source": gate["after_task"], "target": gate["id"], "relation": "requires_approval", "weight": 1.0})
-    gate_blocks = {
-        "G01": ["T02", "T03"],
-        "G02": ["T06"],
-        "G03": ["T09"],
-    }
-    for gate_id, next_tasks in gate_blocks.items():
-        for task_id in next_tasks:
-            edges.append({"source": gate_id, "target": task_id, "relation": "unlocks", "weight": 1.0})
-    selected_path = (
-        ["evidence", "T01", "G01", "T02", "T03", "T04", "T05", "G02", "T06", "T07", "T08", "G03", "T09", "G04"]
-        if ready
-        else ["evidence"]
-    )
+    selected_path = ["evidence", "W01", "W02", "W03", "Q01"] if ready else ["evidence"]
     return {"nodes": nodes, "edges": edges, "selected_path": selected_path}
 
 
 def _graph_summary(graph: dict) -> str:
     task_count = sum(1 for node in graph.get("nodes", []) if node.get("type") == "task")
     gate_count = sum(1 for node in graph.get("nodes", []) if node.get("type") == "gate")
-    return f"Production graph: {task_count} tasks, {gate_count} approval gates, {len(graph.get('edges', []))} dependencies."
+    return f"Weekly media plan: {task_count} roles, {gate_count} final checkpoint."
 
 
 def _daily_strategy(state: AgentState) -> str:
     workflow = state.get("media_production_workflow", {})
     task_lines = [
-        f"- {task['id']} | {task['owner_role']} | {task['title']} | deps: {', '.join(task['dependencies']) or 'none'}"
+        f"- {task['id']} | {task['owner_role']} | {task['title']} | {task['estimated_duration']}"
         for task in workflow.get("tasks", [])
     ]
     return "\n".join(
         [
             state.get("media_production_brief", ""),
             "",
-            "Danh sách giao việc:",
+            "Phân việc đội media:",
             *task_lines,
             "",
             "Handoff:",
@@ -399,8 +361,9 @@ def _daily_report(state: AgentState) -> str:
         f"Focus keyword: {workflow.get('focus_keyword', '')}\n"
         f"Workflow status: {workflow.get('status', 'pending')}\n"
         f"Evidence readiness: {state.get('hardness_score', 0)}/100\n"
-        f"Tasks: {len(workflow.get('tasks', []))}\n"
-        f"Approval gates: {len(workflow.get('approval_gates', []))}\n"
+        f"Planning horizon: {workflow.get('planning_horizon', '7 ngày')}\n"
+        f"Media roles: {len(workflow.get('tasks', []))}\n"
+        f"Final checkpoints: {len(workflow.get('approval_gates', []))}\n"
         f"Next action: {state.get('cmo_next_action', '')}\n"
         f"Feedback: {state.get('cmo_feedback', '')}"
     )

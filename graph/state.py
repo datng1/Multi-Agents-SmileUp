@@ -81,6 +81,7 @@ class AgentState(TypedDict):
     visual_insight_report: str
     video_insight_report: str
     strategic_direction: str
+    weekly_strategy: str
     monthly_strategy: str
     compliance_report: str
     production_guardrails: list[str]
@@ -134,6 +135,7 @@ def create_initial_state() -> AgentState:
         "visual_insight_report": "",
         "video_insight_report": "",
         "strategic_direction": "",
+        "weekly_strategy": "",
         "monthly_strategy": "",
         "compliance_report": "",
         "production_guardrails": [],
@@ -144,8 +146,8 @@ def create_initial_state() -> AgentState:
         "hardness_production_readiness": "unknown",
         "hardness_report": "",
         "cmo_objective": (
-            "Phân tích thị trường và giao việc cho đội ngũ tạo workflow sản xuất media "
-            "có đầu ra, dependency, tiêu chí nghiệm thu và điểm duyệt rõ ràng."
+            "Phân tích tín hiệu thị trường, chọn một hướng media 7 ngày và giao việc "
+            "cho Biên kịch, Đạo diễn AI và Video Editor."
         ),
         "cmo_decision": "",
         "cmo_feedback": "",

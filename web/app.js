@@ -41,18 +41,15 @@ const elements = Object.fromEntries(
     "cmoFeedback",
     "cmoDecision",
     "hardnessScore",
-    "taskCount",
-    "gateCount",
+    "teamCount",
+    "planWindow",
     "workflowStatus",
     "productionBrief",
     "productionHandoff",
     "taskStatusText",
     "productionTasks",
-    "approvalGates",
     "successMetrics",
     "riskList",
-    "graphSummary",
-    "workflowGraph",
     "adsSummary",
     "strategyReport",
     "textReport",
@@ -414,24 +411,21 @@ function renderResult(result, logs = "") {
   const workflow = result.media_production_workflow || {};
   const keyword = String(result.ad_library_keywords || workflow.focus_keyword || elements.keywordInput.value).trim();
   const tasks = Array.isArray(workflow.tasks) ? workflow.tasks : [];
-  const gates = Array.isArray(workflow.approval_gates) ? workflow.approval_gates : [];
 
   elements.cmoDecision.textContent = formatDecision(result.cmo_decision);
   elements.cmoFeedback.textContent = result.cmo_feedback || "CMO chưa có kết luận.";
   elements.hardnessScore.textContent = `${Number(result.hardness_score || 0)}/100`;
-  elements.taskCount.textContent = String(tasks.length);
-  elements.gateCount.textContent = String(gates.length);
+  elements.teamCount.textContent = tasks.length ? `${tasks.length} vai trò` : "Chưa có";
+  elements.planWindow.textContent = workflow.planning_horizon || "7 ngày";
   elements.workflowStatus.textContent = workflow.status || "pending";
   elements.workflowStatus.className = `status-pill ${workflow.status === "ready_for_dispatch" ? "ready" : "warning"}`;
   elements.productionBrief.textContent = result.media_production_brief || "Chưa có production brief.";
   elements.productionHandoff.textContent = result.production_handoff || "Chưa có handoff.";
-  elements.taskStatusText.textContent = `${tasks.length} task · ${gates.length} gate`;
+  elements.taskStatusText.textContent = `${tasks.length} vai trò · 3 video`;
 
   renderTasks(tasks);
-  renderGates(gates);
   elements.successMetrics.innerHTML = formatList(workflow.metrics);
   elements.riskList.innerHTML = formatList(workflow.risks, "Không có rủi ro lớn được ghi nhận.");
-  renderWorkflowGraph(tasks, gates);
   renderReports(result);
   if (keyword) elements.keywordInput.value = keyword;
   renderAds(result.ad_library_ads || [], keyword);
@@ -452,7 +446,7 @@ function renderTasks(tasks) {
   }
   elements.productionTasks.className = "task-list";
   elements.productionTasks.innerHTML = tasks.map((task) => {
-    const dependencies = task.dependencies?.length ? task.dependencies.join(", ") : "Không có";
+    const dependencies = task.dependencies?.length ? task.dependencies.join(", ") : "Định hướng tuần";
     return `
       <article class="task-row">
         <div class="task-code"><strong>${escapeHtml(task.id)}</strong><span>${escapeHtml(task.priority || "P1")}</span></div>
@@ -460,62 +454,21 @@ function renderTasks(tasks) {
           <div class="task-title-line"><h3>${escapeHtml(task.title)}</h3><span class="task-owner">${escapeHtml(task.owner_role)}</span></div>
           <p>${escapeHtml(task.objective)}</p>
           <div class="task-detail-grid">
-            <div><span>Deliverables</span><ul>${formatList(task.deliverables)}</ul></div>
-            <div><span>Acceptance</span><ul>${formatList(task.acceptance_criteria)}</ul></div>
+            <div><span>Đầu ra</span><ul>${formatList(task.deliverables)}</ul></div>
+            <div><span>Tiêu chí hoàn thành</span><ul>${formatList(task.acceptance_criteria)}</ul></div>
           </div>
         </div>
         <dl class="task-meta">
-          <div><dt>Deps</dt><dd>${escapeHtml(dependencies)}</dd></div>
-          <div><dt>ETA</dt><dd>${escapeHtml(task.estimated_duration || "-")}</dd></div>
-          <div><dt>Status</dt><dd>${escapeHtml(task.status || "queued")}</dd></div>
+          <div><dt>Nhận từ</dt><dd>${escapeHtml(dependencies)}</dd></div>
+          <div><dt>Thời điểm</dt><dd>${escapeHtml(task.estimated_duration || "-")}</dd></div>
+          <div><dt>Trạng thái</dt><dd>${escapeHtml(task.status || "queued")}</dd></div>
         </dl>
       </article>`;
   }).join("");
 }
 
-function renderGates(gates) {
-  if (!gates.length) {
-    elements.approvalGates.className = "gate-list empty-state";
-    elements.approvalGates.textContent = "Chưa có approval gate.";
-    return;
-  }
-  elements.approvalGates.className = "gate-list";
-  elements.approvalGates.innerHTML = gates.map((gate) => `
-    <article class="gate-row">
-      <div class="gate-id">${escapeHtml(gate.id)}</div>
-      <div>
-        <h3>Sau ${escapeHtml(gate.after_task)} · ${escapeHtml(gate.approver_role)}</h3>
-        <p>${escapeHtml((gate.checks || []).join(" · "))}</p>
-        <small>${escapeHtml(gate.failure_action || "")}</small>
-      </div>
-    </article>`).join("");
-}
-
-function renderWorkflowGraph(tasks, gates) {
-  elements.graphSummary.textContent = `${tasks.length} tasks · ${gates.length} gates`;
-  if (!tasks.length) {
-    elements.workflowGraph.className = "workflow-graph empty-state";
-    elements.workflowGraph.textContent = "Chưa có dependency map.";
-    return;
-  }
-  const gatesByTask = Object.groupBy ? Object.groupBy(gates, (gate) => gate.after_task) : gates.reduce((groups, gate) => {
-    groups[gate.after_task] = [...(groups[gate.after_task] || []), gate];
-    return groups;
-  }, {});
-  elements.workflowGraph.className = "workflow-graph";
-  elements.workflowGraph.innerHTML = tasks.map((task, index) => {
-    const taskGates = gatesByTask[task.id] || [];
-    return `
-      <div class="graph-segment">
-        <div class="graph-node"><strong>${escapeHtml(task.id)}</strong><span>${escapeHtml(task.owner_role)}</span></div>
-        ${taskGates.map((gate) => `<div class="graph-gate">${escapeHtml(gate.id)}</div>`).join("")}
-        ${index < tasks.length - 1 ? '<span class="graph-arrow" aria-hidden="true">→</span>' : ""}
-      </div>`;
-  }).join("");
-}
-
 function renderReports(result) {
-  elements.strategyReport.textContent = result.strategic_direction || result.monthly_strategy || "Chưa có dữ liệu.";
+  elements.strategyReport.textContent = result.weekly_strategy || result.strategic_direction || result.monthly_strategy || "Chưa có dữ liệu.";
   elements.textReport.textContent = result.text_insight_report || "Chưa có dữ liệu.";
   elements.trendReport.textContent = result.facebook_trend_analysis || "Chưa có dữ liệu.";
   elements.visualReport.textContent = result.visual_insight_report || result.visual_direction || "Chưa có dữ liệu.";
@@ -562,7 +515,7 @@ function renderHistory(items) {
       <button class="history-open" type="button" data-history-id="${escapeHtml(item.history_id)}">
         <strong>${escapeHtml(item.title || "Media workflow")}</strong>
         <span>${escapeHtml(item.created_at || "")} · ${Number(item.ads_count || 0)} ads</span>
-        <small>${escapeHtml(item.keyword || "")} · ${escapeHtml(item.workflow_status || item.cmo_decision || "pending")} · ${Number(item.tasks_count || 0)} task</small>
+        <small>${escapeHtml(item.keyword || "")} · ${escapeHtml(item.workflow_status || item.cmo_decision || "pending")} · ${Number(item.tasks_count || 0)} vai trò</small>
       </button>
       <button class="history-delete" type="button" data-delete-history-id="${escapeHtml(item.history_id)}" aria-label="Xóa workflow">Xóa</button>
     </article>`).join("");
