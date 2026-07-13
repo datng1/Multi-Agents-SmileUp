@@ -171,6 +171,7 @@ def build_revenue_strategy(
 def _campaign_summary(key: tuple[str, str, str, str], ads: list[dict]) -> dict[str, Any]:
     page, service, angle, funnel = key
     messages = _unique(str(ad.get("ad_text") or "").strip() for ad in ads)[:3]
+    source_ad_ids = _unique(str(ad.get("library_id") or "").strip() for ad in ads)
     avg_similarity = sum(float(ad.get("similarity", 0) or 0) for ad in ads) / max(1, len(ads))
     media_count = sum(1 for ad in ads if ad.get("media_urls"))
     pressure = min(100, round(20 + len(ads) * 14 + avg_similarity * 25 + min(media_count, 3) * 4))
@@ -194,6 +195,7 @@ def _campaign_summary(key: tuple[str, str, str, str], ads: list[dict]) -> dict[s
         "media_count": media_count,
         "average_similarity": round(avg_similarity, 3),
         "started_running": _unique(str(ad.get("started_running") or "").strip() for ad in ads)[:3],
+        "source_ad_ids": source_ad_ids,
         "representative_messages": messages,
         "strengths": strengths,
         "weaknesses": weaknesses,

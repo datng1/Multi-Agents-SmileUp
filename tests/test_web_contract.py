@@ -11,7 +11,7 @@ class WebContractTests(unittest.TestCase):
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
         for required_id in (
             "keywordInput", "runButton", "campaignWeeks", "brandPlatform", "teamCount", "planWindow",
-            "adsTableBody", "marketCoverage", "competitorCampaigns", "revenueStrategy",
+            "adsTableBody", "marketCoverage", "competitorCampaigns", "campaignDetail", "revenueStrategy",
         ):
             self.assertIn(f'id="{required_id}"', html)
         for removed_id in ("approvalGates", "workflowGraph", "taskCount", "gateCount"):
@@ -26,6 +26,12 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("item.scan_id", script)
         self.assertIn("Trần CAC/ca", script)
         self.assertIn("Trần CPL đủ điều kiện", script)
+        self.assertIn("data-campaign-id", script)
+        self.assertIn("campaign.source_ad_ids", script)
+        self.assertIn("safeMetaAdUrl", script)
+        self.assertIn('target="_blank" rel="noopener noreferrer"', script)
+        self.assertIn('hostname !== "facebook.com"', script)
+        self.assertNotIn("campaigns.slice(0, 12)", script)
         for forbidden in ("manualInput", "publishButton", "facebookPreview", "imageUpload", "captionEditor"):
             self.assertNotIn(forbidden, html + script)
 

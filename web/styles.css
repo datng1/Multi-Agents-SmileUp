@@ -702,11 +702,29 @@ button:disabled {
 }
 
 .competitor-campaign {
+  width: 100%;
   min-width: 0;
   padding: 13px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fcfdfd;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.competitor-campaign:hover,
+.competitor-campaign.selected {
+  border-color: #087ca7;
+  background: #f3fbfd;
+  box-shadow: inset 3px 0 0 #087ca7;
+}
+
+.competitor-campaign:focus-visible {
+  outline: 3px solid rgba(8, 124, 167, 0.24);
+  outline-offset: 2px;
 }
 
 .competitor-campaign > div:first-child,
@@ -747,6 +765,218 @@ button:disabled {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
+}
+
+.campaign-open-label {
+  display: block;
+  margin-top: 11px;
+  color: #087ca7;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.campaign-detail {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.campaign-detail.empty-state {
+  padding: 15px 0 0;
+}
+
+.campaign-detail-heading,
+.source-ads-heading,
+.source-ad > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.campaign-detail-heading span,
+.campaign-lane > span,
+.campaign-contrast > span,
+.campaign-week-compare > span,
+.source-ads-heading > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.campaign-detail-heading h3 {
+  margin: 5px 0 0;
+  font-size: 18px;
+}
+
+.campaign-detail-heading > strong {
+  color: var(--burgundy);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.campaign-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.campaign-lane {
+  min-width: 0;
+  padding: 15px;
+}
+
+.competitor-lane {
+  border-right: 1px solid var(--line);
+  background: #fafafa;
+}
+
+.smileup-lane {
+  background: #eff9f6;
+}
+
+.campaign-lane h4 {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.campaign-lane p,
+.campaign-lane li,
+.campaign-contrast p {
+  color: #43514e;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.campaign-lane ul {
+  margin: 10px 0;
+  padding-left: 18px;
+}
+
+.campaign-contrast {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.campaign-contrast p {
+  margin: 7px 0 0;
+}
+
+.campaign-week-compare {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.campaign-week-compare ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  background: var(--line);
+}
+
+.campaign-week-compare li {
+  min-width: 0;
+  padding: 11px;
+  background: #fff;
+}
+
+.campaign-week-compare strong,
+.campaign-week-compare small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.campaign-week-compare strong {
+  font-size: 11px;
+}
+
+.campaign-week-compare small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.campaign-source-ads {
+  padding-top: 15px;
+}
+
+.source-ads-heading small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.source-ads-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.source-ad {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.source-ad > div:first-child strong {
+  font-size: 11px;
+}
+
+.source-ad > div:first-child span {
+  color: #087ca7;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.source-ad > small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.source-ad > p {
+  margin: 10px 0;
+  color: #303c39;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.source-ad > a,
+.source-link-unavailable {
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.source-ad > a {
+  color: #087ca7;
+}
+
+.source-link-unavailable,
+.source-ads-empty {
+  color: var(--muted);
+}
+
+.campaign-caveat {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  background: #fff7e3;
+  color: #745313;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .revenue-section {
@@ -1274,6 +1504,10 @@ td:nth-child(4) {
     grid-template-columns: 1fr;
   }
 
+  .campaign-week-compare ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .assignment-grid {
     grid-template-columns: 1fr;
   }
@@ -1386,6 +1620,17 @@ td:nth-child(4) {
   .revenue-rules,
   .unit-economics {
     grid-template-columns: 1fr;
+  }
+
+  .campaign-comparison-grid,
+  .source-ads-grid,
+  .campaign-week-compare ol {
+    grid-template-columns: 1fr;
+  }
+
+  .competitor-lane {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 
   .market-coverage {

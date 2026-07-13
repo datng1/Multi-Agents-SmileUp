@@ -47,7 +47,20 @@ class CampaignIntelligenceTests(unittest.TestCase):
         self.assertGreaterEqual(len(result["campaigns"]), 4)
         self.assertTrue(all(campaign["representative_messages"] for campaign in result["campaigns"]))
         self.assertTrue(all(campaign["strengths"] and campaign["weaknesses"] for campaign in result["campaigns"]))
+        source_ids = [source_id for campaign in result["campaigns"] for source_id in campaign["source_ad_ids"]]
+        self.assertCountEqual(source_ids, [ad["library_id"] for ad in self.ads])
+        self.assertEqual(len(source_ids), len(set(source_ids)))
         self.assertIsNone(result["selected_opportunity"])
+
+    def test_campaign_keeps_all_source_ads_for_ui_drilldown(self) -> None:
+        result = analyze_market_campaigns(self.ads, "implant toàn hàm", 3, 6)
+        campaign = next(
+            item
+            for item in result["campaigns"]
+            if item["page_name"] == "Nha khoa A" and item["angle"] == "price_offer"
+        )
+
+        self.assertEqual(campaign["source_ad_ids"], ["market-1", "market-2"])
 
     def test_keyword_only_scan_cannot_claim_medium_or_high_market_coverage(self) -> None:
         ads = [_ad(index, f"Nha khoa {index}", "Bác sĩ giải thích implant và đặt lịch") for index in range(100)]

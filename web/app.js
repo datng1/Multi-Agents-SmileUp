@@ -22,6 +22,24 @@ const AGENT_LABELS = {
   manager_review: "CMO Dispatch",
 };
 
+const CAMPAIGN_LABELS = {
+  implant: "Implant",
+  orthodontics: "Chỉnh nha",
+  crowns: "Răng sứ / veneer",
+  whitening: "Tẩy trắng",
+  general: "Nha khoa tổng quát",
+  price_offer: "Ưu đãi / giá",
+  doctor_authority: "Chuyên môn bác sĩ",
+  technology_process: "Công nghệ / quy trình",
+  patient_proof: "Câu chuyện khách hàng",
+  pain_problem: "Nỗi đau / vấn đề",
+  education_transparency: "Giáo dục minh bạch",
+  general_promotion: "Quảng bá tổng quát",
+  awareness: "Nhận biết",
+  consideration: "Cân nhắc",
+  conversion: "Chuyển đổi",
+};
+
 const elements = Object.fromEntries(
   [
     "serviceStatus",
@@ -45,6 +63,7 @@ const elements = Object.fromEntries(
     "planWindow",
     "marketCoverage",
     "competitorCampaigns",
+    "campaignDetail",
     "revenueStrategy",
     "workflowStatus",
     "productionBrief",
@@ -74,6 +93,7 @@ let officeAnimationFrame = 0;
 let officeAnimationRunning = false;
 let officeStatuses = {};
 let officeCurrentStep = "";
+let marketDrilldown = { campaigns: [], ads: [], workflow: {}, selectedCampaignId: "" };
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -87,6 +107,23 @@ function escapeHtml(value) {
 function formatList(items, emptyText = "Chưa có dữ liệu.") {
   const values = Array.isArray(items) ? items.filter(Boolean) : [];
   return values.length ? values.map((item) => `<li>${escapeHtml(item)}</li>`).join("") : `<li>${escapeHtml(emptyText)}</li>`;
+}
+
+function campaignLabel(value) {
+  return CAMPAIGN_LABELS[value] || String(value || "Chưa phân loại");
+}
+
+function safeMetaAdUrl(value) {
+  try {
+    const url = new URL(String(value || ""), window.location.origin);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (url.protocol !== "https:" || hostname !== "facebook.com" || !url.pathname.startsWith("/ads/library")) {
+      return "";
+    }
+    return url.href;
+  } catch {
+    return "";
+  }
 }
 
 async function fetchJson(url, options = {}) {
@@ -432,7 +469,8 @@ function renderResult(result, logs = "") {
   elements.productionHandoff.textContent = result.production_handoff || "Chưa có handoff.";
   elements.taskStatusText.textContent = `${weeks.length} tuần · ${plannedVideos} video`;
 
-  renderMarketIntelligence(workflow.market_intelligence || {});
+  const ads = Array.isArray(result.ad_library_ads) ? result.ad_library_ads : [];
+  renderMarketIntelligence(workflow.market_intelligence || {}, ads, workflow);
   renderRevenueStrategy(workflow.revenue_strategy || {});
   renderBrandPlatform(workflow.brand_platform || {});
   renderCampaignWeeks(weeks);
@@ -440,18 +478,21 @@ function renderResult(result, logs = "") {
   elements.riskList.innerHTML = formatList(workflow.risks, "Không có rủi ro lớn được ghi nhận.");
   renderReports(result);
   if (keyword) elements.keywordInput.value = keyword;
-  renderAds(result.ad_library_ads || [], keyword);
+  renderAds(ads, keyword);
   elements.logOutput.textContent = logs || result.daily_report || "Workflow completed.";
 }
 
-function renderMarketIntelligence(market) {
+function renderMarketIntelligence(market, ads = [], workflow = {}) {
   const coverage = market.coverage || {};
   const campaigns = Array.isArray(market.campaigns) ? market.campaigns : [];
+  marketDrilldown = { campaigns, ads, workflow, selectedCampaignId: "" };
   if (!campaigns.length) {
     elements.marketCoverage.className = "market-coverage empty-state";
     elements.marketCoverage.textContent = "Chưa đủ campaign để đo độ phủ.";
     elements.competitorCampaigns.className = "competitor-campaigns empty-state";
     elements.competitorCampaigns.textContent = "Campaign đối thủ sẽ hiện ở đây.";
+    elements.campaignDetail.className = "campaign-detail empty-state";
+    elements.campaignDetail.textContent = "Chưa có ads nguồn để đối chiếu.";
     return;
   }
   elements.marketCoverage.className = "market-coverage";
@@ -462,16 +503,108 @@ function renderMarketIntelligence(market) {
     <div><span>Độ phủ</span><strong>${escapeHtml(coverage.coverage_level || "low")} · ${Number(coverage.coverage_score || 0)}/100</strong></div>
     <p>Đối thủ cấu hình đã xác minh: ${Number(coverage.configured_pages_observed || 0)}/${Number(coverage.configured_competitor_pages || 0)} page. ${escapeHtml(coverage.limitation || "")}</p>`;
   elements.competitorCampaigns.className = "competitor-campaigns";
-  elements.competitorCampaigns.innerHTML = campaigns.slice(0, 12).map((campaign) => `
-    <article class="competitor-campaign">
+  elements.competitorCampaigns.innerHTML = campaigns.map((campaign) => `
+    <button class="competitor-campaign" type="button" data-campaign-id="${escapeHtml(campaign.campaign_id)}" aria-controls="campaignDetail" aria-expanded="false">
       <div><strong>${escapeHtml(campaign.page_name)}</strong><span>${Number(campaign.ad_count || 0)} ads</span></div>
-      <h3>${escapeHtml(campaign.service_line)} · ${escapeHtml(campaign.angle)}</h3>
-      <p>${escapeHtml(campaign.funnel_stage)} · áp lực ${Number(campaign.market_pressure_score || 0)}/100</p>
+      <h3>${escapeHtml(campaignLabel(campaign.service_line))} · ${escapeHtml(campaignLabel(campaign.angle))}</h3>
+      <p>${escapeHtml(campaignLabel(campaign.funnel_stage))} · áp lực ${Number(campaign.market_pressure_score || 0)}/100</p>
       <dl>
         <div><dt>Mạnh</dt><dd>${escapeHtml((campaign.strengths || []).join("; "))}</dd></div>
         <div><dt>Yếu</dt><dd>${escapeHtml((campaign.weaknesses || []).join("; "))}</dd></div>
       </dl>
-    </article>`).join("");
+      <span class="campaign-open-label">Xem ads và đối chiếu</span>
+    </button>`).join("");
+  elements.campaignDetail.className = "campaign-detail empty-state";
+  elements.campaignDetail.textContent = "Chọn một campaign để xem ads nguồn và đối chiếu với SmileUp.";
+}
+
+function resolveCampaignAds(campaign, ads) {
+  const sourceIds = new Set((campaign.source_ad_ids || []).map((item) => String(item)));
+  if (sourceIds.size) {
+    return ads.filter((ad) => sourceIds.has(String(ad.library_id || "")));
+  }
+  const messages = new Set((campaign.representative_messages || []).map((item) => String(item).trim()));
+  return ads.filter((ad) => (
+    String(ad.page_name || "").trim() === String(campaign.page_name || "").trim()
+    && messages.has(String(ad.ad_text || "").trim())
+  ));
+}
+
+function buildCampaignContrast(campaign, workflow) {
+  const revenue = workflow.revenue_strategy || {};
+  const opportunity = revenue.selected_opportunity || {};
+  const brand = workflow.brand_platform || {};
+  const competitorLane = `${campaignLabel(campaign.angle)} ở tầng ${campaignLabel(campaign.funnel_stage)}`;
+  const smileUpLane = opportunity.differentiation || brand.positioning || "Chưa có hướng khác biệt đủ rõ.";
+  return `Đối thủ đang tập trung vào ${competitorLane}. SmileUp đối chiếu bằng hướng: ${smileUpLane}`;
+}
+
+function renderCampaignDetail(campaignId) {
+  const campaign = marketDrilldown.campaigns.find((item) => item.campaign_id === campaignId);
+  if (!campaign) return;
+  marketDrilldown.selectedCampaignId = campaignId;
+  elements.competitorCampaigns.querySelectorAll("[data-campaign-id]").forEach((button) => {
+    const selected = button.dataset.campaignId === campaignId;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-expanded", selected ? "true" : "false");
+  });
+
+  const workflow = marketDrilldown.workflow || {};
+  const monthlyCampaign = workflow.monthly_campaign || {};
+  const revenue = workflow.revenue_strategy || {};
+  const opportunity = revenue.selected_opportunity || {};
+  const brand = workflow.brand_platform || {};
+  const weeks = Array.isArray(workflow.weeks) ? workflow.weeks : [];
+  const sourceAds = resolveCampaignAds(campaign, marketDrilldown.ads);
+  const messages = sourceAds.length
+    ? sourceAds.map((ad) => ad.ad_text).filter(Boolean)
+    : (campaign.representative_messages || []);
+
+  elements.campaignDetail.className = "campaign-detail";
+  elements.campaignDetail.innerHTML = `
+    <div class="campaign-detail-heading">
+      <div>
+        <span>Campaign ${escapeHtml(campaign.campaign_id)}</span>
+        <h3>${escapeHtml(campaign.page_name)} · ${escapeHtml(campaignLabel(campaign.service_line))}</h3>
+      </div>
+      <strong>${sourceAds.length}/${Number(campaign.ad_count || 0)} ads nguồn</strong>
+    </div>
+    <div class="campaign-comparison-grid">
+      <section class="campaign-lane competitor-lane" aria-labelledby="competitorLaneTitle">
+        <span>Đối thủ quan sát được</span>
+        <h4 id="competitorLaneTitle">${escapeHtml(campaignLabel(campaign.angle))} · ${escapeHtml(campaignLabel(campaign.funnel_stage))}</h4>
+        <ul>${formatList(messages.slice(0, 3), "Không có caption nguồn.")}</ul>
+        <p><strong>Điểm yếu:</strong> ${escapeHtml((campaign.weaknesses || []).join("; ") || "Chưa đủ dữ liệu.")}</p>
+      </section>
+      <section class="campaign-lane smileup-lane" aria-labelledby="smileUpLaneTitle">
+        <span>Chiến lược SmileUp</span>
+        <h4 id="smileUpLaneTitle">${escapeHtml(monthlyCampaign.campaign_name || brand.brand_idea || "Chưa có campaign thesis")}</h4>
+        <p>${escapeHtml(monthlyCampaign.campaign_thesis || opportunity.strategic_gap || "Chưa có chiến lược tháng.")}</p>
+        <p><strong>Chuyển đổi chính:</strong> ${escapeHtml(revenue.primary_conversion || "Chưa xác định")}</p>
+      </section>
+    </div>
+    <div class="campaign-contrast">
+      <span>Nhận định đối chiếu</span>
+      <p>${escapeHtml(buildCampaignContrast(campaign, workflow))}</p>
+      <p><strong>Khoảng trống SmileUp chọn:</strong> ${escapeHtml(opportunity.strategic_gap || "Chưa đủ độ phủ để chọn khoảng trống.")}</p>
+    </div>
+    <div class="campaign-week-compare">
+      <span>SmileUp triển khai trong tháng</span>
+      <ol>${weeks.map((week) => `<li><strong>${escapeHtml(week.label)} · ${escapeHtml(week.theme)}</strong><small>${escapeHtml(week.objective)}</small></li>`).join("") || "<li>Chưa có kế hoạch tuần.</li>"}</ol>
+    </div>
+    <div class="campaign-source-ads">
+      <div class="source-ads-heading"><span>Ads nguồn của đối thủ</span><small>Caption công khai từ lượt quét hiện tại</small></div>
+      <div class="source-ads-grid">${sourceAds.map((ad, index) => {
+        const adUrl = safeMetaAdUrl(ad.ad_url);
+        return `<article class="source-ad">
+          <div><strong>Bài ${index + 1} · ${escapeHtml(ad.page_name || campaign.page_name)}</strong><span>${Math.round(Number(ad.similarity || 0) * 100)}% khớp key</span></div>
+          <small>${escapeHtml(ad.started_running || "Không có ngày bắt đầu")} · Library ID ${escapeHtml(ad.library_id || "-")}</small>
+          <p>${escapeHtml(ad.ad_text || "Không có caption.")}</p>
+          ${adUrl ? `<a href="${escapeHtml(adUrl)}" target="_blank" rel="noopener noreferrer">Mở quảng cáo gốc trên Meta</a>` : '<span class="source-link-unavailable">Không có link Meta Ad Library hợp lệ</span>'}
+        </article>`;
+      }).join("") || '<p class="source-ads-empty">Lượt quét này chưa cung cấp được ads nguồn cho campaign.</p>'}</div>
+    </div>
+    <p class="campaign-caveat">Dữ liệu công khai chỉ cho biết thông điệp và cấu trúc campaign quan sát được; không chứng minh chi tiêu, lead, doanh thu hay hiệu quả thực tế của đối thủ.</p>`;
 }
 
 function renderRevenueStrategy(strategy) {
@@ -661,6 +794,14 @@ elements.historyList.addEventListener("click", (event) => {
     deleteHistory(deleteButton.dataset.deleteHistoryId).catch((error) => {
       elements.runMessage.textContent = error.message;
     });
+  }
+});
+elements.competitorCampaigns.addEventListener("click", (event) => {
+  const campaignButton = event.target.closest("[data-campaign-id]");
+  if (!campaignButton) return;
+  renderCampaignDetail(campaignButton.dataset.campaignId);
+  if (window.matchMedia("(max-width: 620px)").matches) {
+    elements.campaignDetail.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 });
 
