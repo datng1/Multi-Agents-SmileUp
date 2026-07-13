@@ -132,14 +132,14 @@ jobs:
               printf 'OPENAI_REASONING_EFFORT=high\n' >> "$STAGE/.env"
             fi
             if grep -q '^GEMINI_MODEL=' "$STAGE/.env"; then
-              sed -i 's/^GEMINI_MODEL=.*/GEMINI_MODEL=gemini-2.5-flash/' "$STAGE/.env"
+              sed -i 's/^GEMINI_MODEL=.*/GEMINI_MODEL=gemini-3.1-pro-preview/' "$STAGE/.env"
             else
-              printf 'GEMINI_MODEL=gemini-2.5-flash\n' >> "$STAGE/.env"
+              printf 'GEMINI_MODEL=gemini-3.1-pro-preview\n' >> "$STAGE/.env"
             fi
             if grep -q '^GEMINI_FALLBACK_MODELS=' "$STAGE/.env"; then
-              sed -i 's/^GEMINI_FALLBACK_MODELS=.*/GEMINI_FALLBACK_MODELS=gemini-2.5-flash/' "$STAGE/.env"
+              sed -i 's/^GEMINI_FALLBACK_MODELS=.*/GEMINI_FALLBACK_MODELS=gemini-3.1-pro-preview/' "$STAGE/.env"
             else
-              printf 'GEMINI_FALLBACK_MODELS=gemini-2.5-flash\n' >> "$STAGE/.env"
+              printf 'GEMINI_FALLBACK_MODELS=gemini-3.1-pro-preview\n' >> "$STAGE/.env"
             fi
             if grep -q '^AD_LIBRARY_MAX_ADS=' "$STAGE/.env"; then
               sed -i 's/^AD_LIBRARY_MAX_ADS=.*/AD_LIBRARY_MAX_ADS=100/' "$STAGE/.env"

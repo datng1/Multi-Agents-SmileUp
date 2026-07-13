@@ -73,7 +73,7 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         self.assertEqual(workflow["revenue_strategy"]["primary_conversion"], "Lịch tư vấn đủ điều kiện đã xác nhận")
         self.assertTrue(workflow["revenue_strategy"]["funnel"])
         self.assertEqual(workflow["model_routing"]["cmo_and_complex"], "gpt-5.6-sol")
-        self.assertEqual(workflow["model_routing"]["easy_analysis"], "gemini-2.5-flash")
+        self.assertEqual(workflow["model_routing"]["easy_analysis"], "gemini-3.1-pro-preview")
         self.assertTrue(workflow["model_routing"]["cmo_review_provider"])
         self.assertEqual(len(tasks), 12)
         self.assertEqual(len(workflow["approval_gates"]), 4)
