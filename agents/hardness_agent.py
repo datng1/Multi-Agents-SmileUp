@@ -24,6 +24,13 @@ def run_hardness_agent(state: AgentState) -> AgentState:
         recommendations.append("crawler")
         penalties += 10
 
+    coverage = (state.get("market_campaign_intelligence") or {}).get("coverage", {})
+    coverage_score = int(coverage.get("coverage_score", 0) or 0)
+    if coverage and coverage_score < 45:
+        missing.append(f"Độ phủ thị trường còn thấp: {coverage_score}/100.")
+        recommendations.append("crawler")
+        penalties += 15
+
     report_checks = [
         ("text_insight_report", "Thiếu text insight.", "text_insight"),
         ("facebook_trend_analysis", "Thiếu trend analysis.", "trend_analysis"),
@@ -64,6 +71,7 @@ def run_hardness_agent(state: AgentState) -> AgentState:
             "missing_evidence": missing,
             "recommended_next_agents": recommendations,
             "ad_library_report": state.get("ad_library_report", ""),
+            "market_coverage": coverage,
             "strategic_direction": state.get("strategic_direction", ""),
         },
         fallback=fallback_report,

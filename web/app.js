@@ -43,6 +43,9 @@ const elements = Object.fromEntries(
     "hardnessScore",
     "teamCount",
     "planWindow",
+    "marketCoverage",
+    "competitorCampaigns",
+    "revenueStrategy",
     "workflowStatus",
     "productionBrief",
     "productionHandoff",
@@ -108,7 +111,7 @@ async function loadStatus() {
   const status = await fetchJson("/api/status");
   elements.serviceStatus.textContent = "Hệ thống sẵn sàng";
   elements.serviceStatus.className = "status-pill ready";
-  elements.modelStatus.textContent = `${status.ai_provider || "Local"} · ${status.ai_model || "template"} · ${status.scan_ads || 20} ads`;
+  elements.modelStatus.textContent = `${status.ai_provider || "Local"} · ${status.ai_model || "template"} · tối đa ${status.scan_ads || 100} ads`;
   if (!elements.keywordInput.value.trim()) {
     elements.keywordInput.value = status.ad_library_keywords || "";
   }
@@ -364,7 +367,7 @@ async function runWorkflow() {
   elements.keywordInput.value = keyword;
   setRunning(true);
   jobStartedAt = Date.now();
-  elements.runMessage.textContent = `Đang quét 20 ads theo "${keyword}" và xây chiến dịch 1 tháng.`;
+  elements.runMessage.textContent = `Đang bao phủ thị trường theo "${keyword}" với tối đa 100 ads.`;
   elements.logOutput.textContent = "Workflow queued.";
   renderAgentProgress({}, "crawler");
   if (window.matchMedia("(max-width: 860px)").matches) {
@@ -374,7 +377,7 @@ async function runWorkflow() {
     const payload = await fetchJson("/api/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "auto", ad_library_max_ads: 20, ad_library_keywords: keyword }),
+      body: JSON.stringify({ mode: "market", ad_library_max_ads: 100, ad_library_keywords: keyword }),
     });
     currentJobId = payload.job_id;
     await pollJob(currentJobId);
@@ -429,6 +432,8 @@ function renderResult(result, logs = "") {
   elements.productionHandoff.textContent = result.production_handoff || "Chưa có handoff.";
   elements.taskStatusText.textContent = `${weeks.length} tuần · ${plannedVideos} video`;
 
+  renderMarketIntelligence(workflow.market_intelligence || {});
+  renderRevenueStrategy(workflow.revenue_strategy || {});
   renderBrandPlatform(workflow.brand_platform || {});
   renderCampaignWeeks(weeks);
   elements.successMetrics.innerHTML = formatList(workflow.metrics);
@@ -437,6 +442,69 @@ function renderResult(result, logs = "") {
   if (keyword) elements.keywordInput.value = keyword;
   renderAds(result.ad_library_ads || [], keyword);
   elements.logOutput.textContent = logs || result.daily_report || "Workflow completed.";
+}
+
+function renderMarketIntelligence(market) {
+  const coverage = market.coverage || {};
+  const campaigns = Array.isArray(market.campaigns) ? market.campaigns : [];
+  if (!campaigns.length) {
+    elements.marketCoverage.className = "market-coverage empty-state";
+    elements.marketCoverage.textContent = "Chưa đủ campaign để đo độ phủ.";
+    elements.competitorCampaigns.className = "competitor-campaigns empty-state";
+    elements.competitorCampaigns.textContent = "Campaign đối thủ sẽ hiện ở đây.";
+    return;
+  }
+  elements.marketCoverage.className = "market-coverage";
+  elements.marketCoverage.innerHTML = `
+    <div><span>Ads quan sát</span><strong>${Number(coverage.ads_observed || 0)}/${Number(coverage.scan_target || 0)}</strong></div>
+    <div><span>Nha khoa</span><strong>${Number(coverage.unique_pages || 0)}</strong></div>
+    <div><span>Campaign</span><strong>${Number(coverage.campaigns_detected || 0)}</strong></div>
+    <div><span>Độ phủ</span><strong>${escapeHtml(coverage.coverage_level || "low")} · ${Number(coverage.coverage_score || 0)}/100</strong></div>
+    <p>Đối thủ cấu hình đã xác minh: ${Number(coverage.configured_pages_observed || 0)}/${Number(coverage.configured_competitor_pages || 0)} page. ${escapeHtml(coverage.limitation || "")}</p>`;
+  elements.competitorCampaigns.className = "competitor-campaigns";
+  elements.competitorCampaigns.innerHTML = campaigns.slice(0, 12).map((campaign) => `
+    <article class="competitor-campaign">
+      <div><strong>${escapeHtml(campaign.page_name)}</strong><span>${Number(campaign.ad_count || 0)} ads</span></div>
+      <h3>${escapeHtml(campaign.service_line)} · ${escapeHtml(campaign.angle)}</h3>
+      <p>${escapeHtml(campaign.funnel_stage)} · áp lực ${Number(campaign.market_pressure_score || 0)}/100</p>
+      <dl>
+        <div><dt>Mạnh</dt><dd>${escapeHtml((campaign.strengths || []).join("; "))}</dd></div>
+        <div><dt>Yếu</dt><dd>${escapeHtml((campaign.weaknesses || []).join("; "))}</dd></div>
+      </dl>
+    </article>`).join("");
+}
+
+function renderRevenueStrategy(strategy) {
+  const funnel = Array.isArray(strategy.funnel) ? strategy.funnel : [];
+  if (!strategy.primary_conversion) {
+    elements.revenueStrategy.className = "revenue-strategy empty-state";
+    elements.revenueStrategy.textContent = "Revenue strategy sẽ hiện ở đây.";
+    return;
+  }
+  const opportunity = strategy.selected_opportunity || {};
+  const unitEconomics = strategy.unit_economics || {};
+  const economicsReady = strategy.economics_status === "ready";
+  elements.revenueStrategy.className = "revenue-strategy";
+  elements.revenueStrategy.innerHTML = `
+    <div class="revenue-headline">
+      <div><span>Khoảng trống được chọn</span><h3>${escapeHtml(opportunity.name || "Chưa chọn - cần quét thêm")}</h3></div>
+      <strong class="economics-status ${economicsReady ? "ready" : "warning"}">${economicsReady ? "Economics ready" : "Thiếu unit economics"}</strong>
+    </div>
+    <p>${escapeHtml(opportunity.strategic_gap || strategy.objective || "")}</p>
+    <p class="opportunity-reason">${escapeHtml(opportunity.selection_reason || "")}</p>
+    ${economicsReady ? `<div class="unit-economics">
+      <div><span>Lợi nhuận gộp/ca</span><strong>${Number(unitEconomics.gross_profit_per_case || 0).toLocaleString("vi-VN")} đ</strong></div>
+      <div><span>Trần CAC/ca</span><strong>${Number(unitEconomics.max_cost_per_acquired_case || 0).toLocaleString("vi-VN")} đ</strong></div>
+      <div><span>Trần CPL đủ điều kiện</span><strong>${Number(unitEconomics.max_cost_per_qualified_lead || 0).toLocaleString("vi-VN")} đ</strong></div>
+    </div>` : `<p class="economics-missing">Cần dữ liệu thật: ${escapeHtml((strategy.required_business_inputs || []).join(", "))}</p>`}
+    <div class="revenue-funnel">${funnel.map((stage, index) => `
+      <div><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(stage.stage)}</strong><small>${escapeHtml(stage.metric)}</small></div>`).join("")}</div>
+    <div class="revenue-rules">
+      <div><span>Chuyển đổi chính</span><strong>${escapeHtml(strategy.primary_conversion)}</strong></div>
+      <div><span>Quy tắc scale</span><ul>${formatList(strategy.scale_rules)}</ul></div>
+      <div><span>Quy tắc dừng</span><ul>${formatList(strategy.stop_rules)}</ul></div>
+    </div>
+    <p class="revenue-caveat">${escapeHtml(strategy.revenue_caveat || "")}</p>`;
 }
 
 function formatDecision(decision) {
@@ -516,7 +584,7 @@ function renderAds(ads, keyword = "") {
     elements.adsTableBody.innerHTML = '<tr><td colspan="5" class="empty-cell">Chưa có ads.</td></tr>';
     return;
   }
-  elements.adsTableBody.innerHTML = ads.slice(0, 20).map((ad, index) => `
+  elements.adsTableBody.innerHTML = ads.slice(0, 100).map((ad, index) => `
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(ad.page_name || "-")}</td>

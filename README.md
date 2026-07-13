@@ -1,13 +1,14 @@
 # SmileUp CMO Media Lead
 
-Ứng dụng điều hành chiến dịch media tháng cho SmileUp. Người dùng nhập một keyword, CMO tự động quét đúng 20 quảng cáo Meta tham chiếu, xây một campaign thesis, chia thành 4 tuần và giao việc cho Biên kịch, Đạo diễn AI và Video Editor.
+Ứng dụng điều hành chiến dịch media tháng cho SmileUp. Người dùng nhập một keyword, CMO tự động quét rộng tối đa 100 quảng cáo Meta tham chiếu, gom chúng thành các chiến dịch đối thủ, nhận xét điểm mạnh/yếu, chọn khoảng trống thị trường và giao kế hoạch 4 tuần cho Biên kịch, Đạo diễn AI và Video Editor.
 
-Ứng dụng dừng ở kế hoạch và bàn giao video đã duyệt. Keyword là đầu vào duy nhất; không có chức năng nhập ads thủ công, viết bài hoàn chỉnh, tạo ảnh/video hoặc đăng lên Facebook. Dữ liệu Ad Library được trình bày như tín hiệu thị trường, không phải bằng chứng doanh thu hay chuyển đổi.
+Ứng dụng dừng ở kế hoạch và bàn giao video đã duyệt. Keyword là đầu vào duy nhất; không có chức năng nhập ads thủ công, viết bài hoàn chỉnh, tạo ảnh/video hoặc đăng lên Facebook. Dữ liệu Ad Library được trình bày như tín hiệu thị trường, không phải bằng chứng doanh thu hay chuyển đổi. Dashboard luôn công bố độ phủ vì Meta không cung cấp một luồng dữ liệu công khai bảo đảm bao quát mọi quảng cáo thương mại.
 
 ## Workflow
 
 ```text
-Crawler (20 ads)
+Crawler (tối đa 100 ads, tối thiểu 20)
+  -> Market Campaign Intelligence
   -> Text Insight
   -> Trend Analysis
   -> Visual Insight
@@ -21,6 +22,8 @@ Crawler (20 ads)
 Đầu ra của CMO gồm:
 
 - `media_production_brief`: chiến dịch tổng quát trong 1 tháng và kế hoạch 4 tuần.
+- `market_intelligence`: độ phủ quan sát, các cụm chiến dịch đối thủ, điểm mạnh/yếu, áp lực thị trường và khoảng trống đề xuất.
+- `revenue_strategy`: phễu Demand -> Treatment, chuyển đổi chính, offer, quy tắc scale/stop và unit economics khi có dữ liệu kinh doanh thật.
 - `monthly_campaign`: campaign thesis, Meta evidence snapshot, audience, mục tiêu và giới hạn dữ liệu.
 - `brand_platform`: brand idea, định vị, lời hứa, voice, visual system và signature series của SmileUp.
 - `weeks`: 4 tuần, mỗi tuần có 3 nội dung và 3 assignment cho đúng ba vai trò media.
@@ -49,12 +52,14 @@ Mở `http://127.0.0.1:8765`. Khi `AUTH_ENABLED=true`, tài khoản được c�
 ```dotenv
 MOCK_MODE=false
 AD_LIBRARY_ENABLED=true
-AD_LIBRARY_MAX_ADS=20
+AD_LIBRARY_MAX_ADS=100
 AD_LIBRARY_COMPETITOR_RATIO=0.8
 AGENT_API_REASONING_ENABLED=true
 ```
 
 Ít nhất một khóa `OPENAI_API_KEY`, `GEMINI_API_KEY` hoặc `ANTHROPIC_API_KEY` cần được cấu hình để dùng reasoning API. `FACEBOOK_ACCESS_TOKEN` và `COMPETITOR_PAGE_IDS` chỉ là nguồn đọc thêm cho competitor research; chúng không được dùng để publish.
+
+Để CMO tính trần chi phí lead/ca thay vì tự đặt giả định, có thể cấu hình các số liệu thật: `SMILEUP_AVERAGE_CASE_VALUE`, `SMILEUP_GROSS_MARGIN_RATE`, `SMILEUP_QUALIFIED_LEAD_TO_BOOKING_RATE`, `SMILEUP_BOOKING_SHOW_RATE`, `SMILEUP_CONSULTATION_CLOSE_RATE` và `SMILEUP_MAX_ACQUISITION_SHARE`. Khi thiếu, hệ thống chỉ đưa chiến lược và nêu rõ chưa đủ dữ liệu dự báo tài chính.
 
 ## Kiểm tra
 

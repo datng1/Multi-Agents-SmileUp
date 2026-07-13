@@ -253,6 +253,44 @@ button:disabled {
   opacity: 0.65;
 }
 
+.opportunity-reason,
+.economics-missing {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.unit-economics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.unit-economics > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+}
+
+.unit-economics span,
+.unit-economics strong {
+  display: block;
+}
+
+.unit-economics span {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.unit-economics strong {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+
 .scan-facts {
   margin: 16px 0;
   display: grid;
@@ -610,6 +648,204 @@ button:disabled {
   font-size: 13px;
   font-weight: 700;
   line-height: 1.5;
+}
+
+.market-coverage {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.market-coverage > div {
+  min-width: 0;
+  padding: 14px 12px;
+  border-right: 1px solid var(--line);
+}
+
+.market-coverage > div:nth-child(4) {
+  border-right: 0;
+}
+
+.market-coverage span,
+.revenue-strategy span,
+.competitor-campaign dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.market-coverage strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.market-coverage > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  background: #f7f9f8;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.competitor-campaigns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.competitor-campaign {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fcfdfd;
+}
+
+.competitor-campaign > div:first-child,
+.revenue-headline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.competitor-campaign > div:first-child span {
+  color: var(--burgundy);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.competitor-campaign h3 {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.competitor-campaign > p {
+  margin: 5px 0 0;
+  color: #087ca7;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.competitor-campaign dl {
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.competitor-campaign dd {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.revenue-section {
+  border-left: 4px solid #8f243d;
+}
+
+.revenue-strategy {
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.revenue-headline h3 {
+  margin: 5px 0 0;
+  font-size: 18px;
+}
+
+.economics-status {
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.economics-status.ready {
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+}
+
+.economics-status.warning {
+  background: #fff3d8;
+  color: #875b00;
+}
+
+.revenue-strategy > p {
+  margin: 11px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.revenue-funnel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 15px;
+  border: 1px solid var(--line);
+}
+
+.revenue-funnel > div {
+  min-width: 0;
+  padding: 11px;
+  border-right: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+}
+
+.revenue-funnel > div:last-child {
+  border-right: 0;
+}
+
+.revenue-funnel > div > span {
+  color: var(--burgundy);
+}
+
+.revenue-funnel strong {
+  font-size: 12px;
+}
+
+.revenue-funnel small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.revenue-rules {
+  display: grid;
+  grid-template-columns: 0.8fr 1.1fr 1.1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.revenue-rules > div > strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.revenue-rules ul {
+  margin: 6px 0 0;
+  padding-left: 17px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.revenue-caveat {
+  padding: 9px 11px;
+  border-left: 3px solid var(--burgundy);
+  background: #faf6f7;
 }
 
 .brand-platform {
@@ -1145,8 +1381,36 @@ td:nth-child(4) {
   .task-detail-grid,
   .split-list,
   .brand-rules,
-  .week-outputs ol {
+  .week-outputs ol,
+  .competitor-campaigns,
+  .revenue-rules,
+  .unit-economics {
     grid-template-columns: 1fr;
+  }
+
+  .market-coverage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .market-coverage > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .market-coverage > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .revenue-funnel {
+    grid-template-columns: 1fr;
+  }
+
+  .revenue-funnel > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .revenue-funnel > div:last-child {
+    border-bottom: 0;
   }
 
   .week-heading {

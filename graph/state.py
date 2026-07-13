@@ -74,6 +74,8 @@ class AgentState(TypedDict):
     ad_library_competitor_ratio: float
     ad_library_scanned_at: str
     ad_library_scan_id: str
+    market_campaign_intelligence: dict[str, Any]
+    business_economics: dict[str, float]
     market_trend_summary: str
     facebook_trend_analysis: str
     visual_direction: str
@@ -123,13 +125,15 @@ def create_initial_state() -> AgentState:
         "high_match_threshold": 0.95,
         "ad_library_report": "",
         "ad_library_keywords": "",
-        "ad_library_max_ads": 20,
+        "ad_library_max_ads": 100,
         "ad_library_reference_scan_limit": 20,
         "ad_library_scan_mode": "auto",
         "ad_library_competitor_urls": [],
         "ad_library_competitor_ratio": 0.8,
         "ad_library_scanned_at": "",
         "ad_library_scan_id": "",
+        "market_campaign_intelligence": {},
+        "business_economics": {},
         "market_trend_summary": "",
         "facebook_trend_analysis": "",
         "visual_direction": "",

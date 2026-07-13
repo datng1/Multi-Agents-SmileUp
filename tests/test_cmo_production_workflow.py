@@ -7,6 +7,7 @@ from agents import crawler_agent
 from agents.manager_agent import run_manager_agent
 from graph.state import create_initial_state
 from graph.workflow import PRODUCTION_AGENT_ORDER, build_workflow
+from tools.campaign_intelligence import analyze_market_campaigns
 from web_app import (
     _build_initial_state,
     _normalize_scan_keyword,
@@ -33,12 +34,14 @@ class CMOProductionWorkflowTests(unittest.TestCase):
                 "library_id": f"ad-{index}",
                 "page_name": f"Competitor {index % 5}",
                 "ad_text": "Nha khoa rang su implant tu van ca nhan hoa",
-                "source_type": "competitor_page" if index < 16 else "keyword_scan",
+                "source_type": "competitor_page" if index < 80 else "keyword_scan",
                 "similarity": 0.98,
+                "source_page_id": f"page-{index % 5}" if index < 80 else "",
             }
-            for index in range(20)
+            for index in range(100)
         ]
-        state["high_match_ads"] = state["ad_library_ads"][:12]
+        state["ad_library_competitor_urls"] = [f"https://example.com/page-{index}" for index in range(5)]
+        state["high_match_ads"] = state["ad_library_ads"][:50]
         state["text_insight_report"] = "Hook, pain point, objection, offer va CTA da duoc phan tich."
         state["facebook_trend_analysis"] = "Trend short-form va carousel co bang chung tu ads."
         state["visual_insight_report"] = "Visual can co bac si, benh nhan va quy trinh tham kham."
@@ -58,6 +61,10 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         self.assertEqual(result["cmo_decision"], "READY_FOR_PRODUCTION")
         self.assertEqual(result["cmo_next_action"], "dispatch")
         self.assertEqual(workflow["planning_horizon"], "1 tháng / 4 tuần")
+        self.assertTrue(workflow["market_intelligence"]["campaigns"])
+        self.assertTrue(workflow["market_intelligence"]["selected_opportunity"])
+        self.assertEqual(workflow["revenue_strategy"]["primary_conversion"], "Lịch tư vấn đủ điều kiện đã xác nhận")
+        self.assertTrue(workflow["revenue_strategy"]["funnel"])
         self.assertEqual(len(tasks), 12)
         self.assertEqual(len(workflow["approval_gates"]), 4)
         self.assertEqual([gate["id"] for gate in workflow["approval_gates"]], ["QW1", "QW2", "QW3", "QW4"])
@@ -87,7 +94,7 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         campaign = workflow["monthly_campaign"]
         self.assertEqual(campaign["focus_topic"], "implant toàn hàm")
         self.assertTrue(campaign["campaign_thesis"])
-        self.assertIn("20 ads", campaign["meta_evidence"]["basis"])
+        self.assertIn("tối đa 100 ads", campaign["meta_evidence"]["basis"])
         self.assertIn("không phải bằng chứng", campaign["meta_evidence"]["caveat"].lower())
         self.assertIn("lượt quét hiện tại", campaign["meta_evidence"]["source"])
         self.assertTrue(campaign["meta_evidence"]["scan_id"].startswith("META-"))
@@ -135,6 +142,18 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         self.assertEqual(result["cmo_decision"], "NEEDS_MORE_RESEARCH")
         self.assertEqual(result["cmo_next_action"], "rescan")
         self.assertEqual(result["media_production_workflow"]["status"], "needs_research")
+        self.assertIsNone(result["media_production_workflow"]["market_intelligence"]["selected_opportunity"])
+
+    def test_cmo_does_not_dispatch_when_market_coverage_is_low(self) -> None:
+        state = self._ready_state()
+        state["market_campaign_intelligence"] = analyze_market_campaigns(
+            state["ad_library_ads"][:20], "implant toàn hàm", 9, 100
+        )
+
+        result = run_manager_agent(state)
+
+        self.assertEqual(result["cmo_decision"], "NEEDS_MORE_RESEARCH")
+        self.assertIn("độ phủ thị trường", result["cmo_feedback"])
 
     def test_cmo_does_not_dispatch_without_compliance_report(self) -> None:
         state = self._ready_state()
@@ -163,9 +182,9 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         self.assertNotIn("content_creator", PRODUCTION_AGENT_ORDER)
         self.assertNotIn("publisher", PRODUCTION_AGENT_ORDER)
 
-    def test_web_scan_is_always_twenty_ads(self) -> None:
-        self.assertEqual(_scan_settings({}), ("auto", 20, 20))
-        self.assertEqual(_scan_settings({"ad_library_max_ads": 5}), ("auto", 20, 20))
+    def test_web_scan_targets_one_hundred_ads_with_twenty_ad_minimum(self) -> None:
+        self.assertEqual(_scan_settings({}), ("market", 100, 20))
+        self.assertEqual(_scan_settings({"ad_library_max_ads": 5}), ("market", 100, 20))
 
     def test_keyword_is_normalized_and_propagated_into_initial_state(self) -> None:
         keyword = _normalize_scan_keyword("  implant\n\ttoàn   hàm  ")

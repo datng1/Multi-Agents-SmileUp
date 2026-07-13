@@ -10,6 +10,7 @@ from tools.ad_library_scraper import (
     collect_ad_library_ads,
     filter_high_match_ads,
 )
+from tools.campaign_intelligence import analyze_market_campaigns
 from tools.facebook_crawler import crawl_facebook_posts
 from tools.offline_fixtures import fallback_ad_library_ads
 from utils import config
@@ -24,6 +25,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
     if config.AD_LIBRARY_ENABLED:
         keywords = state.get("ad_library_keywords") or config.AD_LIBRARY_KEYWORDS
         max_ads = int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS)
+        min_ads = int(state.get("ad_library_reference_scan_limit") or 20)
         try:
             ads = collect_ad_library_ads(
                 keywords=keywords,
@@ -33,6 +35,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
                 force_refresh=True,
                 competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
                 competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
+                min_ads=min_ads,
             )
         except Exception as exc:
             message = f"Ad Library live scan failed with fallback disabled: {exc}"
@@ -47,6 +50,12 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         state["ad_library_ads"] = ads
         state["ad_library_scanned_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
         state["ad_library_scan_id"] = _ad_library_scan_id(keywords, ads)
+        state["market_campaign_intelligence"] = analyze_market_campaigns(
+            ads,
+            focus_keyword=keywords,
+            configured_competitor_pages=len(config.AD_LIBRARY_COMPETITOR_URLS),
+            scan_target=max_ads,
+        )
         state["high_match_ads"] = high_match_ads
         state["high_match_threshold"] = 0.95
         state["ad_library_keywords"] = keywords
@@ -59,6 +68,7 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             threshold=0.95,
             competitor_urls=config.AD_LIBRARY_COMPETITOR_URLS,
             competitor_ratio=config.AD_LIBRARY_COMPETITOR_RATIO,
+            scan_target=max_ads,
         )
         state["competitor_visual_notes"] = build_ad_visual_notes(strategy_ads)
         state["data_source"] = "ad_library"
@@ -75,11 +85,21 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             }
         )
     else:
+        benchmark_ads = fallback_ad_library_ads(config.AD_LIBRARY_KEYWORDS)
         try:
             insights = crawl_facebook_posts(config.COMPETITOR_PAGE_IDS, limit=5)
         except Exception as exc:
             logger.warning("Facebook fallback crawler failed, using controlled fallback ads: %s", exc)
-            insights = ads_to_competitor_insights(fallback_ad_library_ads(config.AD_LIBRARY_KEYWORDS))
+            insights = ads_to_competitor_insights(benchmark_ads)
+        state["ad_library_ads"] = benchmark_ads
+        state["market_campaign_intelligence"] = analyze_market_campaigns(
+            benchmark_ads,
+            focus_keyword=config.AD_LIBRARY_KEYWORDS,
+            configured_competitor_pages=0,
+            scan_target=int(state.get("ad_library_max_ads") or config.AD_LIBRARY_MAX_ADS),
+        )
+        state["ad_library_scanned_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        state["ad_library_scan_id"] = _ad_library_scan_id(config.AD_LIBRARY_KEYWORDS, benchmark_ads)
         state["data_source"] = "mock" if config.MOCK_MODE else "fallback"
         state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} controlled insights"})
 

@@ -85,7 +85,7 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "ad_library_keywords": config.AD_LIBRARY_KEYWORDS,
                     "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
                     "ad_library_competitor_count": len(config.AD_LIBRARY_COMPETITOR_URLS),
-                    "scan_ads": 20,
+                    "scan_ads": 100,
                     "agent_order": WORKFLOW_AGENT_ORDER,
                     "workflow_context_cache_days": round(WORKFLOW_CONTEXT_CACHE_TTL_SECONDS / 86400),
                     "warnings": config.CONFIG_WARNINGS,
@@ -746,6 +746,7 @@ def _build_initial_state(request_payload: dict) -> dict:
     initial_state["ad_library_reference_scan_limit"] = reference_scan_limit
     initial_state["ad_library_competitor_urls"] = config.AD_LIBRARY_COMPETITOR_URLS
     initial_state["ad_library_competitor_ratio"] = config.AD_LIBRARY_COMPETITOR_RATIO
+    initial_state["business_economics"] = config.SMILEUP_BUSINESS_ECONOMICS
     initial_state["competitor_visual_notes"] = ""
     initial_state["competitor_video_notes"] = ""
     return initial_state
@@ -815,7 +816,7 @@ def _production_focus_profile(run_seed: str, focus_keyword: str) -> dict[str, st
 
 
 def _scan_settings(request_payload: dict) -> tuple[str, int, int]:
-    return "auto", 20, 20
+    return "market", 100, 20
 
 
 def _model_status_label() -> str:

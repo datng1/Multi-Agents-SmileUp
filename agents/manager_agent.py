@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 
 from graph.state import AgentState, ApprovalGate, ProductionTask
+from tools.campaign_intelligence import analyze_market_campaigns, build_revenue_strategy
 from utils.logger import get_logger
 
 
@@ -23,9 +24,18 @@ REQUIRED_REPORT_FIELDS = (
 
 def run_manager_agent(state: AgentState) -> AgentState:
     logger.info("CMO Agent building the monthly media campaign")
-    missing = _missing_evidence(state)
+    market_intelligence = state.get("market_campaign_intelligence") or analyze_market_campaigns(
+        state.get("ad_library_ads", []),
+        focus_keyword=state.get("ad_library_keywords", ""),
+        configured_competitor_pages=len(state.get("ad_library_competitor_urls", [])),
+        scan_target=int(state.get("ad_library_max_ads", 100) or 100),
+    )
+    missing = _missing_evidence(state, market_intelligence)
     ready = not missing
-    monthly_campaign = _monthly_campaign(state)
+    revenue_strategy = build_revenue_strategy(
+        state.get("ad_library_keywords", ""), market_intelligence, state.get("business_economics", {})
+    )
+    monthly_campaign = _monthly_campaign(state, market_intelligence, revenue_strategy)
     brand_platform = _brand_platform(state)
     weeks = _campaign_weeks(state, monthly_campaign, brand_platform, ready)
     tasks = [assignment for week in weeks for assignment in week["assignments"]]
@@ -41,6 +51,8 @@ def run_manager_agent(state: AgentState) -> AgentState:
         "source_ads_count": len(state.get("ad_library_ads", [])),
         "high_match_ads_count": len(state.get("high_match_ads", [])),
         "team_roles": ["Biên kịch", "Đạo diễn AI", "Video Editor"],
+        "market_intelligence": market_intelligence,
+        "revenue_strategy": revenue_strategy,
         "monthly_campaign": monthly_campaign,
         "brand_platform": brand_platform,
         "weeks": weeks,
@@ -88,7 +100,7 @@ def run_manager_agent(state: AgentState) -> AgentState:
     return state
 
 
-def _missing_evidence(state: AgentState) -> list[str]:
+def _missing_evidence(state: AgentState, market_intelligence: dict | None = None) -> list[str]:
     missing: list[str] = []
     ad_count = len(state.get("ad_library_ads", []))
     if ad_count < 20:
@@ -106,10 +118,13 @@ def _missing_evidence(state: AgentState) -> list[str]:
             missing.append(labels[field])
     if int(state.get("hardness_score", 0) or 0) < 70:
         missing.append("evidence readiness dưới 70/100")
+    coverage = (market_intelligence or state.get("market_campaign_intelligence") or {}).get("coverage", {})
+    if int(coverage.get("coverage_score", 0) or 0) < 45:
+        missing.append(f"độ phủ thị trường dưới 45/100, hiện có {coverage.get('coverage_score', 0)}/100")
     return missing
 
 
-def _monthly_campaign(state: AgentState) -> dict:
+def _monthly_campaign(state: AgentState, market_intelligence: dict, revenue_strategy: dict) -> dict:
     keyword = str(state.get("ad_library_keywords", "")).strip() or "dịch vụ nha khoa trọng tâm"
     ads = state.get("ad_library_ads", [])
     ads_count = len(ads)
@@ -122,14 +137,17 @@ def _monthly_campaign(state: AgentState) -> dict:
     scan_id = str(state.get("ad_library_scan_id", "")).strip() or _evidence_scan_id(keyword, ads)
     reference_pages = _unique([str(ad.get("page_name", "")) for ad in ads])[:6]
     message_samples = _unique([str(ad.get("ad_text", ""))[:180] for ad in ads])[:3]
+    opportunity = market_intelligence.get("selected_opportunity") or {}
+    coverage = market_intelligence.get("coverage") or {}
     return {
         "focus_topic": keyword,
         "campaign_name": f"SmileUp | Hiểu đúng về {keyword}",
         "campaign_thesis": (
             f"Trong một tháng, đưa khách hàng từ nhận diện nhu cầu đến sẵn sàng tư vấn về '{keyword}' bằng nội dung "
-            f"minh bạch, có chuyên môn và không gây áp lực. Tín hiệu Meta ưu tiên: {selected_signal}"
+            f"minh bạch, có chuyên môn và không gây áp lực. Khoảng trống được chọn: "
+            f"{opportunity.get('strategic_gap', selected_signal)} Tín hiệu nội dung ưu tiên: {selected_signal}"
         ),
-        "business_goal": "Tăng nhu cầu tư vấn đủ điều kiện và củng cố niềm tin chuyên môn, không chạy theo lượt xem đơn thuần.",
+        "business_goal": revenue_strategy.get("objective", "Tăng lịch tư vấn đủ điều kiện và lợi nhuận theo ca."),
         "target_audience": f"Người đang cân nhắc '{keyword}', còn băn khoăn về độ phù hợp, quy trình, rủi ro và chi phí.",
         "meta_evidence": {
             "source": "Meta Ad Library active ads - lượt quét hiện tại",
@@ -137,13 +155,14 @@ def _monthly_campaign(state: AgentState) -> dict:
             "analyzed_at": analyzed_at,
             "scan_mode": state.get("ad_library_scan_mode", "auto"),
             "basis": (
-                f"Phân tích 20 ads theo hợp đồng quét; nhận được {ads_count} ads công khai, "
+                f"Mục tiêu quét tối đa 100 ads, ngưỡng evidence tối thiểu 20; nhận được {ads_count} ads công khai, "
                 f"trong đó {high_match_count} ads có mức độ liên quan cao. Tín hiệu được chọn: {selected_signal}"
             ),
             "signals": evidence_signals,
             "selected_signal": selected_signal,
             "reference_pages": reference_pages,
             "message_samples": message_samples,
+            "coverage": coverage,
             "caveat": (
                 "Ads công khai phản ánh tín hiệu thông điệp và mức độ cạnh tranh; đây không phải bằng chứng về doanh thu, "
                 "tỷ lệ chuyển đổi hoặc hiệu quả thực tế của đối thủ."
@@ -357,6 +376,9 @@ def _production_brief(state: AgentState, workflow: dict, missing: list[str]) -> 
     campaign = workflow.get("monthly_campaign", {})
     evidence = campaign.get("meta_evidence", {})
     brand = workflow.get("brand_platform", {})
+    market = workflow.get("market_intelligence", {})
+    coverage = market.get("coverage", {})
+    revenue = workflow.get("revenue_strategy", {})
     week_lines = []
     for week in workflow.get("weeks", []):
         outputs = "; ".join(week.get("content_outputs", []))
@@ -370,6 +392,26 @@ def _production_brief(state: AgentState, workflow: dict, missing: list[str]) -> 
     voice = "; ".join(brand.get("voice", []))
     visual = "\n".join(f"  - {item}" for item in brand.get("visual_system", []))
     avoid = "\n".join(f"  - {item}" for item in campaign.get("not_recommended", []))
+    competitor_lines = []
+    for item in market.get("campaigns", [])[:8]:
+        competitor_lines.append(
+            f"  - {item.get('page_name', '')} | {item.get('service_line', '')} | {item.get('angle', '')} | "
+            f"{item.get('funnel_stage', '')} | {item.get('ad_count', 0)} ads | "
+            f"Mạnh: {'; '.join(item.get('strengths', []))} | Yếu: {'; '.join(item.get('weaknesses', []))}"
+        )
+    competitors_text = "\n".join(competitor_lines) or "  - Chưa đủ campaign để nhận xét."
+    funnel_text = "\n".join(
+        f"  - {stage.get('stage', '')}: {stage.get('goal', '')} | KPI: {stage.get('metric', '')}"
+        for stage in revenue.get("funnel", [])
+    )
+    unit_economics = revenue.get("unit_economics", {})
+    economics_text = (
+        f"  Lợi nhuận gộp/ca: {unit_economics.get('gross_profit_per_case', 0):,.0f} VND | "
+        f"Trần CAC/ca: {unit_economics.get('max_cost_per_acquired_case', 0):,.0f} VND | "
+        f"Trần CPL đủ điều kiện: {unit_economics.get('max_cost_per_qualified_lead', 0):,.0f} VND\n"
+        if unit_economics
+        else f"  Cần dữ liệu kinh doanh: {', '.join(revenue.get('required_business_inputs', []))}\n"
+    )
     return (
         f"CHIẾN DỊCH MEDIA 1 THÁNG - {readiness}\n\n"
         f"Tên chiến dịch: {campaign.get('campaign_name', '')}\n"
@@ -382,6 +424,18 @@ def _production_brief(state: AgentState, workflow: dict, missing: list[str]) -> 
         f"Nguồn nổi bật: {', '.join(evidence.get('reference_pages', [])) or 'chưa đủ dữ liệu'}\n"
         f"Mẫu thông điệp nguồn: {' | '.join(evidence.get('message_samples', [])) or 'chưa đủ dữ liệu'}\n"
         f"Giới hạn: {evidence.get('caveat', '')}\n\n"
+        f"MARKET COVERAGE\n"
+        f"  Đã quan sát: {coverage.get('ads_observed', 0)}/{coverage.get('scan_target', 0)} ads | "
+        f"{coverage.get('unique_pages', 0)} page | {coverage.get('campaigns_detected', 0)} campaign\n"
+        f"  Mức phủ: {coverage.get('coverage_level', 'low')} ({coverage.get('coverage_score', 0)}/100)\n"
+        f"  Giới hạn: {coverage.get('limitation', '')}\n\n"
+        f"CAMPAIGN ĐỐI THỦ NỔI BẬT\n{competitors_text}\n\n"
+        f"REVENUE STRATEGY\n"
+        f"  Chuyển đổi chính: {revenue.get('primary_conversion', '')}\n"
+        f"  Economics: {revenue.get('economics_status', '')}\n"
+        f"{economics_text}"
+        f"{funnel_text}\n"
+        f"  Lưu ý: {revenue.get('revenue_caveat', '')}\n\n"
         f"SMILEUP BRAND\n"
         f"  Ý tưởng: {brand.get('brand_idea', '')}\n"
         f"  Định vị: {brand.get('positioning', '')}\n"
@@ -405,7 +459,12 @@ def _handoff(workflow: dict, missing: list[str]) -> str:
 
 def _decision_graph(tasks: list[ProductionTask], gates: list[ApprovalGate], ready: bool) -> dict:
     nodes: list[dict] = [
-        {"id": "evidence", "label": "20 ads + specialist reports", "type": "evidence", "status": "support" if ready else "risk"}
+        {
+            "id": "evidence",
+            "label": "Market ads (tối đa 100) + specialist reports",
+            "type": "evidence",
+            "status": "support" if ready else "risk",
+        }
     ]
     edges: list[dict] = []
     for task in tasks:

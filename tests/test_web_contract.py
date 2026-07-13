@@ -9,11 +9,14 @@ class WebContractTests(unittest.TestCase):
     def test_dashboard_is_automatic_production_control_surface(self) -> None:
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
-        for required_id in ("keywordInput", "runButton", "campaignWeeks", "brandPlatform", "teamCount", "planWindow", "adsTableBody"):
+        for required_id in (
+            "keywordInput", "runButton", "campaignWeeks", "brandPlatform", "teamCount", "planWindow",
+            "adsTableBody", "marketCoverage", "competitorCampaigns", "revenueStrategy",
+        ):
             self.assertIn(f'id="{required_id}"', html)
         for removed_id in ("approvalGates", "workflowGraph", "taskCount", "gateCount"):
             self.assertNotIn(f'id="{removed_id}"', html)
-        self.assertIn("20 ads", html)
+        self.assertIn("100 ads", html)
         self.assertIn("Chiến dịch 1 tháng", html)
         self.assertIn("SmileUp brand lane", html)
         self.assertIn("Kế hoạch theo 4 tuần", html)
@@ -21,6 +24,8 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('fetchJson("/api/run"', script)
         self.assertIn("ad_library_keywords: keyword", script)
         self.assertIn("item.scan_id", script)
+        self.assertIn("Trần CAC/ca", script)
+        self.assertIn("Trần CPL đủ điều kiện", script)
         for forbidden in ("manualInput", "publishButton", "facebookPreview", "imageUpload", "captionEditor"):
             self.assertNotIn(forbidden, html + script)
 
@@ -32,10 +37,10 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("drawWorkstation", script)
         self.assertNotIn("https://", script)
 
-    def test_server_scan_contract_is_fixed_at_20(self) -> None:
+    def test_server_scan_contract_targets_broad_market_coverage(self) -> None:
         source = (ROOT / "web_app.py").read_text(encoding="utf-8")
-        self.assertIn('return "auto", 20, 20', source)
-        self.assertIn('"scan_ads": 20', source)
+        self.assertIn('return "market", 100, 20', source)
+        self.assertIn('"scan_ads": 100', source)
         self.assertNotIn('"/api/publish"', source)
 
 

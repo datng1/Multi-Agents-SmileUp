@@ -62,6 +62,35 @@ class AdLibraryWeightingTests(unittest.TestCase):
                 competitor_ratio=0.8,
             )
 
+    def test_broad_scan_accepts_partial_source_when_minimum_evidence_is_met(self) -> None:
+        scraper._scrape_competitor_page_ads = lambda *args, **kwargs: _fake_ads(25, "competitor_page")
+        scraper._collect_keyword_scan_ads = lambda *args, **kwargs: []
+
+        ads = scraper._collect_weighted_ads(
+            keywords="implant toàn hàm",
+            country="VN",
+            max_ads=100,
+            min_ads=20,
+            competitor_urls=["https://www.facebook.com/ads/library/?view_all_page_id=1"],
+            competitor_ratio=0.8,
+        )
+
+        self.assertEqual(len(ads), 25)
+
+    def test_broad_scan_rejects_total_below_minimum_evidence(self) -> None:
+        scraper._scrape_competitor_page_ads = lambda *args, **kwargs: _fake_ads(15, "competitor_page")
+        scraper._collect_keyword_scan_ads = lambda *args, **kwargs: _fake_ads(4, "keyword_scan")
+
+        with self.assertRaisesRegex(RuntimeError, "minimum accepted 20"):
+            scraper._collect_weighted_ads(
+                keywords="implant toàn hàm",
+                country="VN",
+                max_ads=100,
+                min_ads=20,
+                competitor_urls=["https://www.facebook.com/ads/library/?view_all_page_id=1"],
+                competitor_ratio=0.8,
+            )
+
     def test_keyword_scan_uses_only_the_requested_keyword(self) -> None:
         self.assertEqual(scraper._keyword_scan_queries("  implant toàn hàm  "), ["implant toàn hàm"])
 

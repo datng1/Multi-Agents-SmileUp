@@ -35,6 +35,7 @@ def run_strategy_agent(state: AgentState) -> AgentState:
             "video_insight_report": state.get("video_insight_report", ""),
             "ad_library_report": state.get("ad_library_report", ""),
             "high_match_ads": state.get("high_match_ads", []),
+            "market_campaign_intelligence": state.get("market_campaign_intelligence", {}),
             "fallback_monthly_strategy": fallback_monthly,
             "run_seed": state.get("run_seed", ""),
             "production_focus_profile": state.get("production_focus_profile", {}),

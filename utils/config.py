@@ -88,10 +88,16 @@ class Settings:
     ad_library_enabled: bool = _bool("AD_LIBRARY_ENABLED", True)
     ad_library_keywords: str = os.getenv("AD_LIBRARY_KEYWORDS", "nha khoa răng sứ răng đẹp cấy implant")
     ad_library_country: str = os.getenv("AD_LIBRARY_COUNTRY", "VN")
-    ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "20"))
+    ad_library_max_ads: int = int(os.getenv("AD_LIBRARY_MAX_ADS", "100"))
     ad_library_cache_ttl_hours: float = float(os.getenv("AD_LIBRARY_CACHE_TTL_HOURS", "24"))
     ad_library_competitor_urls: list[str] = field(default_factory=lambda: _merged_multi_list("AD_LIBRARY_COMPETITOR_URLS", DEFAULT_COMPETITOR_AD_LIBRARY_URLS))
     ad_library_competitor_ratio: float = float(os.getenv("AD_LIBRARY_COMPETITOR_RATIO", "0.8"))
+    smileup_average_case_value: float = float(os.getenv("SMILEUP_AVERAGE_CASE_VALUE", "0"))
+    smileup_gross_margin_rate: float = float(os.getenv("SMILEUP_GROSS_MARGIN_RATE", "0"))
+    smileup_qualified_lead_to_booking_rate: float = float(os.getenv("SMILEUP_QUALIFIED_LEAD_TO_BOOKING_RATE", "0"))
+    smileup_booking_show_rate: float = float(os.getenv("SMILEUP_BOOKING_SHOW_RATE", "0"))
+    smileup_consultation_close_rate: float = float(os.getenv("SMILEUP_CONSULTATION_CLOSE_RATE", "0"))
+    smileup_max_acquisition_share: float = float(os.getenv("SMILEUP_MAX_ACQUISITION_SHARE", "0"))
     auth_enabled: bool = _bool("AUTH_ENABLED", False)
     admin_username: str = os.getenv("ADMIN_USERNAME", "")
     admin_password: str = os.getenv("ADMIN_PASSWORD", "")
@@ -143,6 +149,14 @@ AD_LIBRARY_MAX_ADS = settings.ad_library_max_ads
 AD_LIBRARY_CACHE_TTL_HOURS = settings.ad_library_cache_ttl_hours
 AD_LIBRARY_COMPETITOR_URLS = settings.ad_library_competitor_urls
 AD_LIBRARY_COMPETITOR_RATIO = settings.ad_library_competitor_ratio
+SMILEUP_BUSINESS_ECONOMICS = {
+    "average_case_value": settings.smileup_average_case_value,
+    "gross_margin_rate": settings.smileup_gross_margin_rate,
+    "qualified_lead_to_booking_rate": settings.smileup_qualified_lead_to_booking_rate,
+    "booking_show_rate": settings.smileup_booking_show_rate,
+    "consultation_close_rate": settings.smileup_consultation_close_rate,
+    "max_acquisition_share_of_gross_profit": settings.smileup_max_acquisition_share,
+}
 AUTH_ENABLED = settings.auth_enabled
 ADMIN_USERNAME = settings.admin_username
 ADMIN_PASSWORD = settings.admin_password

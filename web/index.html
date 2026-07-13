@@ -44,11 +44,11 @@
           <dl class="scan-facts">
             <div><dt>Chế độ</dt><dd>Tự động</dd></div>
             <div><dt>Nguồn</dt><dd>Meta Ad Library</dd></div>
-            <div><dt>Khối lượng</dt><dd>20 ads</dd></div>
+            <div><dt>Khối lượng</dt><dd>Tối đa 100 ads</dd></div>
             <div><dt>Đầu ra</dt><dd>Chiến dịch 1 tháng</dd></div>
           </dl>
           <button id="runButton" class="primary-button" type="button">Chạy CMO và giao việc</button>
-          <p id="runMessage" class="run-message" role="status">Sẵn sàng · 20 ads mỗi lượt.</p>
+          <p id="runMessage" class="run-message" role="status">Sẵn sàng · market scan tối đa 100 ads.</p>
         </section>
 
         <section class="history-panel">
@@ -92,6 +92,29 @@
             <div><dt>Team</dt><dd id="teamCount">3 vai trò</dd></div>
             <div><dt>Window</dt><dd id="planWindow">1 tháng</dd></div>
           </dl>
+        </section>
+
+        <section class="content-section" aria-labelledby="marketTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Market intelligence</p>
+              <h2 id="marketTitle">Bản đồ campaign nha khoa</h2>
+            </div>
+            <span class="section-meta">Coverage, không giả định toàn bộ</span>
+          </div>
+          <div id="marketCoverage" class="market-coverage empty-state">Chưa có dữ liệu độ phủ.</div>
+          <div id="competitorCampaigns" class="competitor-campaigns empty-state">Campaign đối thủ sẽ hiện ở đây.</div>
+        </section>
+
+        <section class="content-section revenue-section" aria-labelledby="revenueTitle">
+          <div class="section-heading horizontal-heading">
+            <div>
+              <p class="eyebrow">Revenue control</p>
+              <h2 id="revenueTitle">Chiến lược tạo doanh thu</h2>
+            </div>
+            <span class="section-meta">Qualified consultation → treatment</span>
+          </div>
+          <div id="revenueStrategy" class="revenue-strategy empty-state">Revenue strategy sẽ hiện ở đây.</div>
         </section>
 
         <section class="content-section" aria-labelledby="briefTitle">
@@ -162,7 +185,7 @@
           <div class="section-heading horizontal-heading">
             <div>
               <p class="eyebrow">Source evidence</p>
-              <h2 id="adsTitle">20 ads tham chiếu</h2>
+              <h2 id="adsTitle">Market ads đã quan sát</h2>
             </div>
           </div>
           <div class="table-wrap">

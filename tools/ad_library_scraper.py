@@ -17,7 +17,7 @@ from tools.summarizer import extract_topics, summarize_text
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_PATH = ROOT / "data" / "ad_library_cache.json"
-CACHE_VERSION = 7
+CACHE_VERSION = 8
 HIGH_MATCH_THRESHOLD = 0.95
 PAGE_WAIT_SECONDS = float(os.getenv("AD_LIBRARY_PAGE_WAIT_SECONDS", "8"))
 PAGE_LOAD_TIMEOUT_SECONDS = float(os.getenv("AD_LIBRARY_PAGE_LOAD_TIMEOUT_SECONDS", "25"))
@@ -52,21 +52,25 @@ def collect_ad_library_ads(
     force_refresh: bool = False,
     competitor_urls: list[str] | None = None,
     competitor_ratio: float = 0.8,
+    min_ads: int | None = None,
 ) -> list[dict]:
     competitor_urls = [url.strip() for url in competitor_urls or [] if url.strip()]
     competitor_ratio = min(1.0, max(0.0, competitor_ratio))
-    cache_key = _cache_key(keywords, country, max_ads, competitor_urls, competitor_ratio)
+    required_ads = max_ads if min_ads is None else max(1, min(max_ads, int(min_ads)))
+    cache_key = _cache_key(keywords, country, max_ads, required_ads, competitor_urls, competitor_ratio)
     cached = _read_cache(cache_key, cache_ttl_hours)
-    if cached is not None and not force_refresh and len(cached) >= max_ads:
+    if cached is not None and not force_refresh and len(cached) >= required_ads:
         return cached[:max_ads]
 
     if competitor_urls:
-        ads = _collect_weighted_ads(keywords, country, max_ads, competitor_urls, competitor_ratio)
+        ads = _collect_weighted_ads(
+            keywords, country, max_ads, competitor_urls, competitor_ratio, min_ads=required_ads
+        )
     else:
         ads = _dedupe_ads(_scrape_ad_library(keywords=keywords, country=country, max_ads=max_ads))
-        if len(ads) < max_ads:
+        if len(ads) < required_ads:
             raise RuntimeError(
-                f"Ad Library live scan did not return enough ads (need {max_ads} keyword ads; got {len(ads)}). "
+                f"Ad Library live scan did not return enough ads (need {required_ads} keyword ads minimum; got {len(ads)}). "
                 "Fallback is disabled by configuration, so the workflow is stopped instead of using synthetic benchmark ads."
             )
 
@@ -112,6 +116,7 @@ def build_ad_library_report(
     threshold: float = HIGH_MATCH_THRESHOLD,
     competitor_urls: list[str] | None = None,
     competitor_ratio: float = 0.8,
+    scan_target: int | None = None,
 ) -> str:
     if not ads:
         return f"Ad Library Agent: Không tìm được quảng cáo phù hợp cho keyword '{keywords}'."
@@ -140,6 +145,7 @@ def build_ad_library_report(
         f"- Keyword quét mở rộng: {keywords}.\n"
         f"- Page đối thủ ưu tiên: {len(competitor_urls or [])} page.\n"
         f"- Số quảng cáo lấy vào workflow: {len(ads)}.\n"
+        f"- Mục tiêu độ phủ lượt quét: tối đa {scan_target or len(ads)} ads, tối thiểu 20 ads thật.\n"
         + source_line
         + f"- Ads đủ điều kiện cho tuyến bài ads hiệu quả: {len(high_match_ads)} ads có keyword match từ {round(threshold * 100)}% trở lên.\n"
         "- Thuật toán chọn: ưu tiên đúng page đối thủ trước, sau đó lọc theo độ giống keyword, ngày chạy mới nhất và tín hiệu nha khoa.\n"
@@ -176,7 +182,9 @@ def _collect_weighted_ads(
     max_ads: int,
     competitor_urls: list[str],
     competitor_ratio: float,
+    min_ads: int | None = None,
 ) -> list[dict]:
+    required_ads = max_ads if min_ads is None else max(1, min(max_ads, int(min_ads)))
     competitor_target = min(max_ads, max(1, math.ceil(max_ads * competitor_ratio)))
     keyword_target = max(0, max_ads - competitor_target)
 
@@ -184,7 +192,7 @@ def _collect_weighted_ads(
         _scrape_competitor_page_ads(
             urls=competitor_urls,
             keywords=keywords,
-            max_ads=max(competitor_target * 3, competitor_target + len(competitor_urls)),
+            max_ads=max(competitor_target + len(competitor_urls) * 2, competitor_target),
         )
         if competitor_target
         else []
@@ -201,13 +209,17 @@ def _collect_weighted_ads(
     seen: set[str] = set()
     _append_unique_ads(selected, seen, competitor_ranked, competitor_target)
     _append_unique_ads(selected, seen, keyword_ranked, keyword_target)
+    remaining = max_ads - len(selected)
+    if remaining > 0:
+        _append_unique_ads(selected, seen, [*competitor_ranked, *keyword_ranked], remaining)
 
     competitor_count = sum(1 for ad in selected if ad.get("source_type") == "competitor_page")
     keyword_count = sum(1 for ad in selected if ad.get("source_type") == "keyword_scan")
-    if competitor_count < competitor_target or keyword_count < keyword_target or len(selected) < max_ads:
+    if len(selected) < required_ads:
         raise RuntimeError(
             "Ad Library live scan did not return enough ads "
-            f"(need {competitor_target} competitor + {keyword_target} keyword = {max_ads}; "
+            f"(target {competitor_target} competitor + {keyword_target} keyword = {max_ads}; "
+            f"minimum accepted {required_ads}; "
             f"got {competitor_count} competitor + {keyword_count} keyword = {len(selected)}). "
             "Fallback is disabled by configuration, so the workflow is stopped instead of using synthetic benchmark ads."
         )
@@ -640,6 +652,7 @@ def _cache_key(
     keywords: str,
     country: str,
     max_ads: int,
+    min_ads: int,
     competitor_urls: list[str],
     competitor_ratio: float,
 ) -> str:
@@ -648,6 +661,7 @@ def _cache_key(
         "keywords": keywords,
         "country": country,
         "max_ads": max_ads,
+        "min_ads": min_ads,
         "competitor_urls": competitor_urls,
         "competitor_ratio": competitor_ratio,
     }

@@ -48,6 +48,8 @@ def main() -> None:
     assert len(workflow["approval_gates"]) == 4, workflow["approval_gates"]
     assert len(workflow["weeks"]) == 4, workflow["weeks"]
     assert workflow["team_roles"] == ["Biên kịch", "Đạo diễn AI", "Video Editor"]
+    assert workflow["market_intelligence"]["campaigns"], workflow["market_intelligence"]
+    assert workflow["revenue_strategy"]["funnel"], workflow["revenue_strategy"]
     assert all(task.get("owner_role") and task.get("deliverables") for task in workflow["tasks"])
     assert result["production_handoff"], "CMO should produce a handoff"
     assert not FORBIDDEN_OUTPUT_FIELDS.intersection(result), FORBIDDEN_OUTPUT_FIELDS.intersection(result)
