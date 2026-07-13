@@ -80,6 +80,7 @@ class Settings:
     competitor_page_ids: list[str] = field(default_factory=lambda: _list("COMPETITOR_PAGE_IDS"))
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.6-sol")
     openai_reasoning_effort: str = os.getenv("OPENAI_REASONING_EFFORT", "high")
+    openai_timeout_seconds: int = max(30, int(os.getenv("OPENAI_TIMEOUT_SECONDS", "180")))
     agent_api_reasoning_enabled: bool = _bool("AGENT_API_REASONING_ENABLED", True)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     mock_mode: bool = _bool("MOCK_MODE", False)
@@ -134,6 +135,7 @@ GEMINI_MODEL = settings.gemini_model
 GEMINI_FALLBACK_MODELS = settings.gemini_fallback_models
 OPENAI_MODEL = settings.openai_model
 OPENAI_REASONING_EFFORT = settings.openai_reasoning_effort
+OPENAI_TIMEOUT_SECONDS = settings.openai_timeout_seconds
 AGENT_API_REASONING_ENABLED = settings.agent_api_reasoning_enabled
 AI_PROVIDER = settings.ai_provider
 FACEBOOK_ACCESS_TOKEN = settings.facebook_access_token

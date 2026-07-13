@@ -131,6 +131,11 @@ jobs:
             else
               printf 'OPENAI_REASONING_EFFORT=high\n' >> "$STAGE/.env"
             fi
+            if grep -q '^OPENAI_TIMEOUT_SECONDS=' "$STAGE/.env"; then
+              sed -i 's/^OPENAI_TIMEOUT_SECONDS=.*/OPENAI_TIMEOUT_SECONDS=180/' "$STAGE/.env"
+            else
+              printf 'OPENAI_TIMEOUT_SECONDS=180\n' >> "$STAGE/.env"
+            fi
             if grep -q '^GEMINI_MODEL=' "$STAGE/.env"; then
               sed -i 's/^GEMINI_MODEL=.*/GEMINI_MODEL=gemini-3.1-pro-preview/' "$STAGE/.env"
             else

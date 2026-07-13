@@ -118,6 +118,6 @@ def _call_openai(prompt: str) -> str:
         prompt,
         system="You are a bounded Vietnamese dental marketing analysis agent. Stay in role, do not reveal reasoning, return only the final report.",
         temperature=0.25,
-        timeout=45,
+        timeout=config.OPENAI_TIMEOUT_SECONDS,
     )
     return text

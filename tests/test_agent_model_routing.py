@@ -72,6 +72,15 @@ class AgentModelRoutingTests(unittest.TestCase):
         self.assertEqual(post.call_args.kwargs["json"]["model"], "gpt-5.6-sol")
         self.assertEqual(post.call_args.kwargs["json"]["reasoning"], {"effort": "high"})
 
+    def test_complex_route_uses_production_timeout(self) -> None:
+        with patch.object(reasoning.config, "OPENAI_TIMEOUT_SECONDS", 180), patch.object(
+            reasoning, "generate_text_with_openai", return_value=("OK", "gpt-5.6-sol")
+        ) as generate:
+            result = reasoning._call_openai("prompt")
+
+        self.assertEqual(result, "OK")
+        self.assertEqual(generate.call_args.kwargs["timeout"], 180)
+
     def test_missing_route_key_warns_without_silently_enabling_mock_mode(self) -> None:
         settings = reasoning.config.Settings(openai_api_key="openai-key", gemini_api_key="", mock_mode=False)
 

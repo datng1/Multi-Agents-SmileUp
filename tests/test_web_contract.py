@@ -46,6 +46,7 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("AD_LIBRARY_MAX_ADS=100", deploy)
         self.assertNotIn("AD_LIBRARY_MAX_ADS=20", deploy)
         self.assertIn("OPENAI_MODEL=gpt-5.6-sol", deploy)
+        self.assertIn("OPENAI_TIMEOUT_SECONDS=180", deploy)
         self.assertIn("GEMINI_MODEL=gemini-3.1-pro-preview", deploy)
         self.assertIn("GEMINI_FALLBACK_MODELS=gemini-3.1-pro-preview", deploy)
         self.assertNotIn("OPENAI_MODEL=gpt-5.5", deploy)
