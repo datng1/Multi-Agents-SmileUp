@@ -39,8 +39,11 @@ class WebContractTests(unittest.TestCase):
 
     def test_server_scan_contract_targets_broad_market_coverage(self) -> None:
         source = (ROOT / "web_app.py").read_text(encoding="utf-8")
+        deploy = (ROOT / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
         self.assertIn('return "market", 100, 20', source)
         self.assertIn('"scan_ads": 100', source)
+        self.assertIn("AD_LIBRARY_MAX_ADS=100", deploy)
+        self.assertNotIn("AD_LIBRARY_MAX_ADS=20", deploy)
         self.assertNotIn('"/api/publish"', source)
 
 

@@ -127,9 +127,9 @@ jobs:
               printf '\nOPENAI_MODEL=gpt-5.5\n' >> "$STAGE/.env"
             fi
             if grep -q '^AD_LIBRARY_MAX_ADS=' "$STAGE/.env"; then
-              sed -i 's/^AD_LIBRARY_MAX_ADS=.*/AD_LIBRARY_MAX_ADS=20/' "$STAGE/.env"
+              sed -i 's/^AD_LIBRARY_MAX_ADS=.*/AD_LIBRARY_MAX_ADS=100/' "$STAGE/.env"
             else
-              printf 'AD_LIBRARY_MAX_ADS=20\n' >> "$STAGE/.env"
+              printf 'AD_LIBRARY_MAX_ADS=100\n' >> "$STAGE/.env"
             fi
             NEW_COMPETITOR_AD_URL='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=100304372631888'
             if grep -q '^AD_LIBRARY_COMPETITOR_URLS=' "$STAGE/.env"; then
