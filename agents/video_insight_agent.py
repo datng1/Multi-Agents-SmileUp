@@ -22,6 +22,7 @@ def run_video_insight_agent(state: AgentState) -> AgentState:
             "facebook_trend_analysis": state.get("facebook_trend_analysis", ""),
         },
         fallback=fallback,
+        complexity="easy",
     )
     state["video_insight_report"] = f"Focus keyword: {focus_keyword}\n{report}".strip()
     state["current_step"] = "video_insight"

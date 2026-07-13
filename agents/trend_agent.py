@@ -28,6 +28,7 @@ def run_trend_agent(state: AgentState) -> AgentState:
             "fallback_visual_brief": fallback_visual,
         },
         fallback=f"{fallback_trend}\n\n{fallback_visual}",
+        complexity="easy",
     )
     state["facebook_trend_analysis"] = (
         f"Focus keyword: {focus_keyword}\n"

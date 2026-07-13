@@ -26,6 +26,13 @@ FORBIDDEN_OUTPUT_FIELDS = {
 
 
 class CMOProductionWorkflowTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.api_reasoning_patch = patch.object(crawler_agent.config, "AGENT_API_REASONING_ENABLED", False)
+        self.api_reasoning_patch.start()
+
+    def tearDown(self) -> None:
+        self.api_reasoning_patch.stop()
+
     def _ready_state(self) -> dict:
         state = create_initial_state()
         state["ad_library_keywords"] = "implant toàn hàm"
@@ -65,6 +72,9 @@ class CMOProductionWorkflowTests(unittest.TestCase):
         self.assertTrue(workflow["market_intelligence"]["selected_opportunity"])
         self.assertEqual(workflow["revenue_strategy"]["primary_conversion"], "Lịch tư vấn đủ điều kiện đã xác nhận")
         self.assertTrue(workflow["revenue_strategy"]["funnel"])
+        self.assertEqual(workflow["model_routing"]["cmo_and_complex"], "gpt-5.6-sol")
+        self.assertEqual(workflow["model_routing"]["easy_analysis"], "gemini-2.5-flash")
+        self.assertTrue(workflow["model_routing"]["cmo_review_provider"])
         self.assertEqual(len(tasks), 12)
         self.assertEqual(len(workflow["approval_gates"]), 4)
         self.assertEqual([gate["id"] for gate in workflow["approval_gates"]], ["QW1", "QW2", "QW3", "QW4"])

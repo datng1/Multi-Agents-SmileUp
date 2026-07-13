@@ -546,8 +546,8 @@ def _workflow_context_cache_key(request_payload: dict) -> str:
             "ad_library_competitor_urls": config.AD_LIBRARY_COMPETITOR_URLS,
             "ad_library_competitor_ratio": config.AD_LIBRARY_COMPETITOR_RATIO,
             "openai_model": config.OPENAI_MODEL,
+            "openai_reasoning_effort": config.OPENAI_REASONING_EFFORT,
             "gemini_model": config.GEMINI_MODEL,
-            "anthropic_model": config.ANTHROPIC_MODEL,
             "agent_api_reasoning_enabled": config.AGENT_API_REASONING_ENABLED,
         },
     }
@@ -821,12 +821,10 @@ def _scan_settings(request_payload: dict) -> tuple[str, int, int]:
 
 def _model_status_label() -> str:
     models = []
-    if config.GEMINI_API_KEY:
-        models.append(f"Gemini:{config.GEMINI_MODEL}")
     if config.OPENAI_API_KEY:
-        models.append(f"GPT:{config.OPENAI_MODEL}")
-    if config.ANTHROPIC_API_KEY:
-        models.append(f"Claude:{config.ANTHROPIC_MODEL}")
+        models.append(f"CMO/complex:{config.OPENAI_MODEL}")
+    if config.GEMINI_API_KEY:
+        models.append(f"easy:{config.GEMINI_MODEL}")
     return " + ".join(models) if models else "local-template"
 
 

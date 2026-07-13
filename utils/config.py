@@ -73,14 +73,13 @@ DEFAULT_COMPETITOR_AD_LIBRARY_URLS = "\n".join(
 @dataclass(frozen=True)
 class Settings:
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     facebook_access_token: str = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
-    gemini_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_FALLBACK_MODELS") or ["gemini-3.1-pro-preview", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"])
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    gemini_fallback_models: list[str] = field(default_factory=lambda: _list("GEMINI_FALLBACK_MODELS") or ["gemini-2.5-flash"])
     competitor_page_ids: list[str] = field(default_factory=lambda: _list("COMPETITOR_PAGE_IDS"))
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.5")
-    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.6-sol")
+    openai_reasoning_effort: str = os.getenv("OPENAI_REASONING_EFFORT", "high")
     agent_api_reasoning_enabled: bool = _bool("AGENT_API_REASONING_ENABLED", True)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     mock_mode: bool = _bool("MOCK_MODE", False)
@@ -108,8 +107,10 @@ class Settings:
     @property
     def warnings(self) -> list[str]:
         warnings: list[str] = []
-        if not (self.gemini_api_key or self.openai_api_key or self.anthropic_api_key):
-            warnings.append("No LLM API key configured")
+        if not self.openai_api_key:
+            warnings.append("OPENAI_API_KEY is required for CMO and complex tasks")
+        if not self.gemini_api_key:
+            warnings.append("GEMINI_API_KEY is required for easy analysis tasks")
         return warnings
 
     @property
@@ -118,24 +119,21 @@ class Settings:
             return "OpenAI"
         if self.gemini_api_key:
             return "Gemini"
-        if self.anthropic_api_key:
-            return "Anthropic"
         return "Local fallback"
 
     @property
     def effective_mock_mode(self) -> bool:
-        return self.mock_mode or bool(self.warnings)
+        return self.mock_mode
 
 
 settings = Settings()
 
 OPENAI_API_KEY = settings.openai_api_key
-ANTHROPIC_API_KEY = settings.anthropic_api_key
 GEMINI_API_KEY = settings.gemini_api_key
 GEMINI_MODEL = settings.gemini_model
 GEMINI_FALLBACK_MODELS = settings.gemini_fallback_models
 OPENAI_MODEL = settings.openai_model
-ANTHROPIC_MODEL = settings.anthropic_model
+OPENAI_REASONING_EFFORT = settings.openai_reasoning_effort
 AGENT_API_REASONING_ENABLED = settings.agent_api_reasoning_enabled
 AI_PROVIDER = settings.ai_provider
 FACEBOOK_ACCESS_TOKEN = settings.facebook_access_token

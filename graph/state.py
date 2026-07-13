@@ -100,6 +100,7 @@ class AgentState(TypedDict):
     cmo_feedback: str
     cmo_next_action: CMONextAction
     cmo_campaign_brief: str
+    cmo_model_provider: str
     cmo_decision_graph: dict[str, Any]
     cmo_graph_summary: str
     approval_status: ApprovalStatus
@@ -161,6 +162,7 @@ def create_initial_state() -> AgentState:
         "cmo_feedback": "",
         "cmo_next_action": "continue",
         "cmo_campaign_brief": "",
+        "cmo_model_provider": "",
         "cmo_decision_graph": {"nodes": [], "edges": [], "selected_path": []},
         "cmo_graph_summary": "",
         "approval_status": "pending",

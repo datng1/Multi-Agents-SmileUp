@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
-import requests
 from typing import Any
 
-from tools.gemini_client import GeminiUnavailable, generate_text_with_gemini
+from tools.gemini_client import generate_text_with_gemini
 from tools.openai_client import generate_text_with_openai
 from utils import config
 from utils.logger import get_logger
 
 
 logger = get_logger(__name__)
+
+
+class RequiredModelUnavailable(RuntimeError):
+    pass
 
 
 def reason_with_agent_api(
@@ -21,41 +24,34 @@ def reason_with_agent_api(
     context: dict[str, Any],
     fallback: str,
     max_context_chars: int = 9000,
+    complexity: str = "complex",
 ) -> tuple[str, str]:
-    """Let an agent use an LLM API for bounded reasoning, with local fallback."""
+    """Route bounded reasoning to the model required by the task tier."""
+    if complexity not in {"easy", "complex"}:
+        raise ValueError("complexity must be 'easy' or 'complex'")
     prompt = _build_prompt(agent_name, role, task, context, max_context_chars)
-    errors: list[str] = []
-
     if not config.AGENT_API_REASONING_ENABLED:
         return fallback, "local-bounded"
 
     if config.MOCK_MODE:
         return fallback, "mock-local"
 
-    if config.OPENAI_API_KEY:
+    if complexity == "easy":
+        if not config.GEMINI_API_KEY:
+            raise RequiredModelUnavailable("Gemini API key is required for easy tasks")
         try:
-            return _clean_report(_call_openai(prompt), fallback), f"GPT ({config.OPENAI_MODEL})"
+            return _clean_report(generate_text_with_gemini(prompt), fallback), f"Gemini ({config.GEMINI_MODEL})"
         except Exception as exc:
-            errors.append(f"OpenAI: {exc}")
-            logger.warning("%s OpenAI reasoning failed: %s", agent_name, exc)
-
-    if config.GEMINI_API_KEY:
-        try:
-            return _clean_report(generate_text_with_gemini(prompt), fallback), "Gemini"
-        except Exception as exc:
-            errors.append(f"Gemini: {exc}")
             logger.warning("%s Gemini reasoning failed: %s", agent_name, exc)
+            raise RequiredModelUnavailable(f"Gemini easy-task route failed: {exc}") from exc
 
-    if config.ANTHROPIC_API_KEY:
-        try:
-            return _clean_report(_call_anthropic(prompt), fallback), "Claude"
-        except Exception as exc:
-            errors.append(f"Claude: {exc}")
-            logger.warning("%s Claude reasoning failed: %s", agent_name, exc)
-
-    if errors:
-        return f"{fallback}\n\nAPI reasoning fallback: {' | '.join(errors[-2:])}", "local-fallback"
-    return fallback, "local-fallback"
+    if not config.OPENAI_API_KEY:
+        raise RequiredModelUnavailable("OpenAI API key is required for complex tasks")
+    try:
+        return _clean_report(_call_openai(prompt), fallback), f"GPT ({config.OPENAI_MODEL})"
+    except Exception as exc:
+        logger.warning("%s OpenAI reasoning failed: %s", agent_name, exc)
+        raise RequiredModelUnavailable(f"OpenAI complex-task route failed: {exc}") from exc
 
 
 def _build_prompt(
@@ -125,24 +121,3 @@ def _call_openai(prompt: str) -> str:
         timeout=45,
     )
     return text
-
-
-def _call_anthropic(prompt: str) -> str:
-    response = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": config.ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": config.ANTHROPIC_MODEL,
-            "max_tokens": 1200,
-            "temperature": 0.25,
-            "messages": [{"role": "user", "content": prompt}],
-        },
-        timeout=45,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    return "\n".join(block.get("text", "") for block in payload.get("content", []) if block.get("type") == "text")

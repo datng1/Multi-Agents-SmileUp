@@ -36,6 +36,7 @@ def run_compliance_agent(state: AgentState) -> AgentState:
             "production_guardrails": PRODUCTION_GUARDRAILS,
         },
         fallback=fallback,
+        complexity="complex",
     )
     state["production_guardrails"] = list(PRODUCTION_GUARDRAILS)
     state["compliance_report"] = f"Focus keyword: {focus_keyword}\n{report}".strip()

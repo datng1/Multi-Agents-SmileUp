@@ -75,6 +75,7 @@ def run_hardness_agent(state: AgentState) -> AgentState:
             "strategic_direction": state.get("strategic_direction", ""),
         },
         fallback=fallback_report,
+        complexity="complex",
     )
     state["hardness_report"] = f"Focus keyword: {focus_keyword}\n{report}".strip()
     state["current_step"] = "hardness"

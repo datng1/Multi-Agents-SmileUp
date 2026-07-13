@@ -122,9 +122,24 @@ jobs:
           [ -f "$PRESERVE/.env" ] && cp -a "$PRESERVE/.env" "$STAGE/.env"
           if [ -f "$STAGE/.env" ]; then
             if grep -q '^OPENAI_MODEL=' "$STAGE/.env"; then
-              sed -i 's/^OPENAI_MODEL=.*/OPENAI_MODEL=gpt-5.5/' "$STAGE/.env"
+              sed -i 's/^OPENAI_MODEL=.*/OPENAI_MODEL=gpt-5.6-sol/' "$STAGE/.env"
             else
-              printf '\nOPENAI_MODEL=gpt-5.5\n' >> "$STAGE/.env"
+              printf '\nOPENAI_MODEL=gpt-5.6-sol\n' >> "$STAGE/.env"
+            fi
+            if grep -q '^OPENAI_REASONING_EFFORT=' "$STAGE/.env"; then
+              sed -i 's/^OPENAI_REASONING_EFFORT=.*/OPENAI_REASONING_EFFORT=high/' "$STAGE/.env"
+            else
+              printf 'OPENAI_REASONING_EFFORT=high\n' >> "$STAGE/.env"
+            fi
+            if grep -q '^GEMINI_MODEL=' "$STAGE/.env"; then
+              sed -i 's/^GEMINI_MODEL=.*/GEMINI_MODEL=gemini-2.5-flash/' "$STAGE/.env"
+            else
+              printf 'GEMINI_MODEL=gemini-2.5-flash\n' >> "$STAGE/.env"
+            fi
+            if grep -q '^GEMINI_FALLBACK_MODELS=' "$STAGE/.env"; then
+              sed -i 's/^GEMINI_FALLBACK_MODELS=.*/GEMINI_FALLBACK_MODELS=gemini-2.5-flash/' "$STAGE/.env"
+            else
+              printf 'GEMINI_FALLBACK_MODELS=gemini-2.5-flash\n' >> "$STAGE/.env"
             fi
             if grep -q '^AD_LIBRARY_MAX_ADS=' "$STAGE/.env"; then
               sed -i 's/^AD_LIBRARY_MAX_ADS=.*/AD_LIBRARY_MAX_ADS=100/' "$STAGE/.env"

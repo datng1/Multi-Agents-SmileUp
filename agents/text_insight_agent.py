@@ -22,6 +22,7 @@ def run_text_insight_agent(state: AgentState) -> AgentState:
             "high_match_ads": state.get("high_match_ads", []),
         },
         fallback=fallback,
+        complexity="easy",
     )
     state["text_insight_report"] = f"Focus keyword: {focus_keyword}\n{report}".strip()
     state["current_step"] = "text_insight"

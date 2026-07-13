@@ -5,7 +5,9 @@ import json
 from datetime import datetime
 
 from graph.state import AgentState, ApprovalGate, ProductionTask
+from tools.agent_api_reasoning import reason_with_agent_api
 from tools.campaign_intelligence import analyze_market_campaigns, build_revenue_strategy
+from utils import config
 from utils.logger import get_logger
 
 
@@ -51,6 +53,10 @@ def run_manager_agent(state: AgentState) -> AgentState:
         "source_ads_count": len(state.get("ad_library_ads", [])),
         "high_match_ads_count": len(state.get("high_match_ads", [])),
         "team_roles": ["Biên kịch", "Đạo diễn AI", "Video Editor"],
+        "model_routing": {
+            "cmo_and_complex": config.OPENAI_MODEL,
+            "easy_analysis": config.GEMINI_MODEL,
+        },
         "market_intelligence": market_intelligence,
         "revenue_strategy": revenue_strategy,
         "monthly_campaign": monthly_campaign,
@@ -67,10 +73,32 @@ def run_manager_agent(state: AgentState) -> AgentState:
             "Mọi nội dung nha khoa phải qua kiểm tra chuyên môn và quyền sử dụng trước khi bàn giao.",
         ],
     }
+    raw_brief = _production_brief(state, workflow, missing)
+    executive_review, provider = reason_with_agent_api(
+        agent_name="CMO Executive Review",
+        role="Trưởng phòng Marketing duyệt kế hoạch tháng, độ chắc evidence và khả năng tạo doanh thu trước khi giao việc.",
+        task=(
+            "Rà soát và viết lại brief điều hành cuối. Giữ nguyên cmo_decision, coverage gate, số tuần, owner, "
+            "unit economics và mọi caveat; không tự nâng trạng thái, không bịa dữ liệu hoặc cam kết doanh thu."
+        ),
+        context={
+            "cmo_decision": "READY_FOR_PRODUCTION" if ready else "NEEDS_MORE_RESEARCH",
+            "missing_evidence": missing,
+            "market_coverage": market_intelligence.get("coverage", {}),
+            "selected_opportunity": market_intelligence.get("selected_opportunity"),
+            "revenue_strategy": revenue_strategy,
+            "production_brief": raw_brief,
+        },
+        fallback=raw_brief,
+        max_context_chars=15000,
+        complexity="complex",
+    )
+    workflow["model_routing"]["cmo_review_provider"] = provider
     state["media_production_workflow"] = workflow
-    state["media_production_brief"] = _production_brief(state, workflow, missing)
+    state["media_production_brief"] = executive_review
     state["production_handoff"] = _handoff(workflow, missing)
-    state["cmo_campaign_brief"] = state["media_production_brief"]
+    state["cmo_campaign_brief"] = executive_review
+    state["cmo_model_provider"] = provider
     state["cmo_decision_graph"] = _decision_graph(tasks, gates, ready)
     state["cmo_graph_summary"] = _graph_summary(state["cmo_decision_graph"])
 

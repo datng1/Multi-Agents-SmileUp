@@ -41,6 +41,7 @@ def run_strategy_agent(state: AgentState) -> AgentState:
             "production_focus_profile": state.get("production_focus_profile", {}),
         },
         fallback=f"{fallback_monthly}\n\n{fallback_direction}",
+        complexity="complex",
     )
     state["monthly_strategy"] = f"Focus keyword: {focus_keyword}\n{report}".strip()
     state["weekly_strategy"] = state["monthly_strategy"]

@@ -27,6 +27,7 @@ def run_visual_insight_agent(state: AgentState) -> AgentState:
             "production_visual_direction": state.get("visual_direction", ""),
         },
         fallback=fallback,
+        complexity="easy",
     )
     state["visual_insight_report"] = f"Focus keyword: {focus_keyword}\n{report}".strip()
     state["current_step"] = "visual_insight"

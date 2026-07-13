@@ -52,6 +52,7 @@ def _call_responses_api(prompt: str, *, system: str, timeout: int) -> str:
             "model": config.OPENAI_MODEL,
             "instructions": system,
             "input": prompt,
+            "reasoning": {"effort": config.OPENAI_REASONING_EFFORT},
         },
         timeout=timeout,
     )

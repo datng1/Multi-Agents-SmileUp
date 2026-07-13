@@ -57,7 +57,7 @@ AD_LIBRARY_COMPETITOR_RATIO=0.8
 AGENT_API_REASONING_ENABLED=true
 ```
 
-Ít nhất một khóa `OPENAI_API_KEY`, `GEMINI_API_KEY` hoặc `ANTHROPIC_API_KEY` cần được cấu hình để dùng reasoning API. `FACEBOOK_ACCESS_TOKEN` và `COMPETITOR_PAGE_IDS` chỉ là nguồn đọc thêm cho competitor research; chúng không được dùng để publish.
+Routing model được cố định theo độ khó: CMO, Strategy, Compliance và Hardness dùng `gpt-5.6-sol` với reasoning `high`; Text, Trend, Visual và Video extraction dùng `gemini-2.5-flash`. Tác vụ phức tạp không fallback sang Gemini. Cần cấu hình cả `OPENAI_API_KEY` và `GEMINI_API_KEY`; `FACEBOOK_ACCESS_TOKEN` và `COMPETITOR_PAGE_IDS` chỉ là nguồn đọc thêm, không dùng để publish.
 
 Để CMO tính trần chi phí lead/ca thay vì tự đặt giả định, có thể cấu hình các số liệu thật: `SMILEUP_AVERAGE_CASE_VALUE`, `SMILEUP_GROSS_MARGIN_RATE`, `SMILEUP_QUALIFIED_LEAD_TO_BOOKING_RATE`, `SMILEUP_BOOKING_SHOW_RATE`, `SMILEUP_CONSULTATION_CLOSE_RATE` và `SMILEUP_MAX_ACQUISITION_SHARE`. Khi thiếu, hệ thống chỉ đưa chiến lược và nêu rõ chưa đủ dữ liệu dự báo tài chính.
 
