@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 
 from graph.state import AgentState
+from tools.ad_evidence import build_full_ad_evidence
 from tools.ad_library_scraper import (
     ads_to_competitor_insights,
     build_ad_library_report,
@@ -56,6 +57,11 @@ def run_crawler_agent(state: AgentState) -> AgentState:
             configured_competitor_pages=len(config.AD_LIBRARY_COMPETITOR_URLS),
             scan_target=max_ads,
         )
+        state["full_ad_evidence"] = build_full_ad_evidence(
+            ads,
+            focus_keyword=keywords,
+            scan_id=state["ad_library_scan_id"],
+        )
         state["high_match_ads"] = high_match_ads
         state["high_match_threshold"] = 0.95
         state["ad_library_keywords"] = keywords
@@ -100,6 +106,11 @@ def run_crawler_agent(state: AgentState) -> AgentState:
         )
         state["ad_library_scanned_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
         state["ad_library_scan_id"] = _ad_library_scan_id(config.AD_LIBRARY_KEYWORDS, benchmark_ads)
+        state["full_ad_evidence"] = build_full_ad_evidence(
+            benchmark_ads,
+            focus_keyword=config.AD_LIBRARY_KEYWORDS,
+            scan_id=state["ad_library_scan_id"],
+        )
         state["data_source"] = "mock" if config.MOCK_MODE else "fallback"
         state["messages"].append({"role": "crawler", "content": f"Collected {len(insights)} controlled insights"})
 

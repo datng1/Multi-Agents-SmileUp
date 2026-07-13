@@ -506,7 +506,9 @@ def _progress_log(statuses: dict, current_agent: str, current_status: str) -> st
 
 def _run_workflow_payload(request_payload: dict, session_id: str, username: str) -> dict:
     context_key = _workflow_context_cache_key(request_payload)
-    initial_state = _build_initial_state(request_payload)
+    keyword = _normalize_scan_keyword(request_payload.get("ad_library_keywords"))
+    previous_campaign = _latest_previous_campaign_snapshot(keyword, session_id, username)
+    initial_state = _build_initial_state(request_payload, previous_campaign)
     started_at = time.perf_counter()
     result = build_workflow().invoke(initial_state)
     duration_ms = round((time.perf_counter() - started_at) * 1000)
@@ -608,6 +610,46 @@ def _list_workflow_context_history(session_id: str, username: str) -> list[dict]
                 }
             )
         return sorted(items, key=lambda item: float(item.get("cached_at", 0) or 0), reverse=True)
+
+
+def _latest_previous_campaign_snapshot(keyword: str, session_id: str, username: str) -> dict:
+    with CACHE_LOCK:
+        cache = _load_workflow_context_cache()
+        candidates = []
+        for entry in (cache.get("entries") or {}).values():
+            if not isinstance(entry, dict):
+                continue
+            owner = str(entry.get("owner_username") or "")
+            same_owner = secrets.compare_digest(owner, username) if owner else secrets.compare_digest(
+                str(entry.get("session_id") or ""), session_id
+            )
+            summary = entry.get("summary") or {}
+            entry_keyword = str(summary.get("keyword") or "").strip()
+            if not same_owner or not entry_keyword or _normalize_scan_keyword(entry_keyword) != keyword:
+                continue
+            candidates.append(entry)
+        if not candidates:
+            return {}
+        latest = max(candidates, key=lambda item: float(item.get("cached_at", 0) or 0))
+        result = ((latest.get("output") or {}).get("result") or {})
+        workflow = result.get("media_production_workflow") or {}
+        campaign = workflow.get("monthly_campaign") or {}
+        return {
+            "workflow_id": workflow.get("workflow_id") or "",
+            "focus_keyword": workflow.get("focus_keyword") or keyword,
+            "campaign_thesis": campaign.get("campaign_thesis") or "",
+            "monthly_strategy": str(result.get("monthly_strategy") or "")[:18000],
+            "weeks": [
+                {
+                    "week": week.get("week"),
+                    "theme": week.get("theme") or "",
+                    "objective": week.get("objective") or "",
+                    "content_outputs": list(week.get("content_outputs") or []),
+                }
+                for week in (workflow.get("weeks") or [])[:4]
+            ],
+            "production_focus_profile": dict(result.get("production_focus_profile") or {}),
+        }
 
 
 def _delete_workflow_context_history_item(history_id: str, session_id: str, username: str) -> bool:
@@ -728,14 +770,20 @@ def _save_workflow_context_cache(cache: dict) -> None:
     WORKFLOW_CONTEXT_CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _build_initial_state(request_payload: dict) -> dict:
+def _build_initial_state(request_payload: dict, previous_campaign_snapshot: dict | None = None) -> dict:
     ad_library_keywords = _normalize_scan_keyword(request_payload.get("ad_library_keywords"))
     scan_mode, max_ads, reference_scan_limit = _scan_settings(request_payload)
 
     initial_state = create_initial_state()
     run_seed = _build_run_seed(ad_library_keywords, scan_mode)
+    previous_campaign_snapshot = dict(previous_campaign_snapshot or {})
     initial_state["run_seed"] = run_seed
-    initial_state["production_focus_profile"] = _production_focus_profile(run_seed, ad_library_keywords)
+    initial_state["previous_campaign_snapshot"] = previous_campaign_snapshot
+    initial_state["production_focus_profile"] = _production_focus_profile(
+        run_seed,
+        ad_library_keywords,
+        previous_campaign_snapshot.get("production_focus_profile") or {},
+    )
     initial_state["ad_library_keywords"] = ad_library_keywords
     initial_state["cmo_objective"] = (
         f"Phân tích tín hiệu Meta mới nhất theo keyword '{ad_library_keywords}', xây chiến dịch media 1 tháng chia 4 tuần, "
@@ -762,8 +810,13 @@ def _normalize_scan_keyword(value: object) -> str:
     return (normalized or config.AD_LIBRARY_KEYWORDS)[:120].strip()
 
 
-def _production_focus_profile(run_seed: str, focus_keyword: str) -> dict[str, str]:
-    seed_value = int(str(run_seed or "0")[:8], 16) if run_seed else 0
+def _production_focus_profile(
+    run_seed: str,
+    focus_keyword: str,
+    previous_profile: dict[str, str] | None = None,
+) -> dict[str, str]:
+    seed = str(run_seed or "0").ljust(16, "0")
+    previous_profile = previous_profile or {}
     hook_styles = [
         "counter-intuitive: đi ngược quảng cáo giảm giá, nhấn vào tư vấn đúng chỉ định",
         "checklist: các câu hỏi cần hỏi trước khi làm răng sứ/implant",
@@ -800,18 +853,34 @@ def _production_focus_profile(run_seed: str, focus_keyword: str) -> dict[str, st
         "comment/inbox tình trạng, bài ads vẫn ưu tiên lấy SĐT",
     ]
 
-    def pick(items: list[str], offset: int = 0) -> str:
-        return items[(seed_value + offset) % len(items)]
+    hypotheses = [
+        "decision-clarity: thắng bằng khả năng giúp khách hiểu đúng trước khi chọn",
+        "proof-of-process: biến quy trình thăm khám thành bằng chứng tin cậy",
+        "objection-to-consultation: chuyển rào cản thật thành động lực đặt lịch đủ điều kiện",
+        "doctor-authority-with-restraint: dùng chuyên môn để sàng lọc, không gây áp lực",
+        "patient-fit-first: đặt mức độ phù hợp của từng ca trước ưu đãi và số lượng lead",
+    ]
+
+    def pick(items: list[str], slot: int, previous_key: str) -> str:
+        start = (slot * 2) % max(2, len(seed) - 1)
+        index = int(seed[start : start + 2], 16) % len(items)
+        if len(items) > 1 and items[index] == previous_profile.get(previous_key):
+            index = (index + 1) % len(items)
+        return items[index]
 
     return {
         "run_seed": run_seed,
         "focus_keyword": focus_keyword,
-        "hook_style": pick(hook_styles),
-        "copy_rhythm": pick(copy_rhythms, 1),
-        "production_format": pick(production_formats, 2),
-        "lead_magnet": pick(lead_magnets, 3),
-        "cta_mode": pick(cta_modes, 4),
-        "anti_repeat_rule": "Mỗi lượt phải đổi hypothesis, format ưu tiên hoặc audience angle dựa trên evidence mới.",
+        "campaign_hypothesis": pick(hypotheses, 0, "campaign_hypothesis"),
+        "hook_style": pick(hook_styles, 1, "hook_style"),
+        "copy_rhythm": pick(copy_rhythms, 2, "copy_rhythm"),
+        "production_format": pick(production_formats, 3, "production_format"),
+        "lead_magnet": pick(lead_magnets, 4, "lead_magnet"),
+        "cta_mode": pick(cta_modes, 5, "cta_mode"),
+        "anti_repeat_rule": (
+            "Không đổi dữ kiện để tạo cảm giác mới. Phải đổi ít nhất ba yếu tố có căn cứ trong hypothesis, "
+            "audience angle, hook, format, lead magnet hoặc CTA so với kế hoạch trước."
+        ),
     }
 
 

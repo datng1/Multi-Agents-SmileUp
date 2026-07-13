@@ -554,6 +554,8 @@ function renderCampaignWeeks(weeks) {
         <div><h3>${escapeHtml(week.theme)}</h3><p>${escapeHtml(week.objective)}</p></div>
       </div>
       <p class="week-evidence"><strong>Tín hiệu Meta:</strong> ${escapeHtml(week.evidence_link)}</p>
+      <p class="week-evidence"><strong>Evidence ads:</strong> ${escapeHtml((week.evidence_refs || []).join(", ") || "Chưa đủ")}</p>
+      <p class="week-evidence"><strong>Góc chiến lược:</strong> ${escapeHtml(week.strategic_angle || "")}</p>
       <div class="week-outputs"><span>3 nội dung</span><ol>${formatList(week.content_outputs)}</ol></div>
       <div class="assignment-grid">
         ${(week.assignments || []).map((task) => `
@@ -562,6 +564,7 @@ function renderCampaignWeeks(weeks) {
             <h4>${escapeHtml(task.title)}</h4>
             <p>${escapeHtml(task.objective)}</p>
             <ul>${formatList(task.deliverables)}</ul>
+            <details><summary>Tiêu chí nghiệm thu</summary><ul>${formatList(task.acceptance_criteria)}</ul></details>
           </article>`).join("")}
       </div>
       <p class="week-review">${escapeHtml(week.review_focus)}</p>

@@ -22,6 +22,7 @@ REQUIRED_REPORT_FIELDS = (
     "strategic_direction",
     "compliance_report",
 )
+MAX_CMO_REVIEW_CONTEXT_CHARS = 400000
 
 
 def run_manager_agent(state: AgentState) -> AgentState:
@@ -57,6 +58,7 @@ def run_manager_agent(state: AgentState) -> AgentState:
             "cmo_and_complex": config.OPENAI_MODEL,
             "easy_analysis": config.GEMINI_MODEL,
         },
+        "strategy_quality": state.get("strategy_novelty", {}),
         "market_intelligence": market_intelligence,
         "revenue_strategy": revenue_strategy,
         "monthly_campaign": monthly_campaign,
@@ -74,23 +76,33 @@ def run_manager_agent(state: AgentState) -> AgentState:
         ],
     }
     raw_brief = _production_brief(state, workflow, missing)
+    review_context = {
+        "full_ad_evidence": state.get("full_ad_evidence", {}),
+        "cmo_decision": "READY_FOR_PRODUCTION" if ready else "NEEDS_MORE_RESEARCH",
+        "missing_evidence": missing,
+        "market_coverage": market_intelligence.get("coverage", {}),
+        "selected_opportunity": market_intelligence.get("selected_opportunity"),
+        "revenue_strategy": revenue_strategy,
+        "strategy_quality": state.get("strategy_novelty", {}),
+        "production_brief": raw_brief,
+    }
+    review_context_chars = len(json.dumps(review_context, ensure_ascii=False, indent=2, default=str))
+    if review_context_chars > MAX_CMO_REVIEW_CONTEXT_CHARS:
+        raise RuntimeError(
+            "CMO review context exceeds the safe full-evidence budget: "
+            f"{review_context_chars}/{MAX_CMO_REVIEW_CONTEXT_CHARS} chars"
+        )
     executive_review, provider = reason_with_agent_api(
         agent_name="CMO Executive Review",
         role="Trưởng phòng Marketing duyệt kế hoạch tháng, độ chắc evidence và khả năng tạo doanh thu trước khi giao việc.",
         task=(
             "Rà soát và viết lại brief điều hành cuối. Giữ nguyên cmo_decision, coverage gate, số tuần, owner, "
-            "unit economics và mọi caveat; không tự nâng trạng thái, không bịa dữ liệu hoặc cam kết doanh thu."
+            "unit economics, evidence IDs, chi tiết giao việc và mọi caveat; không tự nâng trạng thái, không bịa dữ liệu "
+            "hoặc cam kết doanh thu. Xác nhận full_ad_evidence đã bao phủ đủ observed_ads_count trước khi duyệt brief."
         ),
-        context={
-            "cmo_decision": "READY_FOR_PRODUCTION" if ready else "NEEDS_MORE_RESEARCH",
-            "missing_evidence": missing,
-            "market_coverage": market_intelligence.get("coverage", {}),
-            "selected_opportunity": market_intelligence.get("selected_opportunity"),
-            "revenue_strategy": revenue_strategy,
-            "production_brief": raw_brief,
-        },
+        context=review_context,
         fallback=raw_brief,
-        max_context_chars=15000,
+        max_context_chars=MAX_CMO_REVIEW_CONTEXT_CHARS,
         complexity="complex",
     )
     workflow["model_routing"]["cmo_review_provider"] = provider
@@ -167,6 +179,8 @@ def _monthly_campaign(state: AgentState, market_intelligence: dict, revenue_stra
     message_samples = _unique([str(ad.get("ad_text", ""))[:180] for ad in ads])[:3]
     opportunity = market_intelligence.get("selected_opportunity") or {}
     coverage = market_intelligence.get("coverage") or {}
+    full_evidence = state.get("full_ad_evidence") or {}
+    priority_references = list(full_evidence.get("priority_reference_ads") or [])
     return {
         "focus_topic": keyword,
         "campaign_name": f"SmileUp | Hiểu đúng về {keyword}",
@@ -191,6 +205,13 @@ def _monthly_campaign(state: AgentState, market_intelligence: dict, revenue_stra
             "reference_pages": reference_pages,
             "message_samples": message_samples,
             "coverage": coverage,
+            "sol_evidence_coverage": {
+                "observed_ads": full_evidence.get("observed_ads_count", ads_count),
+                "included_ads": full_evidence.get("included_ads_count", 0),
+                "all_ads_included": bool(full_evidence.get("all_ads_included")),
+                "priority_reference_ads": priority_references,
+                "method": full_evidence.get("priority_method", ""),
+            },
             "caveat": (
                 "Ads công khai phản ánh tín hiệu thông điệp và mức độ cạnh tranh; đây không phải bằng chứng về doanh thu, "
                 "tỷ lệ chuyển đổi hoặc hiệu quả thực tế của đối thủ."
@@ -215,6 +236,8 @@ def _evidence_signals(state: AgentState, limit: int = 4) -> list[str]:
     )
     skipped_prefixes = (
         "focus keyword:",
+        "evidence_coverage:",
+        "điểm mới so với chiến dịch trước",
         "chiến dịch media 1 tháng",
         "định hướng media 7 ngày",
         "strategic direction agent:",
@@ -263,6 +286,16 @@ def _brand_platform(state: AgentState) -> dict:
 def _campaign_weeks(state: AgentState, campaign: dict, brand: dict, ready: bool) -> list[dict]:
     keyword = campaign["focus_topic"]
     signals = campaign["meta_evidence"]["signals"]
+    profile = state.get("production_focus_profile") or {}
+    priority_references = campaign["meta_evidence"].get("sol_evidence_coverage", {}).get(
+        "priority_reference_ads", []
+    )
+    priority_ids = [str(item.get("evidence_id") or "") for item in priority_references if item.get("evidence_id")]
+    all_evidence_ids = {
+        str(item.get("evidence_id") or "")
+        for item in (state.get("full_ad_evidence", {}).get("ads") or [])
+        if item.get("evidence_id")
+    }
     definitions = [
         ("Tuần 1", "Nhận diện đúng vấn đề", "Tạo nhận biết có chất lượng", [
             f"Dấu hiệu cho thấy nên tìm hiểu {keyword}",
@@ -285,38 +318,97 @@ def _campaign_weeks(state: AgentState, campaign: dict, brand: dict, ready: bool)
             "CTA đặt tư vấn để nhận đánh giá phù hợp theo tình trạng",
         ]),
     ]
+    blueprint_by_week = {
+        int(item.get("week", 0) or 0): item
+        for item in (state.get("sol_weekly_blueprint") or [])
+        if isinstance(item, dict)
+    }
     weeks: list[dict] = []
-    for index, (label, theme, objective, outputs) in enumerate(definitions, 1):
+    for index, (label, default_theme, default_objective, default_outputs) in enumerate(definitions, 1):
+        blueprint = blueprint_by_week.get(index, {})
+        theme = str(blueprint.get("theme") or default_theme)
+        objective = str(blueprint.get("objective") or default_objective)
+        blueprint_outputs = [str(item).strip() for item in blueprint.get("content_outputs") or [] if str(item).strip()]
+        outputs = blueprint_outputs if len(blueprint_outputs) == 3 else default_outputs
         signal = signals[min(index - 1, len(signals) - 1)]
+        start = (index - 1) * 2
+        blueprint_refs = [
+            str(item).upper()
+            for item in (blueprint.get("evidence_ids") or [])
+            if str(item).upper() in all_evidence_ids
+        ]
+        evidence_refs = blueprint_refs or priority_ids[start : start + 3] or priority_ids[:3]
+        evidence_label = ", ".join(evidence_refs) or "chưa có evidence ID"
+        weekly_angle = (
+            f"{profile.get('campaign_hypothesis', '')}; hook: {profile.get('hook_style', '')}; "
+            f"format: {profile.get('production_format', '')}"
+        ).strip("; ")
         script_id, director_id, editor_id = f"M{index}-S", f"M{index}-D", f"M{index}-E"
         status = "queued" if ready and index == 1 else ("waiting_dependency" if ready else "blocked")
         script_dependencies = [f"QW{index - 1}"] if index > 1 else []
         assignments = [
             _task(
                 script_id, f"week_{index}_script", f"Viết 3 kịch bản - {theme}", "Biên kịch",
-                f"Viết ba kịch bản bám output tuần {index}, evidence Meta và giọng nói SmileUp.",
-                [campaign["campaign_thesis"], signal, brand["brand_idea"]],
-                ["3 kịch bản 30-45 giây", "Hook và CTA cho từng video", "Lưu ý chuyên môn trong lời thoại"],
+                str(blueprint.get("scriptwriter_brief") or (
+                    f"Viết đúng ba kịch bản cho các chủ đề tuần {index}; mỗi kịch bản dùng một insight, "
+                    "một mục tiêu và evidence ads được chỉ định."
+                )),
+                [campaign["campaign_thesis"], signal, f"Evidence ads: {evidence_label}", weekly_angle, *outputs],
+                [
+                    f"Kịch bản 1 (30-45 giây): {outputs[0]}",
+                    f"Kịch bản 2 (30-45 giây): {outputs[1]}",
+                    f"Kịch bản 3 (30-45 giây): {outputs[2]}",
+                    f"Mỗi script có hook 0-3s, voice-over, text on screen, CTA '{profile.get('cta_mode', '')}' và claim cần bác sĩ duyệt",
+                ],
                 script_dependencies,
-                ["Mỗi kịch bản một mục tiêu", "Có liên kết evidence", "Đúng brand voice", "Không claim tuyệt đối"],
+                [
+                    "Mỗi kịch bản một insight và một CTA chính",
+                    f"Ghi evidence ID trong brief: {evidence_label}",
+                    "Không sao chép câu chữ đối thủ; đúng brand voice SmileUp",
+                    "Không claim tuyệt đối và đánh dấu câu cần duyệt chuyên môn",
+                ],
                 status, f"{label} - Ngày 1",
             ),
             _task(
                 director_id, f"week_{index}_direction", f"Đạo diễn AI - {theme}", "Đạo diễn AI",
-                "Chuyển kịch bản thành storyboard, prompt và ngôn ngữ hình ảnh nhất quán với brand SmileUp.",
-                [f"Kịch bản {script_id}", *brand["visual_system"]],
-                ["3 storyboard/shot plan", "Prompt AI và reference có nguồn", "Chỉ dẫn nhịp, text on screen và âm thanh"],
+                str(blueprint.get("director_brief") or (
+                    "Chuyển từng kịch bản đã duyệt thành gói đạo diễn có thể quay/tạo bằng AI mà không tự thêm thông tin y khoa."
+                )),
+                [f"Ba kịch bản {script_id}", f"Evidence ads chỉ để tham chiếu pattern: {evidence_label}", *brand["visual_system"]],
+                [
+                    "3 storyboard, mỗi video 6-10 shot có thời lượng và mục đích từng shot",
+                    "Prompt AI cho từng cảnh, negative prompt, tỷ lệ 9:16 và danh sách cảnh phải quay thật tại SmileUp",
+                    "Bản chỉ dẫn diễn xuất/voice, chuyển cảnh, text on screen, âm thanh và vị trí motif thương hiệu",
+                    "Bảng nguồn reference và quyền sử dụng; không đưa tài sản đối thủ vào production",
+                ],
                 [script_id],
-                ["Motif và màu SmileUp nhất quán", "Cảnh khả thi", "Không dùng tài sản thiếu quyền"],
+                [
+                    "Storyboard khớp 100% nội dung script đã duyệt",
+                    "Màu, motif và nhịp hình SmileUp nhất quán",
+                    "Cảnh AI và cảnh quay thật được phân biệt rõ, khả thi với đội hiện tại",
+                    "Không dùng tài sản thiếu quyền hoặc tạo hình gây hiểu nhầm kết quả điều trị",
+                ],
                 "waiting_dependency" if ready else "blocked", f"{label} - Ngày 2",
             ),
             _task(
                 editor_id, f"week_{index}_edit", f"Dựng 3 video - {theme}", "Video Editor",
-                "Dựng ba video dọc theo storyboard và hệ nhận diện tháng, ưu tiên hiểu nhanh và độ tin cậy.",
-                [f"Storyboard {director_id}", "Voice/footage/AI assets đã duyệt", "SmileUp brand lane"],
-                ["3 video dọc 9:16", "Phụ đề và audio mix", "Master file có version"],
+                str(blueprint.get("editor_brief") or (
+                    "Dựng ba video hoàn chỉnh theo storyboard, giữ tính dễ hiểu, độ tin cậy và một CTA rõ cho từng video."
+                )),
+                [f"Storyboard {director_id}", "Voice/footage/AI assets đã duyệt", "SmileUp brand lane", f"Evidence trace: {evidence_label}"],
+                [
+                    "3 master video 1080x1920, 30-45 giây và 3 file preview duyệt nội bộ",
+                    "Phụ đề burned-in có safe zone, audio/voice cân bằng và text đọc được trên màn hình nhỏ",
+                    "Project file có version, asset manifest và tên file theo tuần-video-phiên bản",
+                    "Mỗi video có một hook 0-3s, một CTA cuối và marker cho mọi đoạn cần duyệt chuyên môn",
+                ],
                 [director_id],
-                ["30-45 giây/video", "Hook rõ trong 3 giây đầu", "Brand continuity", "Không thêm claim ngoài kịch bản"],
+                [
+                    "Đúng 30-45 giây/video và không che khuất phụ đề/logo",
+                    "Hook hiểu được trong 3 giây đầu khi xem không tiếng",
+                    "Brand continuity giữa cả ba video và toàn chiến dịch tháng",
+                    "Không thêm claim, footage hoặc before/after ngoài gói đã duyệt",
+                ],
                 "waiting_dependency" if ready else "blocked", f"{label} - Ngày 3-6",
             ),
         ]
@@ -326,6 +418,8 @@ def _campaign_weeks(state: AgentState, campaign: dict, brand: dict, ready: bool)
             "theme": theme,
             "objective": objective,
             "evidence_link": signal,
+            "evidence_refs": evidence_refs,
+            "strategic_angle": weekly_angle,
             "content_outputs": outputs,
             "assignments": assignments,
             "review_focus": "Ngày 7: duyệt chuyên môn, brand consistency và ghi nhận insight để điều chỉnh tuần kế tiếp.",

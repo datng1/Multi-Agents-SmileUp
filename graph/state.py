@@ -75,6 +75,7 @@ class AgentState(TypedDict):
     ad_library_scanned_at: str
     ad_library_scan_id: str
     market_campaign_intelligence: dict[str, Any]
+    full_ad_evidence: dict[str, Any]
     business_economics: dict[str, float]
     market_trend_summary: str
     facebook_trend_analysis: str
@@ -116,6 +117,9 @@ class AgentState(TypedDict):
     data_source: str
     run_seed: str
     production_focus_profile: dict[str, str]
+    previous_campaign_snapshot: dict[str, Any]
+    strategy_novelty: dict[str, Any]
+    sol_weekly_blueprint: list[dict[str, Any]]
 
 
 def create_initial_state() -> AgentState:
@@ -134,6 +138,7 @@ def create_initial_state() -> AgentState:
         "ad_library_scanned_at": "",
         "ad_library_scan_id": "",
         "market_campaign_intelligence": {},
+        "full_ad_evidence": {},
         "business_economics": {},
         "market_trend_summary": "",
         "facebook_trend_analysis": "",
@@ -185,4 +190,7 @@ def create_initial_state() -> AgentState:
         "data_source": "auto",
         "run_seed": "",
         "production_focus_profile": {},
+        "previous_campaign_snapshot": {},
+        "strategy_novelty": {},
+        "sol_weekly_blueprint": [],
     }
