@@ -290,7 +290,7 @@ class CMOProductionWorkflowTests(unittest.TestCase):
             "EVIDENCE_COVERAGE: 20/20\nĐiểm mới so với chiến dịch trước: chuyển sang tư vấn đúng chỉ định.\n"
             "Tuần 1 dùng AD-001 và AD-002. Tuần 2 dùng AD-003 và AD-004. "
             "Xây niềm tin chuyên môn, gỡ rào cản và tạo lịch tư vấn đủ điều kiện.\n"
-            "WEEKLY_BLUEPRINT_JSON:\n```json\n"
+            "WEEKLY_BLUEPRINT_JSON\n```json\n"
             '{"weeks":['
             '{"week":1,"theme":"Nhận diện","objective":"Hiểu vấn đề","evidence_ids":["AD-001","AD-002"],'
             '"content_outputs":["Video 1","Video 2","Video 3"],"scriptwriter_brief":"Viết ba kịch bản nhận diện có evidence rõ ràng.",'

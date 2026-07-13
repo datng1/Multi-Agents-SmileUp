@@ -202,12 +202,10 @@ def _strategy_similarity(previous: str, candidate: str) -> float:
 
 
 def _extract_weekly_blueprint(report: str) -> list[dict]:
-    marker = "weekly_blueprint_json:"
-    lowered = str(report or "").lower()
-    marker_index = lowered.find(marker)
-    if marker_index < 0:
+    marker = re.search(r"weekly_blueprint_json\s*:?\s*", str(report or ""), flags=re.IGNORECASE)
+    if not marker:
         return []
-    payload = str(report or "")[marker_index + len(marker) :].lstrip()
+    payload = str(report or "")[marker.end() :].lstrip()
     if payload.startswith("```json"):
         payload = payload[7:].lstrip()
     elif payload.startswith("```"):
