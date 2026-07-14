@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import re
 import secrets
 import sys
@@ -140,10 +141,17 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
 
+        history_id = ""
         try:
             request_payload = self._read_json()
+            history_id = _create_workflow_context_history(request_payload, session_id, username)
             if request_payload.get("sync"):
-                self._send_json({"ok": True, **_run_workflow_payload(request_payload, session_id, username)})
+                self._send_json(
+                    {
+                        "ok": True,
+                        **_run_workflow_payload(request_payload, session_id, username, history_id=history_id),
+                    }
+                )
                 return
 
             job_id = uuid.uuid4().hex
@@ -155,12 +163,28 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
                     "logs": "Workflow queued.",
                     "session_id": session_id,
                     "owner_username": username,
+                    "history_id": history_id,
                 }
-            worker = threading.Thread(target=_run_job, args=(job_id, request_payload, session_id, username), daemon=True)
+            worker = threading.Thread(
+                target=_run_job,
+                args=(job_id, request_payload, session_id, username, history_id),
+                daemon=True,
+            )
             worker.start()
-            self._send_json({"ok": True, "job_id": job_id, "status": "running"})
+            self._send_json(
+                {"ok": True, "job_id": job_id, "history_id": history_id, "status": "running"}
+            )
         except Exception as exc:
-            self._send_json({"ok": False, "error": _sanitize_error(str(exc)), "logs": ""}, status=500)
+            error = _sanitize_error(str(exc))
+            if history_id:
+                _record_workflow_context_history_error(
+                    history_id,
+                    request_payload,
+                    session_id,
+                    username,
+                    error,
+                )
+            self._send_json({"ok": False, "error": error, "logs": ""}, status=500)
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
@@ -430,7 +454,13 @@ class MarketingUIHandler(BaseHTTPRequestHandler):
         return
 
 
-def _run_job(job_id: str, request_payload: dict, session_id: str, username: str) -> None:
+def _run_job(
+    job_id: str,
+    request_payload: dict,
+    session_id: str,
+    username: str,
+    history_id: str,
+) -> None:
     def _progress(agent_name: str, status: str) -> None:
         with JOB_LOCK:
             job = JOBS.get(job_id)
@@ -447,7 +477,12 @@ def _run_job(job_id: str, request_payload: dict, session_id: str, username: str)
 
     try:
         set_workflow_progress_callback(_progress)
-        output = _run_workflow_payload(request_payload, session_id, username)
+        output = _run_workflow_payload(
+            request_payload,
+            session_id,
+            username,
+            history_id=history_id,
+        )
         with JOB_LOCK:
             statuses = dict(JOBS[job_id].get("agent_statuses") or {})
             result = output.get("result") or {}
@@ -461,14 +496,30 @@ def _run_job(job_id: str, request_payload: dict, session_id: str, username: str)
                 }
             )
     except Exception as exc:
+        error = _sanitize_error(str(exc))
         with JOB_LOCK:
-            JOBS[job_id].update(
+            job = JOBS[job_id]
+            statuses = dict(job.get("agent_statuses") or {})
+            current_step = str(job.get("current_step") or "")
+            logs = str(job.get("logs") or error)
+            job.update(
                 {
                     "status": "error",
-                    "error": _sanitize_error(str(exc)),
+                    "error": error,
                     "finished_at": time.time(),
                 }
             )
+        _record_workflow_context_history_error(
+            history_id,
+            request_payload,
+            session_id,
+            username,
+            error,
+            job_id=job_id,
+            current_step=current_step,
+            agent_statuses=statuses,
+            logs=logs,
+        )
     finally:
         set_workflow_progress_callback(None)
 
@@ -504,7 +555,13 @@ def _progress_log(statuses: dict, current_agent: str, current_status: str) -> st
     return "\n".join(lines)
 
 
-def _run_workflow_payload(request_payload: dict, session_id: str, username: str) -> dict:
+def _run_workflow_payload(
+    request_payload: dict,
+    session_id: str,
+    username: str,
+    *,
+    history_id: str = "",
+) -> dict:
     context_key = _workflow_context_cache_key(request_payload)
     keyword = _normalize_scan_keyword(request_payload.get("ad_library_keywords"))
     previous_campaign = _latest_previous_campaign_snapshot(keyword, session_id, username)
@@ -517,9 +574,17 @@ def _run_workflow_payload(request_payload: dict, session_id: str, username: str)
         "duration_ms": duration_ms,
         "logs": "Monthly media campaign completed with four-week and SmileUp brand contracts.",
         "history_hit": False,
+        "run_status": "completed",
         "context_cache_key": context_key,
     }
-    output["history_id"] = _write_workflow_context_cache(context_key, output, request_payload, session_id, username)
+    output["history_id"] = _write_workflow_context_cache(
+        context_key,
+        output,
+        request_payload,
+        session_id,
+        username,
+        history_id=history_id,
+    )
     return output
 
 
@@ -576,6 +641,9 @@ def _get_workflow_context_history_item(history_id: str, session_id: str, usernam
         output = dict(output)
         if isinstance(output.get("result"), dict):
             output["result"] = dict(output["result"])
+        output["run_status"] = str(
+            output.get("run_status") or ("completed" if output.get("result") else "running")
+        )
         output["context_cache_key"] = str(output.get("context_cache_key") or entry.get("context_key") or "")
         return {
             "history_id": history_id,
@@ -599,13 +667,23 @@ def _list_workflow_context_history(session_id: str, username: str) -> list[dict]
             if not _can_access_history_entry(entry, session_id, username):
                 continue
             summary = dict(entry.get("summary") or {})
+            output = entry.get("output") or {}
             cached_at = float(entry.get("cached_at", 0) or 0)
+            created_at = float(entry.get("created_at", 0) or cached_at)
+            run_status = str(
+                summary.get("run_status")
+                or output.get("run_status")
+                or ("completed" if output.get("result") else "running")
+            )
             items.append(
                 {
                     "history_id": history_id,
                     "owner_username": entry.get("owner_username") or "",
                     "cached_at": cached_at,
-                    "created_at": summary.get("created_at") or datetime.fromtimestamp(cached_at).isoformat(timespec="seconds"),
+                    "created_at": summary.get("created_at") or datetime.fromtimestamp(created_at).isoformat(timespec="seconds"),
+                    "run_status": run_status,
+                    "has_result": bool(summary.get("has_result") or output.get("result")),
+                    "error": str(summary.get("error") or output.get("error") or ""),
                     **summary,
                 }
             )
@@ -618,6 +696,9 @@ def _latest_previous_campaign_snapshot(keyword: str, session_id: str, username: 
         candidates = []
         for entry in (cache.get("entries") or {}).values():
             if not isinstance(entry, dict):
+                continue
+            output = entry.get("output") or {}
+            if str(output.get("run_status") or "completed") != "completed" or not output.get("result"):
                 continue
             owner = str(entry.get("owner_username") or "")
             same_owner = secrets.compare_digest(owner, username) if owner else secrets.compare_digest(
@@ -684,6 +765,29 @@ def _prune_workflow_context_cache_entries(cache: dict, now: float) -> int:
     return removed
 
 
+def _recover_interrupted_workflow_context_entries(cache: dict, now: float) -> int:
+    recovered = 0
+    for entry in (cache.get("entries") or {}).values():
+        if not isinstance(entry, dict):
+            continue
+        output = entry.get("output") or {}
+        if output.get("run_status") != "running":
+            continue
+        error = "Workflow bị gián đoạn khi dịch vụ khởi động lại. Hãy chạy lại để tạo kế hoạch mới."
+        output["run_status"] = "error"
+        output["error"] = error
+        output["logs"] = str(output.get("logs") or error)
+        entry["output"] = output
+        entry["cached_at"] = now
+        summary = dict(entry.get("summary") or {})
+        summary["run_status"] = "error"
+        summary["has_result"] = False
+        summary["error"] = error
+        entry["summary"] = summary
+        recovered += 1
+    return recovered
+
+
 def _start_workflow_context_cache_cleanup() -> None:
     def cleanup_loop() -> None:
         while True:
@@ -694,29 +798,102 @@ def _start_workflow_context_cache_cleanup() -> None:
                 _prune_jobs_locked()
 
     with CACHE_LOCK:
-        _prune_workflow_context_cache()
+        cache = _load_workflow_context_cache()
+        now = time.time()
+        changed = _recover_interrupted_workflow_context_entries(cache, now)
+        changed += _prune_workflow_context_cache_entries(cache, now)
+        if changed:
+            _save_workflow_context_cache(cache)
     with JOB_LOCK:
         _prune_jobs_locked()
     worker = threading.Thread(target=cleanup_loop, daemon=True)
     worker.start()
 
 
-def _write_workflow_context_cache(context_key: str, output: dict, request_payload: dict, session_id: str, username: str) -> str:
+def _create_workflow_context_history(request_payload: dict, session_id: str, username: str) -> str:
+    context_key = _workflow_context_cache_key(request_payload)
+    output = {
+        "result": {},
+        "duration_ms": 0,
+        "logs": "Workflow queued.",
+        "error": "",
+        "history_hit": False,
+        "run_status": "running",
+        "context_cache_key": context_key,
+    }
+    return _write_workflow_context_cache(
+        context_key,
+        output,
+        request_payload,
+        session_id,
+        username,
+    )
+
+
+def _record_workflow_context_history_error(
+    history_id: str,
+    request_payload: dict,
+    session_id: str,
+    username: str,
+    error: str,
+    *,
+    job_id: str = "",
+    current_step: str = "",
+    agent_statuses: dict | None = None,
+    logs: str = "",
+) -> None:
+    context_key = _workflow_context_cache_key(request_payload)
+    output = {
+        "result": {},
+        "duration_ms": 0,
+        "logs": logs or error,
+        "error": error,
+        "history_hit": False,
+        "run_status": "error",
+        "job_id": job_id,
+        "current_step": current_step,
+        "agent_statuses": dict(agent_statuses or {}),
+        "context_cache_key": context_key,
+    }
+    _write_workflow_context_cache(
+        context_key,
+        output,
+        request_payload,
+        session_id,
+        username,
+        history_id=history_id,
+    )
+
+
+def _write_workflow_context_cache(
+    context_key: str,
+    output: dict,
+    request_payload: dict,
+    session_id: str,
+    username: str,
+    *,
+    history_id: str = "",
+) -> str:
     with CACHE_LOCK:
         cache = _load_workflow_context_cache()
         entries = cache.setdefault("entries", {})
         now = time.time()
         _prune_workflow_context_cache_entries(cache, now)
-        history_id = uuid.uuid4().hex
+        history_id = str(history_id or uuid.uuid4().hex)
+        existing = entries.get(history_id)
+        if isinstance(existing, dict) and not _can_access_history_entry(existing, session_id, username):
+            raise PermissionError("History item belongs to another user")
+        created_at = float((existing or {}).get("created_at") or (existing or {}).get("cached_at") or now)
         cache_output = dict(output)
         cache_output["history_hit"] = False
         cache_output["logs"] = str(cache_output.get("logs") or "")
         entries[history_id] = {
             "cached_at": now,
+            "created_at": created_at,
             "session_id": session_id,
             "owner_username": username,
             "context_key": context_key,
-            "summary": _workflow_context_history_summary(cache_output, request_payload, now),
+            "summary": _workflow_context_history_summary(cache_output, request_payload, created_at),
             "output": cache_output,
         }
         _save_workflow_context_cache(cache)
@@ -732,6 +909,7 @@ def _workflow_context_history_summary(output: dict, request_payload: dict, cache
     keyword = _normalize_scan_keyword(
         request_payload.get("ad_library_keywords") or result.get("ad_library_keywords")
     )
+    run_status = str(output.get("run_status") or ("completed" if result else "running"))
     return {
         "created_at": datetime.fromtimestamp(cached_at).isoformat(timespec="seconds"),
         "keyword": keyword,
@@ -744,8 +922,11 @@ def _workflow_context_history_summary(output: dict, request_payload: dict, cache
         "scanned_at": evidence.get("analyzed_at") or result.get("ad_library_scanned_at") or "",
         "competitor_ads": sum(1 for ad in ads if ad.get("source_type") == "competitor_page"),
         "keyword_ads": sum(1 for ad in ads if ad.get("source_type") == "keyword_scan"),
-        "title": workflow.get("workflow_id") or "Monthly media campaign",
+        "title": workflow.get("workflow_id") or f"CMO · {keyword}",
         "workflow_status": workflow.get("status") or "pending",
+        "run_status": run_status,
+        "has_result": bool(result),
+        "error": str(output.get("error") or ""),
         "tasks_count": len(workflow.get("tasks") or []),
         "duration_ms": output.get("duration_ms", 0),
     }
@@ -767,7 +948,17 @@ def _load_workflow_context_cache() -> dict:
 
 def _save_workflow_context_cache(cache: dict) -> None:
     WORKFLOW_CONTEXT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    WORKFLOW_CONTEXT_CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary_path = WORKFLOW_CONTEXT_CACHE_PATH.with_name(
+        f".{WORKFLOW_CONTEXT_CACHE_PATH.name}.{os.getpid()}.tmp"
+    )
+    try:
+        with temporary_path.open("w", encoding="utf-8") as handle:
+            json.dump(cache, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, WORKFLOW_CONTEXT_CACHE_PATH)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def _build_initial_state(request_payload: dict, previous_campaign_snapshot: dict | None = None) -> dict:

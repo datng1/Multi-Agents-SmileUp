@@ -416,17 +416,24 @@ async function runWorkflow() {
   if (window.matchMedia("(max-width: 860px)").matches) {
     window.setTimeout(() => elements.processingScreen.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
+  let historyWasCreated = false;
   try {
     const payload = await fetchJson("/api/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "market", ad_library_max_ads: 100, ad_library_keywords: keyword }),
     });
+    historyWasCreated = Boolean(payload.history_id);
     currentJobId = payload.job_id;
+    await loadHistory();
     await pollJob(currentJobId);
   } catch (error) {
+    currentJobId = "";
     setRunning(false);
-    elements.runMessage.textContent = error.message;
+    await loadHistory();
+    elements.runMessage.textContent = historyWasCreated
+      ? `${error.message} Lượt chạy lỗi đã được lưu trong lịch sử.`
+      : error.message;
     elements.logOutput.textContent = error.message;
   }
 }
@@ -769,20 +776,35 @@ function renderHistory(items) {
     return;
   }
   elements.historyList.className = "history-list";
-  elements.historyList.innerHTML = items.map((item) => `
+  elements.historyList.innerHTML = items.map((item) => {
+    const runStatus = item.run_status || (item.has_result ? "completed" : "running");
+    const statusLabel = runStatus === "completed" ? "Hoàn thành" : runStatus === "error" ? "Thất bại" : "Đang chạy";
+    return `
     <article class="history-item">
       <button class="history-open" type="button" data-history-id="${escapeHtml(item.history_id)}">
+        <span class="history-run-status ${escapeHtml(runStatus)}">${statusLabel}</span>
         <strong>${escapeHtml(item.title || "Media workflow")}</strong>
         <span>${escapeHtml(item.created_at || "")} · ${Number(item.ads_count || 0)} ads</span>
         <span>${escapeHtml(item.scan_id || "Chưa có Scan ID")}</span>
-        <small>${escapeHtml(item.keyword || "")} · ${escapeHtml(item.workflow_status || item.cmo_decision || "pending")} · ${Number(item.tasks_count || 0)} đầu việc</small>
+        <small>${escapeHtml(item.error || `${item.keyword || ""} · ${item.workflow_status || item.cmo_decision || "pending"} · ${Number(item.tasks_count || 0)} đầu việc`)}</small>
       </button>
-      <button class="history-delete" type="button" data-delete-history-id="${escapeHtml(item.history_id)}" aria-label="Xóa workflow">Xóa</button>
-    </article>`).join("");
+      <button class="history-delete" type="button" data-delete-history-id="${escapeHtml(item.history_id)}" aria-label="Xóa workflow" ${runStatus === "running" ? "disabled" : ""}>Xóa</button>
+    </article>`;
+  }).join("");
 }
 
 async function openHistory(historyId) {
   const payload = await fetchJson(`/api/history?id=${encodeURIComponent(historyId)}`);
+  if (payload.run_status === "running") {
+    elements.runMessage.textContent = "Workflow này vẫn đang chạy.";
+    elements.logOutput.textContent = payload.logs || "Workflow đang xử lý.";
+    return;
+  }
+  if (payload.run_status === "error" || !payload.result || !Object.keys(payload.result).length) {
+    elements.runMessage.textContent = `Workflow thất bại: ${payload.error || "Không có kết quả để mở."}`;
+    elements.logOutput.textContent = payload.logs || payload.error || "Workflow thất bại.";
+    return;
+  }
   renderResult(payload.result || {}, payload.logs || "Loaded from history.");
   elements.runMessage.textContent = "Đã mở workflow từ lịch sử.";
   window.scrollTo({ top: 0, behavior: "smooth" });

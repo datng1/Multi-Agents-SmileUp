@@ -387,6 +387,32 @@ button:disabled {
   font-size: 11px;
 }
 
+.history-open .history-run-status {
+  width: fit-content;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #eef3f2;
+  color: #52615e;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.history-open .history-run-status.completed {
+  background: #e8f5ee;
+  color: #2f6b4d;
+}
+
+.history-open .history-run-status.error {
+  background: #fff0f0;
+  color: var(--danger);
+}
+
+.history-open .history-run-status.running {
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+}
+
 .history-open:hover {
   background: var(--surface-soft);
 }
@@ -396,6 +422,11 @@ button:disabled {
   border-left: 1px solid var(--line);
   color: var(--danger);
   font-size: 11px;
+}
+
+.history-delete:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .workspace {

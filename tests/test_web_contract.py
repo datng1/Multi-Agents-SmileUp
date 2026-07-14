@@ -41,6 +41,9 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("campaignListToggle.addEventListener", script)
         self.assertIn('campaignDetail.scrollIntoView({ behavior: "smooth", block: "start" })', script)
         self.assertNotIn("elements.productionBrief", script)
+        self.assertIn("historyWasCreated", script)
+        self.assertIn('payload.run_status === "error"', script)
+        self.assertIn("Lượt chạy lỗi đã được lưu trong lịch sử", script)
         for forbidden in ("manualInput", "publishButton", "facebookPreview", "imageUpload", "captionEditor"):
             self.assertNotIn(forbidden, html + script)
 
