@@ -11,10 +11,14 @@ class WebContractTests(unittest.TestCase):
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
         for required_id in (
             "keywordInput", "runButton", "campaignWeeks", "brandPlatform", "teamCount", "planWindow",
-            "adsTableBody", "marketCoverage", "competitorCampaigns", "campaignDetail", "revenueStrategy",
+            "adsTableBody", "marketCoverage", "competitorCampaigns", "campaignListToggle", "campaignDetail",
+            "revenueStrategy",
         ):
             self.assertIn(f'id="{required_id}"', html)
-        for removed_id in ("approvalGates", "workflowGraph", "taskCount", "gateCount"):
+        for removed_id in (
+            "approvalGates", "workflowGraph", "taskCount", "gateCount", "briefTitle", "workflowStatus",
+            "productionBrief", "productionHandoff",
+        ):
             self.assertNotIn(f'id="{removed_id}"', html)
         self.assertIn("100 ads", html)
         self.assertIn("Chiến dịch 1 tháng", html)
@@ -32,6 +36,11 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('target="_blank" rel="noopener noreferrer"', script)
         self.assertIn('hostname !== "facebook.com"', script)
         self.assertNotIn("campaigns.slice(0, 12)", script)
+        self.assertIn("const CAMPAIGN_PREVIEW_LIMIT = 4", script)
+        self.assertIn("campaigns.slice(0, CAMPAIGN_PREVIEW_LIMIT)", script)
+        self.assertIn("campaignListToggle.addEventListener", script)
+        self.assertIn('campaignDetail.scrollIntoView({ behavior: "smooth", block: "start" })', script)
+        self.assertNotIn("elements.productionBrief", script)
         for forbidden in ("manualInput", "publishButton", "facebookPreview", "imageUpload", "captionEditor"):
             self.assertNotIn(forbidden, html + script)
 

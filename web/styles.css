@@ -620,34 +620,12 @@ button:disabled {
   white-space: nowrap;
 }
 
-.brief-output,
 .log-output,
 .report-accordion pre {
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.brief-output {
-  padding: 17px;
-  border-left: 4px solid var(--burgundy);
-  background: #faf7f8;
-  color: #332329;
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-.handoff-note {
-  margin: 12px 0 0;
-  padding: 11px 13px;
-  border: 1px solid #b9d8d3;
-  border-radius: 6px;
-  background: var(--teal-soft);
-  color: var(--teal-dark);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.5;
 }
 
 .market-coverage {
@@ -699,6 +677,29 @@ button:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
+}
+
+.campaign-list-toggle {
+  display: block;
+  min-height: 38px;
+  margin: 12px auto 0;
+  padding: 8px 14px;
+  border: 1px solid #9fc8c2;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--teal-dark);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.campaign-list-toggle:hover {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+
+.campaign-list-toggle:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.22);
+  outline-offset: 2px;
 }
 
 .competitor-campaign {
@@ -779,6 +780,7 @@ button:disabled {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--line);
+  scroll-margin-top: 92px;
 }
 
 .campaign-detail.empty-state {

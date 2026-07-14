@@ -40,6 +40,8 @@ const CAMPAIGN_LABELS = {
   conversion: "Chuyển đổi",
 };
 
+const CAMPAIGN_PREVIEW_LIMIT = 4;
+
 const elements = Object.fromEntries(
   [
     "serviceStatus",
@@ -63,11 +65,9 @@ const elements = Object.fromEntries(
     "planWindow",
     "marketCoverage",
     "competitorCampaigns",
+    "campaignListToggle",
     "campaignDetail",
     "revenueStrategy",
-    "workflowStatus",
-    "productionBrief",
-    "productionHandoff",
     "taskStatusText",
     "brandPlatform",
     "campaignWeeks",
@@ -93,7 +93,13 @@ let officeAnimationFrame = 0;
 let officeAnimationRunning = false;
 let officeStatuses = {};
 let officeCurrentStep = "";
-let marketDrilldown = { campaigns: [], ads: [], workflow: {}, selectedCampaignId: "" };
+let marketDrilldown = {
+  campaigns: [],
+  ads: [],
+  workflow: {},
+  selectedCampaignId: "",
+  campaignsExpanded: false,
+};
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -463,10 +469,6 @@ function renderResult(result, logs = "") {
   elements.hardnessScore.textContent = `${Number(result.hardness_score || 0)}/100`;
   elements.teamCount.textContent = teamRoles.length ? `${teamRoles.length} vai trò` : "Chưa có";
   elements.planWindow.textContent = workflow.planning_horizon || "1 tháng";
-  elements.workflowStatus.textContent = workflow.status || "pending";
-  elements.workflowStatus.className = `status-pill ${workflow.status === "ready_for_dispatch" ? "ready" : "warning"}`;
-  elements.productionBrief.textContent = result.media_production_brief || "Chưa có production brief.";
-  elements.productionHandoff.textContent = result.production_handoff || "Chưa có handoff.";
   elements.taskStatusText.textContent = `${weeks.length} tuần · ${plannedVideos} video`;
 
   const ads = Array.isArray(result.ad_library_ads) ? result.ad_library_ads : [];
@@ -485,12 +487,14 @@ function renderResult(result, logs = "") {
 function renderMarketIntelligence(market, ads = [], workflow = {}) {
   const coverage = market.coverage || {};
   const campaigns = Array.isArray(market.campaigns) ? market.campaigns : [];
-  marketDrilldown = { campaigns, ads, workflow, selectedCampaignId: "" };
+  marketDrilldown = { campaigns, ads, workflow, selectedCampaignId: "", campaignsExpanded: false };
   if (!campaigns.length) {
     elements.marketCoverage.className = "market-coverage empty-state";
     elements.marketCoverage.textContent = "Chưa đủ campaign để đo độ phủ.";
     elements.competitorCampaigns.className = "competitor-campaigns empty-state";
     elements.competitorCampaigns.textContent = "Campaign đối thủ sẽ hiện ở đây.";
+    elements.campaignListToggle.classList.add("hidden");
+    elements.campaignListToggle.setAttribute("aria-expanded", "false");
     elements.campaignDetail.className = "campaign-detail empty-state";
     elements.campaignDetail.textContent = "Chưa có ads nguồn để đối chiếu.";
     return;
@@ -502,9 +506,21 @@ function renderMarketIntelligence(market, ads = [], workflow = {}) {
     <div><span>Campaign</span><strong>${Number(coverage.campaigns_detected || 0)}</strong></div>
     <div><span>Độ phủ</span><strong>${escapeHtml(coverage.coverage_level || "low")} · ${Number(coverage.coverage_score || 0)}/100</strong></div>
     <p>Đối thủ cấu hình đã xác minh: ${Number(coverage.configured_pages_observed || 0)}/${Number(coverage.configured_competitor_pages || 0)} page. ${escapeHtml(coverage.limitation || "")}</p>`;
+  renderCampaignCards();
+  elements.campaignDetail.className = "campaign-detail empty-state";
+  elements.campaignDetail.textContent = "Chọn một campaign để xem ads nguồn và đối chiếu với SmileUp.";
+}
+
+function renderCampaignCards() {
+  const campaigns = marketDrilldown.campaigns;
+  const visibleCampaigns = marketDrilldown.campaignsExpanded
+    ? campaigns
+    : campaigns.slice(0, CAMPAIGN_PREVIEW_LIMIT);
   elements.competitorCampaigns.className = "competitor-campaigns";
-  elements.competitorCampaigns.innerHTML = campaigns.map((campaign) => `
-    <button class="competitor-campaign" type="button" data-campaign-id="${escapeHtml(campaign.campaign_id)}" aria-controls="campaignDetail" aria-expanded="false">
+  elements.competitorCampaigns.innerHTML = visibleCampaigns.map((campaign) => {
+    const selected = campaign.campaign_id === marketDrilldown.selectedCampaignId;
+    return `
+    <button class="competitor-campaign${selected ? " selected" : ""}" type="button" data-campaign-id="${escapeHtml(campaign.campaign_id)}" aria-controls="campaignDetail" aria-expanded="${selected ? "true" : "false"}">
       <div><strong>${escapeHtml(campaign.page_name)}</strong><span>${Number(campaign.ad_count || 0)} ads</span></div>
       <h3>${escapeHtml(campaignLabel(campaign.service_line))} · ${escapeHtml(campaignLabel(campaign.angle))}</h3>
       <p>${escapeHtml(campaignLabel(campaign.funnel_stage))} · áp lực ${Number(campaign.market_pressure_score || 0)}/100</p>
@@ -513,9 +529,15 @@ function renderMarketIntelligence(market, ads = [], workflow = {}) {
         <div><dt>Yếu</dt><dd>${escapeHtml((campaign.weaknesses || []).join("; "))}</dd></div>
       </dl>
       <span class="campaign-open-label">Xem ads và đối chiếu</span>
-    </button>`).join("");
-  elements.campaignDetail.className = "campaign-detail empty-state";
-  elements.campaignDetail.textContent = "Chọn một campaign để xem ads nguồn và đối chiếu với SmileUp.";
+    </button>`;
+  }).join("");
+
+  const remaining = Math.max(0, campaigns.length - CAMPAIGN_PREVIEW_LIMIT);
+  elements.campaignListToggle.classList.toggle("hidden", remaining === 0);
+  elements.campaignListToggle.setAttribute("aria-expanded", marketDrilldown.campaignsExpanded ? "true" : "false");
+  elements.campaignListToggle.textContent = marketDrilldown.campaignsExpanded
+    ? "Thu gọn danh sách"
+    : `Xem thêm ${remaining} campaign`;
 }
 
 function resolveCampaignAds(campaign, ads) {
@@ -800,9 +822,13 @@ elements.competitorCampaigns.addEventListener("click", (event) => {
   const campaignButton = event.target.closest("[data-campaign-id]");
   if (!campaignButton) return;
   renderCampaignDetail(campaignButton.dataset.campaignId);
-  if (window.matchMedia("(max-width: 620px)").matches) {
+  window.requestAnimationFrame(() => {
     elements.campaignDetail.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  });
+});
+elements.campaignListToggle.addEventListener("click", () => {
+  marketDrilldown.campaignsExpanded = !marketDrilldown.campaignsExpanded;
+  renderCampaignCards();
 });
 
 renderAgentProgress();
