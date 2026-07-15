@@ -44,6 +44,8 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("historyWasCreated", script)
         self.assertIn('payload.run_status === "error"', script)
         self.assertIn("Lượt chạy lỗi đã được lưu trong lịch sử", script)
+        self.assertIn("scheduleHistoryRefresh(items)", script)
+        self.assertIn('item.run_status === "running"', script)
         for forbidden in ("manualInput", "publishButton", "facebookPreview", "imageUpload", "captionEditor"):
             self.assertNotIn(forbidden, html + script)
 

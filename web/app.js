@@ -93,6 +93,7 @@ let officeAnimationFrame = 0;
 let officeAnimationRunning = false;
 let officeStatuses = {};
 let officeCurrentStep = "";
+let historyRefreshTimer = 0;
 let marketDrilldown = {
   campaigns: [],
   ads: [],
@@ -762,11 +763,24 @@ function renderAds(ads, keyword = "") {
 async function loadHistory() {
   try {
     const payload = await fetchJson("/api/history");
-    renderHistory(payload.items || []);
+    const items = payload.items || [];
+    renderHistory(items);
+    scheduleHistoryRefresh(items);
   } catch (error) {
+    window.clearTimeout(historyRefreshTimer);
+    historyRefreshTimer = 0;
     elements.historyList.className = "history-list empty-state";
     elements.historyList.textContent = error.message;
   }
+}
+
+function scheduleHistoryRefresh(items) {
+  window.clearTimeout(historyRefreshTimer);
+  historyRefreshTimer = 0;
+  if (!items.some((item) => item.run_status === "running")) return;
+  historyRefreshTimer = window.setTimeout(() => {
+    loadHistory();
+  }, 5000);
 }
 
 function renderHistory(items) {
